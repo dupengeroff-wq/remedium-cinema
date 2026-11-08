@@ -1,1 +1,18 @@
-{"name":"remedium-cinema","version":"1.0.0","type":"module","scripts":{"start":"node server.js"},"dependencies":{"express":"^4.21.2","socket.io":"^4.8.1"},"engines":{"node":">=18"}}
+
+{
+  "name": "remedium-cinema",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "REMEDIUM CINEMA 2.0 — private watch party",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
