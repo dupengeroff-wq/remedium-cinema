@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "REMEDIUM CINEMA 2.0 — private watch party",
+  "description": "REMEDIUM CINEMA — совместный просмотр фильмов",
   "scripts": {
     "start": "node server.js"
   },
