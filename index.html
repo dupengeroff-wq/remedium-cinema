@@ -4,495 +4,826 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#090b10">
-<title>REMEDIUM CINEMA — Вместе</title>
+<meta name="theme-color" content="#070809">
+<title>REMEDIUM CINEMA 2.0</title>
 <style>
-:root{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f3eadb;background:#090b10}
+:root{
+  color-scheme:dark;
+  --bg:#070809;
+  --panel:#131519;
+  --gold:#d9bd88;
+  --muted:#96989f;
+  --line:#ffffff1b;
+  --text:#f3f1ed;
+}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% 0%,#4436216e,transparent 40%),radial-gradient(ellipse at 100% 80%,#242b3d,transparent 48%),#090b10}
-button,input,select{font:inherit}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{background:radial-gradient(ellipse at 50% -15%,#ad82401a,transparent 55%),#070809}
+button,input{font:inherit}
 button{cursor:pointer}
-button:disabled{opacity:.5;cursor:not-allowed}
-.shell{max-width:1320px;margin:auto;padding:24px 20px 50px}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;gap:12px}
-.brand{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:750;letter-spacing:2px;color:#e9d3a5}
-.logo{display:grid;place-items:center;width:42px;height:42px;border:1px solid #c8a76b80;border-radius:14px;background:#d8b97914;color:#e7c78a}
-.tag{color:#9e9ca1;font-size:12px}
-.glass{background:linear-gradient(135deg,#ffffff12,#ffffff05);border:1px solid #ffffff1c;box-shadow:0 18px 65px #0007,inset 0 1px #ffffff12;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:22px}
-.hero{padding:25px;margin-bottom:20px}
-.hero h1{font-size:clamp(25px,4vw,42px);font-weight:650;margin:0 0 8px}
-.hero p{margin:0;color:#a7a6ac;font-size:14px;line-height:1.6}
-.gold{color:#e6c88c}
-.setup{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:23px}
-.field{width:100%;padding:14px 16px;border:1px solid #ffffff1c;background:#12151ebd;color:white;border-radius:12px;outline:none;min-width:0}
-.field:focus{border-color:#d8b978}
-.btn{border:1px solid #ffffff23;border-radius:12px;background:#ffffff0c;color:#f4e9d4;padding:13px 17px;white-space:nowrap}
-.btn.primary{background:linear-gradient(120deg,#e3c68d,#a8844b);color:#1a1713;font-weight:750;border:none}
-.btn:hover{filter:brightness(1.1)}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
-.screen{overflow:hidden}
-.screenhead{padding:17px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.eyebrow{font-size:11px;color:#9e9ca1;text-transform:uppercase;letter-spacing:2px}
-.status{font-size:12px;color:#a5d8ac}
-.player{aspect-ratio:16/9;background:#050608;display:grid;place-items:center;position:relative;overflow:hidden}
-.placeholder{text-align:center;color:#9c978e;padding:25px}
-.placeholder .big{font-size:60px;color:#bda06d}
-.placeholder h2{font-size:22px;color:#e7d7b9;margin:10px 0}
-video,#yt,#vk{width:100%;height:100%;display:none;background:#000}
-#yt iframe,#vk iframe{width:100%;height:100%;border:0}
-.controls{padding:16px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.controls .field{flex:1;min-width:180px}
-.roomrow{padding:0 20px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.roomcode{font-size:13px;color:#aaa}
-.chat{height:620px;display:flex;flex-direction:column;overflow:hidden}
-.chathead{padding:20px;border-bottom:1px solid #ffffff16;display:flex;justify-content:space-between}
-.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-.bubble{max-width:92%;align-self:flex-start;background:#ffffff10;border:1px solid #ffffff0c;border-radius:15px 15px 15px 5px;padding:10px 13px;overflow-wrap:anywhere}
-.bubble.mine{align-self:flex-end;background:#a4864b42;border-color:#bda06d3b;border-radius:15px 15px 5px 15px}
-.who{color:#d8bc86;font-size:11px;margin-bottom:5px}
-.message{font-size:13px;line-height:1.5;white-space:pre-wrap}
-.chatinput{display:flex;gap:8px;padding:13px;border-top:1px solid #ffffff16}
-.chatinput .field{padding:11px}
-.hint{color:#92919a;font-size:12px;line-height:1.6;margin-top:15px}
-.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:12px;background:#292a31;border:1px solid #e0bd80;color:#f5e8d0;display:none;z-index:20;max-width:90vw}
-.sub{font-size:12px;color:#b5a98f}
-.empty{color:#89878c;font-size:13px;text-align:center;margin:auto}
-.providers{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
-.providers a{font-size:12px;text-decoration:none;color:#d4bc8c;background:#ffffff0b;padding:8px 12px;border-radius:10px;border:1px solid #ffffff14}
-.hostrow{padding:0 20px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.hostrow select{flex:1;min-width:120px;max-width:250px}
-.hostlabel{font-size:12px;color:#d9bd85}
-@media(max-width:850px){
+button:disabled,input:disabled{opacity:.45;cursor:not-allowed}
+button{transition:.2s}
+button:hover:not(:disabled){filter:brightness(1.15)}
+.hidden{display:none!important}
+.wrap{max-width:1500px;margin:auto;padding:0 25px 40px}
+header{height:75px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px;font-size:14px;font-weight:800;letter-spacing:2px}
+.brand-icon{height:38px;width:38px;border:1px solid #d9bd8870;border-radius:12px;display:grid;place-items:center;color:var(--gold);background:#d9bd8810}
+.gold{color:var(--gold)}
+.small{font-size:11px;color:var(--muted)}
+.intro{padding:32px 0 25px;display:flex;align-items:end;justify-content:space-between;gap:15px}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--gold)}
+h1{font-size:clamp(26px,4vw,43px);font-weight:600;letter-spacing:-1px;margin:10px 0}
+.intro p{font-size:13px;color:var(--muted);margin:0}
+.btn{border:1px solid var(--line);border-radius:11px;padding:12px 16px;background:#ffffff0d;color:var(--text);font-size:12px;font-weight:650}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#17130d}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 335px;gap:18px;align-items:start}
+.stage{min-width:0}
+.player-shell{border:1px solid #ffffff23;border-radius:19px;overflow:hidden;background:#000;box-shadow:0 25px 65px #0009}
+.screen{position:relative;aspect-ratio:16/9;background:radial-gradient(ellipse at 60% 40%,#302b27,#101114 55%,#030405)}
+.screen video,.screen .embed{position:absolute;inset:0;width:100%;height:100%;display:none;background:#000}
+.embed iframe{width:100%;height:100%;border:0}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+.orb{width:80px;height:80px;border-radius:50%;border:1px solid #d9bd8850;display:grid;place-items:center;font-size:35px;color:var(--gold);background:#d9bd880d;box-shadow:0 0 90px #d9bd8820}
+.placeholder h2{font-size:23px;font-weight:500;margin:17px 0 8px}
+.placeholder p{color:var(--muted);font-size:12px}
+.screen-top{position:absolute;top:16px;left:17px;right:17px;z-index:5;display:flex;justify-content:space-between;pointer-events:none}
+.screen-chip{font-size:10px;letter-spacing:1px;padding:8px 11px;border:1px solid #ffffff26;border-radius:10px;background:#111318a0;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.floating{position:absolute;z-index:6;top:70px;left:18px;display:flex;flex-direction:column;gap:9px;width:min(330px,75%);pointer-events:none}
+.float-item{display:flex;align-items:start;gap:8px;animation:appear .3s ease}
+.float-bubble{padding:10px 13px;border:1px solid #ffffff35;border-radius:15px 15px 15px 4px;background:#25272a80;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 9px 30px #0005;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.float-bubble b{color:var(--gold)}
+@keyframes appear{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.screen-bottom{position:absolute;bottom:15px;left:17px;z-index:5;pointer-events:none}
+.controls{padding:13px 16px;display:flex;align-items:center;gap:10px;background:#101115;border-top:1px solid var(--line)}
+.iconbtn{height:36px;min-width:36px;padding:0 9px;background:#ffffff0c;border:1px solid var(--line);border-radius:10px;color:white}
+.seek{flex:1;min-width:0;accent-color:var(--gold)}
+.time{font-size:10px;color:#aaa;white-space:nowrap;font-variant-numeric:tabular-nums}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:24px 0 12px;gap:10px}
+.section-title h2{font-size:17px;font-weight:600;margin:0}
+.role{font-size:11px;color:var(--gold)}
+.movie-form{display:flex;gap:9px;padding:11px;background:#ffffff08;border:1px solid var(--line);border-radius:13px}
+.field{min-width:0;padding:12px 13px;background:#090a0e;border:1px solid #ffffff24;border-radius:10px;color:white;font-size:12px;outline:none}
+.field:focus{border-color:#d9bd8880}
+.movie-form .field{flex:1}
+.meta{display:flex;justify-content:space-between;gap:10px;margin-top:13px;color:var(--muted);font-size:11px;flex-wrap:wrap}
+.chat{height:640px;display:flex;flex-direction:column;border:1px solid #ffffff20;border-radius:19px;background:linear-gradient(145deg,#1a1c21c9,#0d0f13ed);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);overflow:hidden;box-shadow:0 20px 50px #0006}
+.chat-header{padding:20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.chat-header h2{margin:5px 0 0;font-size:17px;font-weight:600}
+.messages{flex:1;overflow:auto;padding:18px 14px;display:flex;flex-direction:column;gap:15px}
+.chat-empty{margin:auto;color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
+.chat-item{display:flex;align-items:flex-start;gap:9px}
+.avatar{width:31px;height:31px;flex:none;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#dfc18c,#746046);color:#1c160e;font-weight:800;font-size:12px}
+.chat-item.mine .avatar{background:linear-gradient(135deg,#a3b0c2,#4d5b70);color:white}
+.chat-name{font-size:11px;color:var(--gold);font-weight:700;margin-bottom:5px}
+.chat-bubble{display:inline-block;padding:10px 12px;border:1px solid #ffffff14;background:#ffffff11;border-radius:4px 13px 13px 13px;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-date{font-size:9px;color:#777a80;margin-top:5px}
+.chat-form{padding:12px;display:flex;gap:8px;border-top:1px solid var(--line)}
+.chat-form .field{flex:1}
+.chat-form .btn{padding:10px 14px}
+.info{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.info-card{border:1px solid var(--line);background:#ffffff07;border-radius:14px;padding:18px}
+.info-card h3{font-size:13px;margin:9px 0}
+.info-card p{font-size:11px;color:var(--muted);line-height:1.6;margin:0}
+.overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px;background:#000c;backdrop-filter:blur(14px)}
+.modal{width:min(430px,100%);padding:28px;border:1px solid #d9bd8850;border-radius:23px;background:linear-gradient(145deg,#222329,#0d0f13);box-shadow:0 30px 90px #000b}
+.modal h2{font-size:25px;font-weight:600;margin:12px 0}
+.modal p{font-size:12px;line-height:1.7;color:var(--muted);margin:0 0 20px}
+.modal .field{width:100%;margin-bottom:10px;padding:15px}
+.modal .btn{width:100%;padding:15px}
+.modal-note{font-size:11px;color:var(--muted);text-align:center;margin-top:16px}
+.toast{position:fixed;z-index:60;bottom:24px;left:50%;transform:translateX(-50%);background:#24221f;border:1px solid #d9bd8880;padding:12px 17px;border-radius:12px;font-size:12px;display:none;max-width:90vw}
+.exit-theater{display:none;position:absolute;z-index:10;right:17px;bottom:65px}
+body.theater .wrap{max-width:none;padding:0}
+body.theater header,body.theater .intro,body.theater .chat,body.theater .section-title,body.theater .movie-form,body.theater .meta,body.theater .info,body.theater .controls{display:none}
+body.theater .layout{display:block}
+body.theater .player-shell{border:0;border-radius:0}
+body.theater .screen{height:100dvh;aspect-ratio:auto}
+body.theater .exit-theater{display:block}
+@media(max-width:900px){
+.wrap{padding:0 12px 30px}
 .layout{grid-template-columns:1fr}
 .chat{height:390px}
-.setup{grid-template-columns:1fr}
-.shell{padding:16px 12px 35px}
-.hero{padding:20px}
-.brand{font-size:15px}
-.tag{display:none}
-.controls{padding:12px}
-.screenhead{padding:15px}
-.roomrow{padding:0 12px 15px}
-.hostrow{padding:0 12px 15px}
+.intro{padding:25px 4px;align-items:start}
+.intro h1{font-size:29px}
+.intro p{max-width:260px}
+.info{grid-template-columns:1fr 1fr}
+.header-right{display:none}
+.controls{gap:6px;padding:10px}
+.iconbtn{min-width:32px;height:33px}
+.time{font-size:9px}
+}
+@media(max-width:480px){
+.brand{font-size:12px;letter-spacing:1.4px}
+.intro{flex-direction:column;gap:18px}
+.intro .btn{width:100%}
+.movie-form{flex-wrap:wrap}
+.movie-form .field{flex-basis:100%}
+.movie-form .btn{flex:1}
+.info{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
-<main class="shell">
-<header class="top">
-<div class="brand"><span class="logo">▶</span> REMEDIUM <span class="gold">CINEMA</span></div>
-<span class="tag">ВАШЕ КИНО. ВАШ МОМЕНТ.</span>
+
+<div class="wrap">
+<header>
+  <div class="brand">
+    <span class="brand-icon">▶</span>
+    REMEDIUM <span class="gold">CINEMA</span>
+  </div>
+  <div class="small">PRIVATE WATCH PARTY · 2.0</div>
 </header>
-<section class="hero glass">
-<div class="eyebrow gold">PRIVATE WATCH PARTY</div>
-<h1>Смотрите <span class="gold">вместе.</span> Даже на расстоянии.</h1>
-<p>Создайте комнату, отправьте приглашение и наслаждайтесь просмотром с общим чатом и синхронизацией.</p>
-<div class="setup">
-<input id="name" class="field" maxlength="24" placeholder="Твоё имя">
-<input id="room" class="field" placeholder="Код комнаты (или оставь пустым)">
-<button id="join" class="btn primary">Создать / войти →</button>
-</div>
-<div class="providers">
-<a href="https://www.youtube.com" target="_blank" rel="noopener">YouTube ↗</a>
-<a href="https://rutube.ru" target="_blank" rel="noopener">Rutube ↗</a>
-<a href="https://vkvideo.ru" target="_blank" rel="noopener">VK Видео ↗</a>
-</div>
+
+<section class="intro">
+  <div>
+    <div class="eyebrow">YOUR PRIVATE CINEMA</div>
+    <h1>Кино. <span class="gold">Только для вас.</span></h1>
+    <p>Один экран. Два сердца. Любое расстояние.</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button id="invite" class="btn" disabled>↗ Пригласить</button>
+    <button id="theater" class="btn primary">⛶ Режим кино</button>
+  </div>
 </section>
+
 <div class="layout">
-<section class="glass screen">
-<div class="screenhead">
-<div><div class="eyebrow">КИНОЗАЛ</div><strong>Совместный просмотр</strong></div>
-<span id="status" class="status">● Не подключено</span>
-</div>
-<div class="player">
-<div id="placeholder" class="placeholder">
-<div class="big">▷</div>
-<h2>Ваш экран ждёт</h2>
-<div>Войдите в комнату и вставьте ссылку на видео</div>
-</div>
-<video id="video" controls playsinline></video>
-<div id="yt"></div>
-<div id="vk"></div>
-</div>
-<div class="controls">
-<input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4 / WebM">
-<button id="load" class="btn primary" disabled>Включить</button>
-</div>
-<div class="roomrow">
-<span id="roomcode" class="roomcode">Комната не создана</span>
-<button id="invite" class="btn" disabled>↗ Пригласить</button>
-<button id="sync" class="btn" disabled>↻ Синхронизировать</button>
-</div>
-<div class="hostrow">
-<span id="hostlabel" class="hostlabel">👑 Хост: —</span>
-<select id="hostTarget" class="field" style="display:none"></select>
-<button id="transfer" class="btn" style="display:none">Передать роль</button>
-</div>
-</section>
-<aside class="glass chat">
-<div class="chathead">
-<div><div class="eyebrow">НАШ УГОЛОК</div><strong>Общий чат ♡</strong></div>
-<span class="sub" id="count">0 онлайн</span>
-</div>
-<div id="messages" class="messages">
-<div class="empty">Сообщения появятся здесь ✨</div>
-</div>
-<form id="chatForm" class="chatinput">
-<input id="message" class="field" placeholder="Написать сообщение..." maxlength="1000" disabled>
-<button id="send" class="btn primary" disabled>➤</button>
-</form>
+<main class="stage">
+  <div class="player-shell">
+    <div class="screen">
+      <div id="placeholder" class="placeholder">
+        <div class="orb">▷</div>
+        <h2>Ваш личный кинозал</h2>
+        <p>Выберите фильм и начните смотреть вместе.</p>
+      </div>
+
+      <video id="video" playsinline></video>
+      <div id="yt" class="embed"></div>
+      <div id="vk" class="embed"></div>
+
+      <div class="screen-top">
+        <span id="screenRoom" class="screen-chip">REMEDIUM CINEMA</span>
+        <span id="playingBadge" class="screen-chip">● ОЖИДАНИЕ</span>
+      </div>
+
+      <div id="floating" class="floating"></div>
+
+      <div class="screen-bottom">
+        <span id="hostBadge" class="screen-chip">♛ PRIVATE ROOM</span>
+      </div>
+
+      <button id="exitTheater" class="btn exit-theater">⤢ Выйти</button>
+    </div>
+
+    <div class="controls">
+      <button id="play" class="iconbtn" disabled>▶</button>
+      <button id="back" class="iconbtn" disabled>↶</button>
+      <button id="forward" class="iconbtn" disabled>↷</button>
+      <span id="elapsed" class="time">0:00</span>
+      <input id="progress" class="seek" type="range" min="0" max="100" value="0" disabled>
+      <span id="duration" class="time">0:00</span>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h2>Сейчас смотрим</h2>
+    <span id="role" class="role">♛ ПРИВАТНЫЙ КИНОЗАЛ</span>
+  </div>
+
+  <div class="movie-form">
+    <input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4">
+    <button id="load" class="btn primary" disabled>▶ Включить фильм</button>
+  </div>
+
+  <div class="meta">
+    <span id="roomInfo">Комната ещё не создана</span>
+    <span id="status">● Не подключено</span>
+  </div>
+
+  <div class="info">
+    <div class="info-card">
+      <div class="eyebrow">♛ THE HOST</div>
+      <h3>Управляет создатель</h3>
+      <p>Только создатель комнаты запускает, останавливает и перематывает фильм.</p>
+    </div>
+    <div class="info-card">
+      <div class="eyebrow">✦ LIVE CHAT</div>
+      <h3>Сообщения поверх кино</h3>
+      <p>Новые сообщения появляются на экране в полупрозрачных стеклянных пузырьках.</p>
+    </div>
+  </div>
+</main>
+
+<aside class="chat">
+  <div class="chat-header">
+    <div>
+      <div class="eyebrow">OUR LITTLE SPACE</div>
+      <h2>Наш чат ♡</h2>
+    </div>
+    <span id="online" class="small">0 онлайн</span>
+  </div>
+
+  <div id="messages" class="messages">
+    <div class="chat-empty">Здесь начнётся ваша история ✦</div>
+  </div>
+
+  <form id="chatForm" class="chat-form">
+    <input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled>
+    <button id="send" class="btn primary" disabled>➤</button>
+  </form>
 </aside>
 </div>
-<p class="hint">Комната, сообщения и фильм сохраняются при отключении. Если Safari выгрузит вкладку, подключение восстановится автоматически. На бесплатном Render локальный файл сохранения может исчезнуть при новом развёртывании или замене экземпляра сервера. Для постоянного хранения потребуется внешняя база данных. Воспроизведение в фоне на iPhone не гарантируется. Некоторые видео запрещают встраивание; синхронизация VK зависит от его API.</p>
-</main>
-<div class="toast" id="toast" role="status"></div>
+</div>
+
+<div id="entry" class="overlay">
+  <div class="modal">
+    <div class="eyebrow">REMEDIUM CINEMA</div>
+    <h2>Добро пожаловать <span class="gold">♡</span></h2>
+    <p>Создай свой кинозал или войди по приглашению. Регистрация не нужна.</p>
+    <input id="name" class="field" maxlength="24" placeholder="Твоё имя">
+    <input id="room" class="field" placeholder="Код комнаты (необязательно)">
+    <button id="join" class="btn primary">Продолжить →</button>
+    <div class="modal-note">Один создаёт комнату и управляет просмотром. Другой смотрит и общается.</div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const socket=io();
-const v=$('video');
-let room='',self='',media=null,ytPlayer=null,vkPlayer=null;
-let remoteUntil=0,lastSync=0,playerGeneration=0;
-let isHost=false,joining=false,roomState=null;
-const key=id=>'rc-token-'+id;
-function toast(s){
- $('toast').textContent=s;
- $('toast').style.display='block';
- clearTimeout(toast.timer);
- toast.timer=setTimeout(()=>$('toast').style.display='none',3500);
+const video=$('video');
+
+let room='',self='',media=null,isHost=false;
+let ytPlayer=null,vkPlayer=null;
+let generation=0,joining=false;
+let clock=0,playingState=false,remoteUntil=0,lastSync=0;
+let knownDuration=0;
+
+function toast(text){
+  $('toast').textContent=text;
+  $('toast').style.display='block';
+  clearTimeout(toast.timer);
+  toast.timer=setTimeout(()=>$('toast').style.display='none',3200);
 }
-function roomId(){
- const a=new Uint8Array(9);
- crypto.getRandomValues(a);
- return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');
+
+function randomRoom(){
+  const bytes=new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
 }
+
+function tokenKey(id){return 'rc-token-'+id}
+
 const params=new URLSearchParams(location.search);
 $('room').value=params.get('room')||localStorage.getItem('rc-room')||'';
 $('name').value=localStorage.getItem('rc-name')||'';
+
 function join(auto=false){
- if(joining||!socket.connected)return;
- const id=$('room').value.trim()||(auto?'':roomId());
- if(!id)return;
- const name=$('name').value.trim()||'Гость';
- joining=true;
- socket.emit('join',{
-  room:id,
-  name,
-  token:localStorage.getItem(key(id))||''
- },res=>{
-  joining=false;
-  if(res?.error)return toast(res.error);
-  if(!res?.ok)return;
-  const changed=room!==id;
-  room=id;
-  self=res.id;
-  isHost=!!res.isHost;
-  localStorage.setItem('rc-name',name);
-  localStorage.setItem('rc-room',id);
-  localStorage.setItem(key(id),res.token);
-  $('room').value=id;
-  history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));
-  for(const k of ['invite','sync','message','send'])$(k).disabled=false;
-  $('load').disabled=!isHost;
-  $('status').textContent='● Подключено';
-  $('roomcode').textContent='Комната: '+id;
-  if(changed){
-   media=null;
-   $('messages').dataset.loaded='';
-  }
-  if(!auto)toast('Вы в комнате!');
- });
+  if(joining||!socket.connected)return;
+
+  const id=$('room').value.trim()||(auto?'':randomRoom());
+  if(!id)return;
+
+  const name=$('name').value.trim()||'Гость';
+  joining=true;
+
+  socket.emit('join',{
+    room:id,
+    name,
+    token:localStorage.getItem(tokenKey(id))||''
+  },res=>{
+    joining=false;
+
+    if(!res?.ok){
+      if(res?.error)toast(res.error);
+      return;
+    }
+
+    const changed=room!==id;
+    room=id;
+    self=res.id;
+    isHost=!!res.isHost;
+
+    localStorage.setItem('rc-room',id);
+    localStorage.setItem('rc-name',name);
+    localStorage.setItem(tokenKey(id),res.token);
+
+    $('room').value=id;
+    history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));
+    $('entry').classList.add('hidden');
+    $('invite').disabled=false;
+    $('message').disabled=false;
+    $('send').disabled=false;
+
+    $('roomInfo').textContent='КОМНАТА · '+id;
+    $('screenRoom').textContent='● ROOM '+id.slice(0,6).toUpperCase();
+    $('status').textContent='● Подключено';
+
+    if(changed){
+      media=null;
+      $('messages').dataset.loaded='';
+    }
+
+    updateHost();
+
+    if(!auto)toast('Добро пожаловать в кинозал ♡');
+  });
 }
-$('join').onclick=()=>join(false);
+
+$('join').onclick=()=>join();
+
 $('invite').onclick=async()=>{
- const url=location.origin+location.pathname+'?room='+encodeURIComponent(room);
- try{
-  if(navigator.share){
-   await navigator.share({
-    title:'REMEDIUM CINEMA',
-    text:'Смотрим кино вместе ♡',
-    url
-   });
-  }else{
-   await navigator.clipboard.writeText(url);
-   toast('Ссылка скопирована');
-  }
- }catch{
-  toast('Приглашение: '+url);
- }
-};
-$('load').onclick=()=>{
- if(!room)return toast('Сначала войдите в комнату');
- socket.emit('media',{url:$('url').value.trim()},res=>{
-  if(res?.error)toast(res.error);
- });
-};
-$('sync').onclick=()=>socket.emit('request-sync');
-$('transfer').onclick=()=>{
- const id=$('hostTarget').value;
- if(!id)return;
- const who=$('hostTarget').selectedOptions[0]?.textContent||'участнику';
- if(!confirm('Передать роль хоста '+who+'?'))return;
- socket.emit('transfer-host',{socketId:id},res=>{
-  if(res?.error)toast(res.error);
- });
-};
-$('chatForm').onsubmit=e=>{
- e.preventDefault();
- const s=$('message').value.trim();
- if(!s||!room)return;
- socket.emit('chat',s);
- $('message').value='';
-};
-function append(msg){
- const el=document.createElement('div');
- el.className='bubble'+(msg.sender===self?' mine':'');
- const who=document.createElement('div');
- who.className='who';
- who.textContent=msg.name+' · '+new Date(msg.at).toLocaleTimeString('ru-RU',{
-  hour:'2-digit',minute:'2-digit'
- });
- const body=document.createElement('div');
- body.className='message';
- body.textContent=msg.text;
- el.append(who,body);
- $('messages').append(el);
- $('messages').scrollTop=$('messages').scrollHeight;
-}
-socket.on('chat',msg=>{
- if($('messages').querySelector('.empty'))$('messages').textContent='';
- append(msg);
-});
-socket.on('room-state',state=>{
- if(!room)return;
- roomState=state;
- $('count').textContent=state.users.length+' онлайн';
- isHost=!!state.users.find(u=>u.id===self)?.isHost;
- $('load').disabled=!isHost;
- $('hostlabel').textContent='👑 Хост: '+(state.hostName||'—')+(isHost?' (ты)':'');
- const others=state.users.filter(u=>u.id!==self);
- $('hostTarget').replaceChildren();
- for(const u of others){
-  const option=document.createElement('option');
-  option.value=u.id;
-  option.textContent=u.name;
-  $('hostTarget').append(option);
- }
- $('hostTarget').style.display=isHost&&others.length?'block':'none';
- $('transfer').style.display=isHost&&others.length?'block':'none';
- const mediaChanged=JSON.stringify(media)!==JSON.stringify(state.media);
- if(mediaChanged){
-  media=state.media;
-  showMedia(media);
-  $('url').value=media?.url||'';
- }
- if(!$('messages').dataset.loaded){
-  $('messages').textContent='';
-  state.messages.forEach(append);
-  $('messages').dataset.loaded='1';
-  if(!state.messages.length){
-   $('messages').innerHTML='<div class="empty">Пока здесь тихо ✨</div>';
-  }
- }
- if(media&&mediaChanged){
-  applySync({time:state.time,playing:state.playing});
- }
-});
-socket.on('sync',applySync);
-socket.on('host-changed',x=>toast('Новый хост: '+x.name));
-function showMedia(m){
- const gen=++playerGeneration;
- v.pause();
- v.style.display='none';
- v.removeAttribute('src');
- v.load();
- $('yt').style.display='none';
- $('vk').style.display='none';
- if(ytPlayer){
-  try{ytPlayer.destroy()}catch{}
-  ytPlayer=null;
- }
- if(vkPlayer){
-  try{vkPlayer.destroy?.()}catch{}
-  vkPlayer=null;
- }
- $('yt').replaceChildren();
- $('vk').replaceChildren();
- $('placeholder').style.display=m?'none':'block';
- if(!m)return;
- if(m.type==='video'){
-  v.src=m.url;
-  v.style.display='block';
-  return;
- }
- if(m.type==='vk'){
-  showVK(m,gen);
-  return;
- }
- if(m.type==='youtube'){
-  const div=document.createElement('div');
-  div.id='ytframe';
-  $('yt').append(div);
-  $('yt').style.display='block';
-  if(window.YT?.Player){
-   createYT(m.id,gen);
-  }else{
-   window.onYouTubeIframeAPIReady=()=>{
-    if(media?.type==='youtube'&&gen===playerGeneration){
-     createYT(media.id,gen);
-    }
-   };
-   if(!document.getElementById('ytapi')){
-    const s=document.createElement('script');
-    s.id='ytapi';
-    s.src='https://www.youtube.com/iframe_api';
-    document.head.append(s);
-   }
-  }
- }
-}
-function createYT(id,gen){
- if(gen!==playerGeneration||!$('ytframe'))return;
- ytPlayer=new YT.Player('ytframe',{
-  width:'100%',
-  height:'100%',
-  videoId:id,
-  playerVars:{
-   playsinline:1,
-   origin:location.origin,
-   rel:0
-  },
-  events:{
-   onReady:()=>socket.emit('request-sync'),
-   onStateChange:e=>{
-    if(!isHost||Date.now()<remoteUntil)return;
-    if(e.data===1||e.data===2||e.data===0)sendSync();
-   }
-  }
- });
-}
-function showVK(m,gen){
- const container=$('vk');
- container.style.display='block';
- const frame=document.createElement('iframe');
- frame.id='vkframe';
- const url=new URL(m.embed);
- url.hostname='vk.com';
- url.searchParams.set('js_api','1');
- frame.src=url.href;
- frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
- frame.allowFullscreen=true;
- container.append(frame);
- let initialized=false;
- function init(){
-  if(initialized||gen!==playerGeneration||media?.type!=='vk'||!window.VK?.VideoPlayer)return;
+  const url=location.origin+location.pathname+'?room='+encodeURIComponent(room);
+
   try{
-   const player=VK.VideoPlayer(frame);
-   vkPlayer=player;
-   initialized=true;
-   const E=VK.VideoPlayer.Events||{};
-   for(const k of ['started','resumed','paused']){
-    if(E[k]){
-     player.on(E[k],()=>{
-      if(gen===playerGeneration&&isHost&&Date.now()>=remoteUntil)sendSync();
-     });
+    if(navigator.share){
+      await navigator.share({
+        title:'REMEDIUM CINEMA',
+        text:'Смотрим кино вместе ♡',
+        url
+      });
+    }else{
+      await navigator.clipboard.writeText(url);
+      toast('Ссылка приглашения скопирована');
     }
-   }
-   if(E.inited){
-    player.on(E.inited,()=>socket.emit('request-sync'));
-   }else{
-    socket.emit('request-sync');
-   }
-  }catch(e){
-   console.warn('VK API:',e);
+  }catch{
+    toast('Не удалось поделиться ссылкой');
   }
- }
- frame.addEventListener('load',init);
- if(window.VK?.VideoPlayer){
-  init();
- }else{
-  let script=document.getElementById('vkapi');
-  if(!script){
-   script=document.createElement('script');
-   script.id='vkapi';
-   script.src='https://vk.com/js/api/videoplayer.js';
-   document.head.append(script);
+};
+
+function updateHost(){
+  $('load').disabled=!isHost;
+  $('url').disabled=!isHost;
+
+  for(const id of ['play','back','forward','progress']){
+    $(id).disabled=!isHost||!media;
   }
-  script.addEventListener('load',init,{once:true});
- }
+
+  $('role').textContent=isHost?'♛ ВЫ УПРАВЛЯЕТЕ':'♧ РЕЖИМ ГОСТЯ';
+  $('hostBadge').textContent=isHost?'♛ Вы создатель':'♛ Управляет создатель';
+
+  video.controls=isHost;
+  video.style.pointerEvents=isHost?'auto':'none';
+  $('yt').style.pointerEvents=isHost?'auto':'none';
+  $('vk').style.pointerEvents=isHost?'auto':'none';
 }
-function currentTime(){
- try{
-  if(media?.type==='youtube')return ytPlayer?.getCurrentTime()||0;
-  if(media?.type==='vk')return vkPlayer?.getCurrentTime()||0;
-  return v.currentTime||0;
- }catch{return 0}
-}
-function playing(){
- try{
-  if(media?.type==='youtube')return ytPlayer?.getPlayerState()===1;
-  if(media?.type==='vk'){
-   return String(vkPlayer?.getState()||'').toLowerCase()==='playing';
+
+$('load').onclick=()=>{
+  if(!room)return toast('Сначала войдите в комнату');
+
+  socket.emit('media',{url:$('url').value.trim()},res=>{
+    if(res?.error)toast(res.error);
+  });
+};
+
+function showMedia(m){
+  const g=++generation;
+
+  try{video.pause()}catch{}
+  video.removeAttribute('src');
+  video.load();
+  video.style.display='none';
+
+  $('yt').style.display='none';
+  $('vk').style.display='none';
+  $('yt').replaceChildren();
+  $('vk').replaceChildren();
+
+  try{ytPlayer?.destroy()}catch{}
+  ytPlayer=null;
+  vkPlayer=null;
+  knownDuration=0;
+
+  $('placeholder').classList.toggle('hidden',!!m);
+  if(!m)return;
+
+  if(m.type==='video'){
+    video.src=m.url;
+    video.style.display='block';
+    video.onloadedmetadata=()=>{
+      knownDuration=video.duration||0;
+      socket.emit('request-sync');
+    };
+    return;
   }
-  return !v.paused;
- }catch{return false}
+
+  if(m.type==='youtube'){
+    const el=document.createElement('div');
+    el.id='yt-frame';
+    $('yt').append(el);
+    $('yt').style.display='block';
+
+    const init=()=>{
+      if(g!==generation||!window.YT?.Player)return;
+
+      ytPlayer=new YT.Player('yt-frame',{
+        videoId:m.id,
+        width:'100%',
+        height:'100%',
+        playerVars:{
+          playsinline:1,
+          rel:0,
+          controls:isHost?1:0,
+          disablekb:isHost?0:1,
+          origin:location.origin
+        },
+        events:{
+          onReady:()=>{
+            knownDuration=ytPlayer.getDuration()||0;
+            socket.emit('request-sync');
+          },
+          onStateChange:e=>{
+            if(isHost&&Date.now()>remoteUntil&&[0,1,2].includes(e.data)){
+              sendSync();
+            }
+          }
+        }
+      });
+    };
+
+    if(window.YT?.Player){
+      init();
+    }else{
+      window.onYouTubeIframeAPIReady=init;
+
+      if(!document.getElementById('yt-api')){
+        const script=document.createElement('script');
+        script.id='yt-api';
+        script.src='https://www.youtube.com/iframe_api';
+        document.head.append(script);
+      }
+    }
+    return;
+  }
+
+  if(m.type==='vk'){
+    const frame=document.createElement('iframe');
+    frame.src=m.embed;
+    frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
+    frame.allowFullscreen=true;
+    $('vk').append(frame);
+    $('vk').style.display='block';
+
+    const init=()=>{
+      if(g!==generation||!window.VK?.VideoPlayer||vkPlayer)return;
+
+      try{
+        vkPlayer=VK.VideoPlayer(frame);
+        const events=VK.VideoPlayer.Events||{};
+
+        for(const key of ['started','resumed','paused']){
+          if(events[key]){
+            vkPlayer.on(events[key],()=>{
+              if(isHost&&Date.now()>remoteUntil)sendSync();
+            });
+          }
+        }
+
+        socket.emit('request-sync');
+      }catch(e){
+        console.warn('VK player:',e);
+      }
+    };
+
+    frame.onload=init;
+
+    if(window.VK?.VideoPlayer){
+      init();
+    }else{
+      let script=document.getElementById('vk-api');
+
+      if(!script){
+        script=document.createElement('script');
+        script.id='vk-api';
+        script.src='https://vk.com/js/api/videoplayer.js';
+        document.head.append(script);
+      }
+
+      script.addEventListener('load',init,{once:true});
+    }
+  }
 }
+
+function getTime(){
+  try{
+    if(media?.type==='youtube')return ytPlayer?.getCurrentTime()||clock;
+    if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()||clock;
+    if(media?.type==='video')return video.currentTime||clock;
+  }catch{}
+  return clock;
+}
+
+function getDuration(){
+  try{
+    if(media?.type==='youtube')return ytPlayer?.getDuration()||knownDuration;
+    if(media?.type==='vk')return vkPlayer?.getDuration?.()||knownDuration;
+    if(media?.type==='video')return video.duration||knownDuration;
+  }catch{}
+  return knownDuration;
+}
+
+function getPlaying(){
+  try{
+    if(media?.type==='youtube')return ytPlayer?.getPlayerState()===1;
+    if(media?.type==='vk'){
+      return String(vkPlayer?.getState?.()||'').toLowerCase()==='playing';
+    }
+    if(media?.type==='video')return !video.paused;
+  }catch{}
+  return playingState;
+}
+
 function sendSync(){
- if(!room||!media||!isHost||Date.now()<remoteUntil)return;
- socket.emit('sync',{
-  time:currentTime(),
-  playing:playing()
- });
- lastSync=Date.now();
+  if(!room||!media||!isHost||Date.now()<remoteUntil)return;
+
+  clock=getTime();
+  playingState=getPlaying();
+
+  socket.emit('sync',{
+    time:clock,
+    playing:playingState
+  });
+
+  lastSync=Date.now();
+  updateTimeline();
 }
-function applySync(s){
- if(!media)return;
- const t=Math.max(0,Number(s.time)||0);
- remoteUntil=Date.now()+1600;
- try{
-  if(media.type==='video'){
-   if(v.readyState&&Math.abs(v.currentTime-t)>1.5)v.currentTime=t;
-   if(s.playing&&v.paused)v.play().catch(()=>{});
-   if(!s.playing&&!v.paused)v.pause();
-  }else if(media.type==='vk'&&vkPlayer){
-   if(Math.abs((vkPlayer.getCurrentTime()||0)-t)>2)vkPlayer.seek(t);
-   if(s.playing)vkPlayer.play();
-   else vkPlayer.pause();
-  }else if(media.type==='youtube'&&ytPlayer?.seekTo){
-   if(Math.abs((ytPlayer.getCurrentTime()||0)-t)>2)ytPlayer.seekTo(t,true);
-   if(s.playing&&ytPlayer.getPlayerState()!==1)ytPlayer.playVideo();
-   if(!s.playing&&ytPlayer.getPlayerState()===1)ytPlayer.pauseVideo();
+
+function applySync(data){
+  if(!media)return;
+
+  clock=Math.max(0,Number(data.time)||0);
+  playingState=!!data.playing;
+  remoteUntil=Date.now()+1500;
+
+  try{
+    if(media.type==='video'){
+      if(video.readyState&&Math.abs(video.currentTime-clock)>1.5){
+        video.currentTime=clock;
+      }
+      if(playingState)video.play().catch(()=>{});
+      else video.pause();
+    }
+
+    if(media.type==='youtube'&&ytPlayer?.seekTo){
+      if(Math.abs((ytPlayer.getCurrentTime()||0)-clock)>2){
+        ytPlayer.seekTo(clock,true);
+      }
+      if(playingState)ytPlayer.playVideo();
+      else ytPlayer.pauseVideo();
+    }
+
+    if(media.type==='vk'&&vkPlayer){
+      if(Math.abs((vkPlayer.getCurrentTime()||0)-clock)>2){
+        vkPlayer.seek(clock);
+      }
+      if(playingState)vkPlayer.play();
+      else vkPlayer.pause();
+    }
+  }catch(e){
+    console.warn('Sync:',e);
   }
- }catch(e){
-  console.warn('Sync:',e);
- }
+
+  updateTimeline();
 }
-v.addEventListener('play',sendSync);
-v.addEventListener('pause',sendSync);
-v.addEventListener('seeked',sendSync);
-v.addEventListener('ended',sendSync);
-setInterval(()=>{
- if(room&&media&&isHost&&playing()&&Date.now()-lastSync>5000){
-  sendSync();
- }
-},5000);
+
+function formatTime(n){
+  n=Math.max(0,Math.floor(Number(n)||0));
+  const h=Math.floor(n/3600);
+  const m=Math.floor(n%3600/60);
+  const s=n%60;
+
+  return (h?h+':':'')+
+    String(m).padStart(h?2:1,'0')+
+    ':'+String(s).padStart(2,'0');
+}
+
+function updateTimeline(){
+  const t=getTime();
+  const d=getDuration();
+
+  $('elapsed').textContent=formatTime(t);
+  $('duration').textContent=formatTime(d);
+  $('progress').max=d||100;
+  $('progress').value=Math.min(d||100,t);
+  $('play').textContent=getPlaying()?'Ⅱ':'▶';
+  $('playingBadge').textContent=getPlaying()?'◉ СМОТРИМ ВМЕСТЕ':'◉ ПАУЗА';
+}
+
+function seekTo(t){
+  if(!isHost||!media)return;
+
+  try{
+    if(media.type==='video')video.currentTime=t;
+    if(media.type==='youtube')ytPlayer?.seekTo(t,true);
+    if(media.type==='vk')vkPlayer?.seek(t);
+  }catch{}
+
+  clock=t;
+  setTimeout(sendSync,150);
+}
+
+$('play').onclick=()=>{
+  if(!isHost||!media)return;
+
+  try{
+    if(media.type==='video'){
+      if(video.paused)video.play().catch(()=>{});
+      else video.pause();
+    }else if(media.type==='youtube'){
+      if(ytPlayer?.getPlayerState()===1)ytPlayer.pauseVideo();
+      else ytPlayer?.playVideo();
+    }else if(media.type==='vk'){
+      if(getPlaying())vkPlayer?.pause();
+      else vkPlayer?.play();
+    }
+  }catch{}
+
+  setTimeout(sendSync,250);
+};
+
+$('back').onclick=()=>seekTo(Math.max(0,getTime()-10));
+$('forward').onclick=()=>seekTo(getTime()+10);
+$('progress').onchange=e=>seekTo(Number(e.target.value));
+
+for(const event of ['play','pause','seeked','ended']){
+  video.addEventListener(event,sendSync);
+}
+
+function avatar(name){
+  return String(name||'?').trim().slice(0,1).toUpperCase();
+}
+
+function appendMessage(msg){
+  const list=$('messages');
+  const empty=list.querySelector('.chat-empty');
+  if(empty)empty.remove();
+
+  const row=document.createElement('div');
+  row.className='chat-item'+(msg.sender===self?' mine':'');
+
+  const av=document.createElement('div');
+  av.className='avatar';
+  av.textContent=avatar(msg.name);
+
+  const content=document.createElement('div');
+
+  const who=document.createElement('div');
+  who.className='chat-name';
+  who.textContent=msg.name;
+
+  const bubble=document.createElement('div');
+  bubble.className='chat-bubble';
+  bubble.textContent=msg.text;
+
+  const time=document.createElement('div');
+  time.className='chat-date';
+  time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{
+    hour:'2-digit',
+    minute:'2-digit'
+  });
+
+  content.append(who,bubble,time);
+  row.append(av,content);
+  list.append(row);
+  list.scrollTop=list.scrollHeight;
+}
+
+function floatingMessage(msg){
+  const row=document.createElement('div');
+  row.className='float-item';
+
+  const av=document.createElement('div');
+  av.className='avatar';
+  av.textContent=avatar(msg.name);
+
+  const bubble=document.createElement('div');
+  bubble.className='float-bubble';
+
+  const who=document.createElement('b');
+  who.textContent=msg.name+': ';
+
+  const text=document.createElement('span');
+  text.textContent=msg.text;
+
+  bubble.append(who,text);
+  row.append(av,bubble);
+
+  $('floating').append(row);
+
+  while($('floating').children.length>4){
+    $('floating').firstElementChild.remove();
+  }
+
+  setTimeout(()=>row.remove(),8500);
+}
+
+$('chatForm').onsubmit=e=>{
+  e.preventDefault();
+
+  const text=$('message').value.trim();
+  if(!text||!room)return;
+
+  socket.emit('chat',text);
+  $('message').value='';
+};
+
+socket.on('chat',msg=>{
+  appendMessage(msg);
+  floatingMessage(msg);
+});
+
+socket.on('room-state',state=>{
+  if(!room)return;
+
+  const me=state.users.find(u=>u.id===self);
+  isHost=!!me?.isHost;
+
+  $('online').textContent=state.users.length+' онлайн';
+  $('hostBadge').textContent='♛ '+(state.hostName||'Создатель')+
+    (isHost?' · вы':'');
+
+  const changed=JSON.stringify(media)!==JSON.stringify(state.media);
+
+  if(changed){
+    media=state.media;
+    showMedia(media);
+    $('url').value=media?.url||'';
+  }
+
+  updateHost();
+
+  if(!$('messages').dataset.loaded){
+    $('messages').replaceChildren();
+
+    for(const msg of state.messages||[]){
+      appendMessage(msg);
+    }
+
+    if(!state.messages?.length){
+      $('messages').innerHTML=
+        '<div class="chat-empty">Тишина перед началом фильма ✦</div>';
+    }
+
+    $('messages').dataset.loaded='1';
+  }
+
+  if(changed){
+    applySync({
+      time:state.time,
+      playing:state.playing
+    });
+  }
+});
+
+socket.on('sync',applySync);
+
 socket.on('connect',()=>{
- if(room){
-  room='';
-  media=null;
-  $('messages').dataset.loaded='';
- }
- join(true);
+  if(room){
+    room='';
+    media=null;
+    $('messages').dataset.loaded='';
+  }
+
+  if($('room').value)join(true);
 });
+
 socket.on('disconnect',()=>{
- $('status').textContent='● Переподключение…';
+  $('status').textContent='● Переподключение…';
 });
+
 document.addEventListener('visibilitychange',()=>{
- if(!document.hidden){
-  if(!socket.connected)socket.connect();
-  else if(!room)join(true);
-  else socket.emit('request-sync');
- }
+  if(!document.hidden){
+    if(!socket.connected)socket.connect();
+    else if(!room)join(true);
+    else socket.emit('request-sync');
+  }
+});
+
+setInterval(()=>{
+  if(room&&media){
+    updateTimeline();
+
+    if(isHost&&getPlaying()&&Date.now()-lastSync>5000){
+      sendSync();
+    }
+  }
+},1000);
+
+function theater(on){
+  document.body.classList.toggle('theater',on);
+  $('theater').textContent=on?'⤢ Выйти':'⛶ Режим кино';
+}
+
+$('theater').onclick=()=>{
+  theater(!document.body.classList.contains('theater'));
+};
+
+$('exitTheater').onclick=()=>theater(false);
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')theater(false);
 });
 </script>
 </body>
