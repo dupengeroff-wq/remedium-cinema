@@ -2,507 +2,387 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import crypto from 'node:crypto';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const dir = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  pingTimeout: 60000,
-  pingInterval: 25000
-});
+const io = new Server(server, { pingTimeout: 60000 });
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const dataFile = path.join(here, 'cinema-data.json');
 const rooms = new Map();
+const file = path.join(dir, 'cinema-data.json');
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(here, 'index.html'));
-});
+const token = () => randomBytes(24).toString('hex');
 
-app.get('/index.html', (req, res) => {
-  res.sendFile(path.join(here, 'index.html'));
-});
-
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
-});
-
-function newToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-function parseMedia(value) {
-  if (typeof value !== 'string' || value.length > 2048) {
-    return null;
-  }
-
-  let url;
-
+function parseMedia(raw) {
   try {
-    url = new URL(value.trim());
+    const u = new URL(String(raw || '').trim());
+
+    if (!['https:', 'http:'].includes(u.protocol)) {
+      return null;
+    }
+
+    const h = u.hostname.toLowerCase();
+    let id = null;
+
+    if (h === 'youtu.be') {
+      id = u.pathname.split('/')[1];
+    }
+
+    if ([
+      'youtube.com',
+      'www.youtube.com',
+      'm.youtube.com'
+    ].includes(h)) {
+      id = u.searchParams.get('v') ||
+        u.pathname.match(
+          /^\/(?:embed|shorts|live)\/([^/]+)/
+        )?.[1];
+    }
+
+    if (id && /^[\w-]{11}$/.test(id)) {
+      return {
+        type: 'youtube',
+        id,
+        url: 'https://www.youtube.com/watch?v=' + id
+      };
+    }
+
+    if ([
+      'vk.com',
+      'www.vk.com',
+      'm.vk.com',
+      'vkvideo.ru',
+      'www.vkvideo.ru',
+      'm.vkvideo.ru'
+    ].includes(h)) {
+      const m = u.pathname.match(/video(-?\d+)_(\d+)/);
+
+      const oid = m?.[1] || u.searchParams.get('oid');
+      const vid = m?.[2] || u.searchParams.get('id');
+
+      if (
+        oid &&
+        vid &&
+        /^-?\d+$/.test(oid) &&
+        /^\d+$/.test(vid)
+      ) {
+        const e = new URL('https://vk.com/video_ext.php');
+
+        e.searchParams.set('oid', oid);
+        e.searchParams.set('id', vid);
+        e.searchParams.set('js_api', '1');
+
+        if (u.searchParams.get('hash')) {
+          e.searchParams.set(
+            'hash',
+            u.searchParams.get('hash')
+          );
+        }
+
+        return {
+          type: 'vk',
+          url: u.origin + u.pathname,
+          embed: e.href
+        };
+      }
+    }
+
+    if (/\.(mp4|webm)$/i.test(u.pathname)) {
+      return {
+        type: 'video',
+        url: u.href
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }
-
-  if (!['https:', 'http:'].includes(url.protocol)) {
-    return null;
-  }
-
-  const host = url.hostname.toLowerCase();
-  let youtubeId = null;
-
-  if (host === 'youtu.be') {
-    youtubeId = url.pathname.split('/')[1];
-  }
-
-  if ([
-    'youtube.com',
-    'www.youtube.com',
-    'm.youtube.com',
-    'music.youtube.com'
-  ].includes(host)) {
-    youtubeId =
-      url.searchParams.get('v') ||
-      url.pathname.match(
-        /^\/(?:shorts|embed|live)\/([^/]+)/
-      )?.[1];
-  }
-
-  if (
-    youtubeId &&
-    /^[a-zA-Z0-9_-]{11}$/.test(youtubeId)
-  ) {
-    return {
-      type: 'youtube',
-      id: youtubeId,
-      url: 'https://www.youtube.com/watch?v=' + youtubeId
-    };
-  }
-
-  const vkHosts = [
-    'vk.com',
-    'www.vk.com',
-    'm.vk.com',
-    'vkvideo.ru',
-    'www.vkvideo.ru',
-    'm.vkvideo.ru',
-    'vk.ru',
-    'www.vk.ru',
-    'm.vk.ru'
-  ];
-
-  if (vkHosts.includes(host)) {
-    const match = url.pathname.match(
-      /\/video(-?\d+)_(\d+)/
-    );
-
-    let oid = match?.[1];
-    let vid = match?.[2];
-
-    if (!oid || !vid) {
-      oid = url.searchParams.get('oid');
-      vid = url.searchParams.get('id');
-    }
-
-    if (
-      oid &&
-      vid &&
-      /^-?\d+$/.test(oid) &&
-      /^\d+$/.test(vid)
-    ) {
-      const embed = new URL(
-        'https://vk.com/video_ext.php'
-      );
-
-      embed.searchParams.set('oid', oid);
-      embed.searchParams.set('id', vid);
-      embed.searchParams.set('js_api', '1');
-
-      const hash = url.searchParams.get('hash');
-
-      if (hash) {
-        embed.searchParams.set('hash', hash);
-      }
-
-      return {
-        type: 'vk',
-        url: 'https://vkvideo.ru/video' + oid + '_' + vid,
-        embed: embed.href
-      };
-    }
-  }
-
-  if (/\.(mp4|webm)$/i.test(url.pathname)) {
-    return {
-      type: 'video',
-      url: url.href
-    };
-  }
-
-  return null;
 }
 
-function currentTime(room) {
-  if (!room.playing) {
-    return room.time;
-  }
-
-  return room.time +
-    Math.max(0, Date.now() - room.updated) / 1000;
+function clock(r) {
+  return r.playing
+    ? r.time + Math.max(
+        0,
+        (Date.now() - r.updated) / 1000
+      )
+    : r.time;
 }
 
-function saveRooms() {
+function save() {
   const data = {};
 
-  for (const [id, room] of rooms) {
+  for (const [id, r] of rooms) {
     data[id] = {
-      media: room.media,
-      playing: room.playing,
-      time: currentTime(room),
-      updated: Date.now(),
-      messages: room.messages,
-      hostToken: room.hostToken,
-      hostName: room.hostName,
-      tokens: [...room.tokens.entries()]
+      media: r.media,
+      playing: false,
+      time: clock(r),
+      messages: r.messages.slice(-150),
+      hostToken: r.hostToken,
+      hostName: r.hostName,
+      credentials: [...r.credentials]
     };
   }
 
   try {
-    const temporary = dataFile + '.tmp';
-
     fs.writeFileSync(
-      temporary,
-      JSON.stringify(data),
-      'utf8'
+      file + '.tmp',
+      JSON.stringify(data)
     );
 
-    fs.renameSync(temporary, dataFile);
-  } catch (error) {
-    console.error('Save error:', error);
+    fs.renameSync(file + '.tmp', file);
+  } catch (e) {
+    console.error('Save failed:', e.message);
   }
 }
 
-function loadRooms() {
-  if (!fs.existsSync(dataFile)) {
-    return;
-  }
-
-  try {
+try {
+  if (fs.existsSync(file)) {
     const data = JSON.parse(
-      fs.readFileSync(dataFile, 'utf8')
+      fs.readFileSync(file, 'utf8')
     );
 
-    for (const [id, saved] of Object.entries(data)) {
-      if (!/^[\w-]{1,80}$/.test(id)) {
+    for (const [id, r] of Object.entries(data)) {
+      if (!/^[a-zA-Z0-9_-]{4,80}$/.test(id)) {
         continue;
       }
 
-      const tokens = new Map(
-        Array.isArray(saved.tokens) ? saved.tokens : []
-      );
-
       rooms.set(id, {
-        media: saved.media || null,
+        media: r.media || null,
         playing: false,
-        time: Math.max(0, Number(saved.time) || 0),
+        time: Number(r.time) || 0,
         updated: Date.now(),
-        messages: Array.isArray(saved.messages)
-          ? saved.messages.slice(-100)
+        messages: Array.isArray(r.messages)
+          ? r.messages.slice(-150)
           : [],
-        users: new Map(),
-        tokens,
-        hostToken: saved.hostToken || '',
-        hostName: saved.hostName || 'Хост'
+        hostToken: r.hostToken || token(),
+        hostName: r.hostName || 'Создатель',
+        credentials: new Map(r.credentials || []),
+        users: new Map()
       });
     }
-
-    console.log('Restored rooms:', rooms.size);
-  } catch (error) {
-    console.error('Load error:', error);
   }
+} catch (e) {
+  console.error('Load failed', e.message);
 }
 
-loadRooms();
-
-function snapshot(room) {
-  const users = [...room.users.values()].map(user => ({
-    id: user.id,
-    name: user.name,
-    isHost: user.token === room.hostToken
-  }));
-
+function snapshot(r) {
   return {
-    media: room.media,
-    playing: room.playing,
-    time: currentTime(room),
-    updated: Date.now(),
-    users,
-    hostName: room.hostName,
-    messages: room.messages
+    media: r.media,
+    playing: r.playing,
+    time: clock(r),
+    hostName: r.hostName,
+    messages: r.messages,
+    users: [...r.users.values()].map(u => ({
+      id: u.id,
+      name: u.name,
+      isHost: u.token === r.hostToken
+    }))
   };
 }
 
-function broadcast(id) {
-  const room = rooms.get(id);
+function emit(id) {
+  const r = rooms.get(id);
 
-  if (room) {
-    io.to(id).emit('room-state', snapshot(room));
+  if (r) {
+    io.to(id).emit('room-state', snapshot(r));
   }
 }
 
-function leave(socket) {
-  const id = socket.data.room;
+function leave(s) {
+  const id = s.data.room;
 
   if (!id) {
     return;
   }
 
-  socket.leave(id);
-  socket.data.room = null;
+  const r = rooms.get(id);
 
-  const room = rooms.get(id);
+  s.leave(id);
+  s.data.room = null;
 
-  if (!room) {
+  if (!r) {
     return;
   }
 
-  room.users.delete(socket.id);
+  r.users.delete(s.id);
 
-  // Комната сохраняется даже без участников.
-  broadcast(id);
+  if (!r.users.size) {
+    r.time = clock(r);
+    r.playing = false;
+    r.updated = Date.now();
+    save();
+  }
+
+  emit(id);
 }
 
-function getRoom(socket) {
-  return rooms.get(socket.data.room);
-}
+const get = s => rooms.get(s.data.room);
 
-function isHost(socket, room) {
-  return Boolean(
-    room &&
-    socket.data.token &&
-    socket.data.token === room.hostToken
-  );
-}
+const host = (s, r) =>
+  !!r &&
+  !!s.data.token &&
+  s.data.token === r.hostToken;
 
-io.on('connection', socket => {
+io.on('connection', s => {
 
-  socket.on('join', (data, ack = () => {}) => {
-    const id = String(data?.room || '').trim();
+  s.on('join', (d = {}, ack = () => {}) => {
+    const id = String(d.room || '').trim();
 
-    const name = String(data?.name || 'Гость')
+    const name = String(d.name || 'Гость')
       .trim()
       .slice(0, 24) || 'Гость';
 
-    if (!/^[\w-]{1,80}$/.test(id)) {
+    if (!/^[a-zA-Z0-9_-]{4,80}$/.test(id)) {
       return ack({
-        error: 'Недопустимый код комнаты'
+        error: 'Неверный код комнаты'
       });
     }
 
-    leave(socket);
+    leave(s);
 
-    let room = rooms.get(id);
-    let created = false;
+    let r = rooms.get(id);
+    const created = !r;
 
-    if (!room) {
-      created = true;
-
-      room = {
+    if (!r) {
+      r = {
         media: null,
         playing: false,
         time: 0,
         updated: Date.now(),
         messages: [],
-        users: new Map(),
-        tokens: new Map(),
         hostToken: '',
-        hostName: name
+        hostName: name,
+        credentials: new Map(),
+        users: new Map()
       };
 
-      rooms.set(id, room);
+      rooms.set(id, r);
     }
 
-    const requestedToken = String(
-      data?.token || ''
-    );
+    const requested = String(d.token || '');
 
-    let token;
+    const t = requested && r.credentials.has(requested)
+      ? requested
+      : token();
 
-    if (
-      requestedToken &&
-      room.tokens.has(requestedToken)
-    ) {
-      token = requestedToken;
-    } else {
-      token = newToken();
-      room.tokens.set(token, name);
-    }
+    r.credentials.set(t, name);
 
     if (created) {
-      room.hostToken = token;
-      room.hostName = name;
+      r.hostToken = t;
+      r.hostName = name;
     }
 
-    if (token === room.hostToken) {
-      room.hostName = name;
+    if (t === r.hostToken) {
+      r.hostName = name;
     }
 
-    socket.join(id);
+    s.join(id);
 
-    socket.data.room = id;
-    socket.data.name = name;
-    socket.data.token = token;
+    s.data.room = id;
+    s.data.name = name;
+    s.data.token = t;
 
-    room.users.set(socket.id, {
-      id: socket.id,
+    r.users.set(s.id, {
+      id: s.id,
       name,
-      token
+      token: t
     });
 
     ack({
       ok: true,
-      id: socket.id,
-      token,
-      isHost: isHost(socket, room)
+      id: s.id,
+      token: t,
+      isHost: host(s, r)
     });
 
-    broadcast(id);
-    saveRooms();
+    emit(id);
+    save();
   });
 
-  socket.on('media', (data, ack = () => {}) => {
-    const room = getRoom(socket);
+  s.on('media', (d = {}, ack = () => {}) => {
+    const r = get(s);
 
-    if (!room) {
+    if (!r) {
       return ack({
         error: 'Сначала войдите в комнату'
       });
     }
 
-    if (!isHost(socket, room)) {
+    if (!host(s, r)) {
       return ack({
-        error: 'Только хост может менять фильм'
+        error: 'Только создатель управляет фильмом'
       });
     }
 
-    const media = parseMedia(data?.url);
+    const m = parseMedia(d.url);
 
-    if (!media) {
+    if (!m) {
       return ack({
-        error: 'Нужна ссылка YouTube, VK Видео или MP4/WebM'
+        error: 'Поддерживаются YouTube, VK Видео и прямые MP4/WebM'
       });
     }
 
-    room.media = media;
-    room.playing = false;
-    room.time = 0;
-    room.updated = Date.now();
+    r.media = m;
+    r.time = 0;
+    r.playing = false;
+    r.updated = Date.now();
 
     ack({ ok: true });
 
-    broadcast(socket.data.room);
-    saveRooms();
+    emit(s.data.room);
+    save();
   });
 
-  socket.on('sync', data => {
-    const room = getRoom(socket);
+  s.on('sync', d => {
+    const r = get(s);
 
-    if (!room || !room.media) {
+    if (!r?.media || !host(s, r)) {
       return;
     }
 
-    if (!isHost(socket, room)) {
-      return;
-    }
-
-    const time = Number(data?.time);
+    const time = Number(d?.time);
 
     if (
       !Number.isFinite(time) ||
       time < 0 ||
       time > 10000000 ||
-      typeof data?.playing !== 'boolean'
+      typeof d?.playing !== 'boolean'
     ) {
       return;
     }
 
-    room.time = time;
-    room.playing = data.playing;
-    room.updated = Date.now();
+    r.time = time;
+    r.playing = d.playing;
+    r.updated = Date.now();
 
-    socket.to(socket.data.room).emit('sync', {
+    s.to(s.data.room).emit('sync', {
       time,
-      playing: room.playing
+      playing: r.playing
     });
 
-    saveRooms();
+    save();
   });
 
-  socket.on('request-sync', () => {
-    const room = getRoom(socket);
+  s.on('request-sync', () => {
+    const r = get(s);
 
-    if (!room || !room.media) {
-      return;
+    if (r?.media) {
+      s.emit('sync', {
+        time: clock(r),
+        playing: r.playing
+      });
     }
-
-    socket.emit('sync', {
-      time: currentTime(room),
-      playing: room.playing
-    });
   });
 
-  socket.on('transfer-host', (data, ack = () => {}) => {
-    const room = getRoom(socket);
+  s.on('chat', value => {
+    const r = get(s);
 
-    if (!room) {
-      return ack({
-        error: 'Комната не найдена'
-      });
-    }
-
-    if (!isHost(socket, room)) {
-      return ack({
-        error: 'Передать роль может только хост'
-      });
-    }
-
-    const target = room.users.get(
-      String(data?.socketId || '')
-    );
-
-    if (!target) {
-      return ack({
-        error: 'Участник не найден'
-      });
-    }
-
-    if (target.id === socket.id) {
-      return ack({
-        error: 'Ты уже хост'
-      });
-    }
-
-    // Передаём права конкретному участнику.
-    room.hostToken = target.token;
-    room.hostName = target.name;
-
-    ack({ ok: true });
-
-    io.to(socket.data.room).emit('host-changed', {
-      name: target.name
-    });
-
-    broadcast(socket.data.room);
-    saveRooms();
-  });
-
-  socket.on('chat', value => {
-    const room = getRoom(socket);
-
-    if (!room) {
+    if (!r) {
       return;
     }
 
@@ -515,50 +395,51 @@ io.on('connection', socket => {
     }
 
     const msg = {
-      sender: socket.id,
-      name: socket.data.name || 'Гость',
+      id: token().slice(0, 12),
+      sender: s.id,
+      name: s.data.name || 'Гость',
       text: message,
       at: Date.now()
     };
 
-    room.messages.push(msg);
+    r.messages.push(msg);
 
-    if (room.messages.length > 100) {
-      room.messages.shift();
+    if (r.messages.length > 150) {
+      r.messages.shift();
     }
 
-    io.to(socket.data.room).emit('chat', msg);
+    io.to(s.data.room).emit('chat', msg);
 
-    saveRooms();
+    save();
   });
 
-  socket.on('disconnect', () => {
-    leave(socket);
+  s.on('disconnect', () => {
+    leave(s);
   });
 
 });
 
-// Периодически сохраняем состояние комнат.
-setInterval(saveRooms, 30000);
+app.get('/health', (_, res) => {
+  res.json({ ok: true });
+});
 
-function shutdown() {
-  for (const room of rooms.values()) {
-    room.time = currentTime(room);
-    room.playing = false;
-    room.updated = Date.now();
-  }
+app.get('/', (_, res) => {
+  res.sendFile(path.join(dir, 'index.html'));
+});
 
-  saveRooms();
+app.get('/index.html', (_, res) => {
+  res.sendFile(path.join(dir, 'index.html'));
+});
+
+setInterval(save, 30000);
+
+process.on('SIGTERM', () => {
+  save();
   process.exit(0);
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(
-    'REMEDIUM CINEMA running on port ' + PORT
-  );
 });
+
+server.listen(
+  process.env.PORT || 3000,
+  '0.0.0.0',
+  () => console.log('REMEDIUM CINEMA ready')
+);
