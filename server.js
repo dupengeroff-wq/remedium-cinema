@@ -1,249 +1,901 @@
+<!DOCTYPE html>
 
-import express from 'express';
-import { createServer } from 'node:http';
-import { Server } from 'socket.io';
-import { randomBytes } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+<html lang="ru">
 
-const app = express();
-const http = createServer(app);
-const io = new Server(http, { maxHttpBufferSize: 100000 });
-const here = path.dirname(fileURLToPath(import.meta.url));
+<head>
 
-app.get('/', (_, res) => res.sendFile(path.join(here, 'index.html')));
-app.get('/index.html', (_, res) => res.sendFile(path.join(here, 'index.html')));
+<meta charset="UTF-8">
 
-const rooms = new Map();
-const validId = s => typeof s === 'string' && /^[a-zA-Z0-9_-]{6,32}$/.test(s);
-const clean = s => String(s ?? '').trim().slice(0, 500);
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-function state(r) {
-  return {
-    media: r.media,
-    playing: r.playing,
-    time: r.time,
-    updated: r.updated,
-    users: [...r.users.values()].map(u => ({ id: u.id, name: u.name })),
-    messages: r.messages.slice(-100)
-  };
+<meta name="theme-color" content="#090b10">
+
+<title>REMEDIUM CINEMA — Вместе</title>
+
+<style>
+
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f3eadb;background:#090b10}
+
+*{box-sizing:border-box}
+
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% 0%,#4436216e,transparent 40%),radial-gradient(ellipse at 100% 80%,#242b3d,transparent 48%),#090b10}
+
+button,input{font:inherit}
+
+button{cursor:pointer}
+
+button:disabled{opacity:.5;cursor:not-allowed}
+
+.shell{max-width:1320px;margin:auto;padding:24px 20px 50px}
+
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;gap:12px}
+
+.brand{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:750;letter-spacing:2px;color:#e9d3a5}
+
+.logo{display:grid;place-items:center;width:42px;height:42px;border:1px solid #c8a76b80;border-radius:14px;background:#d8b97914;color:#e7c78a}
+
+.tag{color:#9e9ca1;font-size:12px}
+
+.glass{background:linear-gradient(135deg,#ffffff12,#ffffff05);border:1px solid #ffffff1c;box-shadow:0 18px 65px #0007,inset 0 1px #ffffff12;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:22px}
+
+.hero{padding:25px;margin-bottom:20px}
+
+.hero h1{font-size:clamp(25px,4vw,42px);font-weight:650;margin:0 0 8px}
+
+.hero p{margin:0;color:#a7a6ac;font-size:14px;line-height:1.6}
+
+.gold{color:#e6c88c}
+
+.setup{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:23px}
+
+.field{width:100%;padding:14px 16px;border:1px solid #ffffff1c;background:#12151ebd;color:white;border-radius:12px;outline:none;min-width:0}
+
+.field:focus{border-color:#d8b978}
+
+.btn{border:1px solid #ffffff23;border-radius:12px;background:#ffffff0c;color:#f4e9d4;padding:13px 17px;white-space:nowrap}
+
+.btn.primary{background:linear-gradient(120deg,#e3c68d,#a8844b);color:#1a1713;font-weight:750;border:none}
+
+.btn:hover{filter:brightness(1.1)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
+
+.screen{overflow:hidden}
+
+.screenhead{padding:17px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+.eyebrow{font-size:11px;color:#9e9ca1;text-transform:uppercase;letter-spacing:2px}
+
+.status{font-size:12px;color:#a5d8ac}
+
+.player{aspect-ratio:16/9;background:#050608;display:grid;place-items:center;position:relative;overflow:hidden}
+
+.placeholder{text-align:center;color:#9c978e;padding:25px}
+
+.placeholder .big{font-size:60px;color:#bda06d}
+
+.placeholder h2{font-size:22px;color:#e7d7b9;margin:10px 0}
+
+video,#yt,#vk{width:100%;height:100%;display:none;background:#000}
+
+#yt iframe,#vk iframe{width:100%;height:100%;border:0}
+
+.controls{padding:16px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+.controls .field{flex:1;min-width:180px}
+
+.roomrow{padding:0 20px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+.roomcode{font-size:13px;color:#aaa}
+
+.chat{height:620px;display:flex;flex-direction:column;overflow:hidden}
+
+.chathead{padding:20px;border-bottom:1px solid #ffffff16;display:flex;justify-content:space-between}
+
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+.bubble{max-width:92%;align-self:flex-start;background:#ffffff10;border:1px solid #ffffff0c;border-radius:15px 15px 15px 5px;padding:10px 13px;overflow-wrap:anywhere}
+
+.bubble.mine{align-self:flex-end;background:#a4864b42;border-color:#bda06d3b;border-radius:15px 15px 5px 15px}
+
+.who{color:#d8bc86;font-size:11px;margin-bottom:5px}
+
+.message{font-size:13px;line-height:1.5;white-space:pre-wrap}
+
+.chatinput{display:flex;gap:8px;padding:13px;border-top:1px solid #ffffff16}
+
+.chatinput .field{padding:11px}
+
+.hint{color:#92919a;font-size:12px;line-height:1.6;margin-top:15px}
+
+.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:12px;background:#292a31;border:1px solid #e0bd80;color:#f5e8d0;display:none;z-index:20;max-width:90vw}
+
+.sub{font-size:12px;color:#b5a98f}
+
+.empty{color:#89878c;font-size:13px;text-align:center;margin:auto}
+
+.providers{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+
+.providers a{font-size:12px;text-decoration:none;color:#d4bc8c;background:#ffffff0b;padding:8px 12px;border-radius:10px;border:1px solid #ffffff14}
+
+@media(max-width:850px){
+
+.layout{grid-template-columns:1fr}
+
+.chat{height:390px}
+
+.setup{grid-template-columns:1fr}
+
+.shell{padding:16px 12px 35px}
+
+.hero{padding:20px}
+
+.brand{font-size:15px}
+
+.tag{display:none}
+
+.controls{padding:12px}
+
+.screenhead{padding:15px}
+
+.roomrow{padding:0 12px 15px}
+
 }
 
-function broadcast(id) {
-  const r = rooms.get(id);
-  if (r) io.to(id).emit('room-state', state(r));
+</style>
+
+</head>
+
+<body>
+
+<main class="shell">
+
+<header class="top">
+
+  <div class="brand"><span class="logo">▶</span> REMEDIUM <span class="gold">CINEMA</span></div>
+
+  <span class="tag">ВАШЕ КИНО. ВАШ МОМЕНТ.</span>
+
+</header>
+
+<section class="hero glass">
+
+  <div class="eyebrow gold">PRIVATE WATCH PARTY</div>
+
+  <h1>Смотрите <span class="gold">вместе.</span> Даже на расстоянии.</h1>
+
+  <p>Создайте комнату, отправьте приглашение и наслаждайтесь просмотром с общим чатом и синхронизацией.</p>
+
+  <div class="setup">
+
+    <input id="name" class="field" maxlength="24" placeholder="Твоё имя">
+
+    <input id="room" class="field" placeholder="Код комнаты (или оставь пустым)">
+
+    <button id="join" class="btn primary">Создать / войти →</button>
+
+  </div>
+
+  <div class="providers">
+
+    <a href="https://www.youtube.com" target="_blank" rel="noopener">YouTube ↗</a>
+
+    <a href="https://rutube.ru" target="_blank" rel="noopener">Rutube ↗</a>
+
+    <a href="https://vkvideo.ru" target="_blank" rel="noopener">VK Видео ↗</a>
+
+  </div>
+
+</section>
+
+<div class="layout">
+
+  <section class="glass screen">
+
+    <div class="screenhead">
+
+      <div>
+
+        <div class="eyebrow">КИНОЗАЛ</div>
+
+        <strong>Совместный просмотр</strong>
+
+      </div>
+
+      <span id="status" class="status">● Не подключено</span>
+
+    </div>
+
+    <div class="player">
+
+      <div id="placeholder" class="placeholder">
+
+        <div class="big">▷</div>
+
+        <h2>Ваш экран ждёт</h2>
+
+        <div>Войдите в комнату и вставьте ссылку на видео</div>
+
+      </div>
+
+      <video id="video" controls playsinline></video>
+
+      <div id="yt"></div>
+
+      <div id="vk"></div>
+
+    </div>
+
+    <div class="controls">
+
+      <input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4 / WebM">
+
+      <button id="load" class="btn primary" disabled>Включить</button>
+
+    </div>
+
+    <div class="roomrow">
+
+      <span id="roomcode" class="roomcode">Комната не создана</span>
+
+      <button id="invite" class="btn" disabled>↗ Пригласить</button>
+
+      <button id="sync" class="btn" disabled>↻ Синхронизировать</button>
+
+    </div>
+
+  </section>
+
+  <aside class="glass chat">
+
+    <div class="chathead">
+
+      <div>
+
+        <div class="eyebrow">НАШ УГОЛОК</div>
+
+        <strong>Общий чат ♡</strong>
+
+      </div>
+
+      <span class="sub" id="count">0 онлайн</span>
+
+    </div>
+
+    <div id="messages" class="messages">
+
+      <div class="empty">Сообщения появятся здесь ✨</div>
+
+    </div>
+
+    <form id="chatForm" class="chatinput">
+
+      <input id="message" class="field" placeholder="Написать сообщение..." maxlength="1000" disabled>
+
+      <button id="send" class="btn primary" disabled>➤</button>
+
+    </form>
+
+  </aside>
+
+</div>
+
+<p class="hint">
+
+Поддерживаются YouTube, встраиваемые VK Видео и прямые MP4/WebM.
+
+Некоторые видео могут запрещать встраивание.
+
+Синхронизация VK зависит от доступности API плеера.
+
+На iPhone может потребоваться вручную нажать Play.
+
+Комнаты и сообщения хранятся в памяти сервера и исчезают после его перезапуска.
+
+</p>
+
+</main>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const $ = id => document.getElementById(id);
+
+const socket = io();
+
+const v = $('video');
+
+let room = '';
+
+let self = '';
+
+let media = null;
+
+let ytPlayer = null;
+
+let vkPlayer = null;
+
+let remoteUntil = 0;
+
+let lastSync = 0;
+
+let playerGeneration = 0;
+
+function toast(s) {
+
+  $('toast').textContent = s;
+
+  $('toast').style.display = 'block';
+
+  clearTimeout(toast.timer);
+
+  toast.timer = setTimeout(() => $('toast').style.display = 'none', 3500);
+
 }
 
-io.on('connection', socket => {
-  socket.on('join', ({ room, name } = {}, reply) => {
-    if (!validId(room)) return reply?.({ error: 'Неверный код комнаты' });
+function roomId() {
 
-    let r = rooms.get(room);
-    if (!r) {
-      r = {
-        media: null, playing: false, time: 0,
-        updated: Date.now(), users: new Map(), messages: []
-      };
-      rooms.set(room, r);
+  const a = new Uint8Array(9);
+
+  crypto.getRandomValues(a);
+
+  return Array.from(a, x => x.toString(16).padStart(2, '0')).join('');
+
+}
+
+const params = new URLSearchParams(location.search);
+
+if (params.has('room')) $('room').value = params.get('room');
+
+$('name').value = localStorage.getItem('rc-name') || '';
+
+$('join').onclick = () => {
+
+  const id = $('room').value.trim() || roomId();
+
+  const name = $('name').value.trim() || 'Гость';
+
+  socket.emit('join', { room: id, name }, res => {
+
+    if (res?.error) return toast(res.error);
+
+    if (!res?.ok) return;
+
+    room = id;
+
+    self = res.id;
+
+    localStorage.setItem('rc-name', name);
+
+    $('room').value = id;
+
+    history.replaceState(null, '', location.pathname + '?room=' + encodeURIComponent(id));
+
+    for (const key of ['load', 'invite', 'sync', 'message', 'send']) {
+
+      $(key).disabled = false;
+
     }
 
-    if (r.users.size >= 12 && !r.users.has(socket.id))
-      return reply?.({ error: 'Комната заполнена' });
+    $('status').textContent = '● Подключено';
 
-    if (socket.data.room) {
-      const oldRoom = socket.data.room;
-      socket.leave(oldRoom);
-      const prev = rooms.get(oldRoom);
-      prev?.users.delete(socket.id);
-      broadcast(oldRoom);
-    }
+    $('roomcode').textContent = 'Комната: ' + id;
 
-    const user = {
-      id: socket.id,
-      name: clean(name).slice(0, 24) || 'Гость'
-    };
+    $('messages').dataset.loaded = '';
 
-    r.users.set(socket.id, user);
-    socket.data.room = room;
-    socket.join(room);
+    toast('Вы в комнате! Поделитесь приглашением.');
 
-    reply?.({ ok: true, id: socket.id });
-    broadcast(room);
   });
 
-  socket.on('media', ({ url } = {}, reply) => {
-    const room = socket.data.room;
-    const r = rooms.get(room);
-    if (!r || !r.users.has(socket.id)) return;
+};
 
-    const media = parseMedia(url);
-    if (!media) {
-      return reply?.({
-        error: 'Поддерживаются YouTube, VK Видео и прямые HTTPS-ссылки MP4/WebM'
+$('invite').onclick = async () => {
+
+  const url = location.origin + location.pathname + '?room=' + encodeURIComponent(room);
+
+  try {
+
+    if (navigator.share) {
+
+      await navigator.share({
+
+        title: 'REMEDIUM CINEMA',
+
+        text: 'Смотрим кино вместе ♡',
+
+        url
+
       });
+
+    } else {
+
+      await navigator.clipboard.writeText(url);
+
+      toast('Ссылка скопирована');
+
     }
 
-    r.media = media;
-    r.time = 0;
-    r.playing = false;
-    r.updated = Date.now();
-    broadcast(room);
-    reply?.({ ok: true });
+  } catch {
+
+    toast('Приглашение: ' + url);
+
+  }
+
+};
+
+$('load').onclick = () => {
+
+  if (!room) return toast('Сначала войдите в комнату');
+
+  socket.emit('media', { url: $('url').value.trim() }, res => {
+
+    if (res?.error) toast(res.error);
+
   });
 
-  socket.on('sync', data => {
-    const r = rooms.get(socket.data.room);
-    if (!r || !r.users.has(socket.id)) return;
+};
 
-    const time = Number(data?.time);
-    if (!Number.isFinite(time) || time < 0 || time > 864000) return;
+$('sync').onclick = () => socket.emit('request-sync');
 
-    r.time = time;
-    r.playing = !!data.playing;
-    r.updated = Date.now();
+$('chatForm').onsubmit = e => {
 
-    socket.to(socket.data.room).emit('sync', {
-      time,
-      playing: r.playing,
-      origin: socket.id,
-      updated: r.updated
-    });
+  e.preventDefault();
+
+  const s = $('message').value.trim();
+
+  if (!s || !room) return;
+
+  socket.emit('chat', s);
+
+  $('message').value = '';
+
+};
+
+function append(msg) {
+
+  const el = document.createElement('div');
+
+  el.className = 'bubble' + (msg.sender === self ? ' mine' : '');
+
+  const who = document.createElement('div');
+
+  who.className = 'who';
+
+  who.textContent = msg.name + ' · ' + new Date(msg.at).toLocaleTimeString('ru-RU', {
+
+    hour: '2-digit', minute: '2-digit'
+
   });
 
-  socket.on('request-sync', () => {
-    const r = rooms.get(socket.data.room);
-    if (!r || !r.users.has(socket.id)) return;
+  const body = document.createElement('div');
 
-    socket.emit('sync', {
-      time: r.time + (r.playing ? (Date.now() - r.updated) / 1000 : 0),
-      playing: r.playing,
-      updated: Date.now()
-    });
-  });
+  body.className = 'message';
 
-  socket.on('chat', msg => {
-    const r = rooms.get(socket.data.room);
-    if (!r || !r.users.has(socket.id)) return;
+  body.textContent = msg.text;
 
-    const text = clean(msg).slice(0, 1000);
-    if (!text) return;
+  el.append(who, body);
 
-    const user = r.users.get(socket.id);
-    const item = {
-      id: randomBytes(8).toString('hex'),
-      name: user.name,
-      text,
-      at: Date.now(),
-      sender: socket.id
-    };
+  $('messages').append(el);
 
-    r.messages.push(item);
-    if (r.messages.length > 100) r.messages.shift();
+  $('messages').scrollTop = $('messages').scrollHeight;
 
-    io.to(socket.data.room).emit('chat', item);
-  });
+}
 
-  socket.on('disconnect', () => {
-    const room = socket.data.room;
-    const r = rooms.get(room);
-    if (!r) return;
+socket.on('chat', msg => {
 
-    r.users.delete(socket.id);
-    broadcast(room);
+  if ($('messages').querySelector('.empty')) $('messages').textContent = '';
 
-    if (!r.users.size) {
-      setTimeout(() => {
-        if (!r.users.size) rooms.delete(room);
-      }, 3600000);
-    }
-  });
+  append(msg);
+
 });
 
-function parseMedia(value) {
-  try {
-    const u = new URL(String(value));
-    if (u.protocol !== 'https:') return null;
+socket.on('room-state', state => {
 
-    const h = u.hostname.toLowerCase();
-    let id = null;
+  if (!room) return;
 
-    const youtubeHosts = [
-      'youtube.com', 'www.youtube.com',
-      'm.youtube.com', 'music.youtube.com'
-    ];
+  $('count').textContent = state.users.length + ' онлайн';
 
-    if (youtubeHosts.includes(h)) {
-      if (u.pathname === '/watch') {
-        id = u.searchParams.get('v');
-      } else if (
-        u.pathname.startsWith('/shorts/') ||
-        u.pathname.startsWith('/embed/') ||
-        u.pathname.startsWith('/live/')
-      ) {
-        id = u.pathname.split('/')[2];
-      }
-    } else if (h === 'youtu.be' || h === 'www.youtu.be') {
-      id = u.pathname.slice(1).split('/')[0];
+  if (JSON.stringify(media) !== JSON.stringify(state.media)) {
+
+    media = state.media;
+
+    showMedia(media);
+
+    $('url').value = media?.url || '';
+
+  }
+
+  if (!$('messages').dataset.loaded) {
+
+    $('messages').textContent = '';
+
+    state.messages.forEach(append);
+
+    $('messages').dataset.loaded = '1';
+
+    if (!state.messages.length) {
+
+      $('messages').innerHTML = '<div class="empty">Пока здесь тихо ✨</div>';
+
     }
 
-    if (id && /^[\w-]{11}$/.test(id)) {
-      return {
-        type: 'youtube',
-        id,
-        url: 'https://www.youtube.com/watch?v=' + id
-      };
-    }
+  }
 
-    const vkHosts = [
-      'vkvideo.ru', 'm.vkvideo.ru', 'www.vkvideo.ru',
-      'vk.com', 'm.vk.com', 'www.vk.com',
-      'vk.ru', 'm.vk.ru'
-    ];
+  if (media) {
 
-    if (vkHosts.includes(h)) {
-      const match = u.pathname.match(/^\/video(-?\d+)_(\d+)/);
-      let oid = match?.[1];
-      let vid = match?.[2];
+    const t = state.time + (state.playing ? (Date.now() - state.updated) / 1000 : 0);
 
-      if (u.pathname === '/video_ext.php') {
-        oid = u.searchParams.get('oid');
-        vid = u.searchParams.get('id');
-      }
+    applySync({ time: t, playing: state.playing });
 
-      if (oid && vid && /^-?\d+$/.test(oid) && /^\d+$/.test(vid)) {
-        const hash = u.searchParams.get('hash');
-        const embed = new URL('https://vkvideo.ru/video_ext.php');
+  }
 
-        embed.searchParams.set('oid', oid);
-        embed.searchParams.set('id', vid);
+});
 
-        if (hash && /^[a-zA-Z0-9_-]{1,128}$/.test(hash)) {
-          embed.searchParams.set('hash', hash);
+socket.on('sync', applySync);
+
+function showMedia(m) {
+
+  const generation = ++playerGeneration;
+
+  v.pause();
+
+  v.style.display = 'none';
+
+  v.removeAttribute('src');
+
+  v.load();
+
+  $('yt').style.display = 'none';
+
+  $('vk').style.display = 'none';
+
+  if (ytPlayer) {
+
+    try { ytPlayer.destroy(); } catch {}
+
+    ytPlayer = null;
+
+  }
+
+  if (vkPlayer) {
+
+    try { vkPlayer.destroy?.(); } catch {}
+
+    vkPlayer = null;
+
+  }
+
+  $('yt').replaceChildren();
+
+  $('vk').replaceChildren();
+
+  $('placeholder').style.display = m ? 'none' : 'block';
+
+  if (!m) return;
+
+  if (m.type === 'video') {
+
+    v.src = m.url;
+
+    v.style.display = 'block';
+
+    return;
+
+  }
+
+  if (m.type === 'vk') {
+
+    showVK(m, generation);
+
+    return;
+
+  }
+
+  if (m.type === 'youtube') {
+
+    const frame = document.createElement('div');
+
+    frame.id = 'ytframe';
+
+    $('yt').append(frame);
+
+    $('yt').style.display = 'block';
+
+    if (window.YT?.Player) {
+
+      createYT(m.id, generation);
+
+    } else {
+
+      window.onYouTubeIframeAPIReady = () => {
+
+        if (media?.type === 'youtube' && generation === playerGeneration) {
+
+          createYT(media.id, generation);
+
         }
 
-        embed.searchParams.set('js_api', '1');
+      };
 
-        return {
-          type: 'vk',
-          url: 'https://vkvideo.ru/video' + oid + '_' + vid,
-          embed: embed.href
-        };
+      if (!document.getElementById('ytapi')) {
+
+        const s = document.createElement('script');
+
+        s.id = 'ytapi';
+
+        s.src = 'https://www.youtube.com/iframe_api';
+
+        document.head.append(s);
+
       }
+
     }
 
-    if (/\.(mp4|webm)$/i.test(u.pathname)) {
-      return { type: 'video', url: u.href };
-    }
-
-    return null;
-  } catch {
-    return null;
   }
+
 }
 
-app.get('/health', (_, res) => res.json({ ok: true }));
+function createYT(id, generation) {
 
-const port = process.env.PORT || 3000;
-http.listen(port, '0.0.0.0', () => {
-  console.log(`REMEDIUM CINEMA on ${port}`);
+  if (generation !== playerGeneration || !$('ytframe')) return;
+
+  ytPlayer = new YT.Player('ytframe', {
+
+    width: '100%',
+
+    height: '100%',
+
+    videoId: id,
+
+    playerVars: {
+
+      playsinline: 1,
+
+      origin: location.origin,
+
+      rel: 0
+
+    },
+
+    events: {
+
+      onReady: () => socket.emit('request-sync'),
+
+      onStateChange: e => {
+
+        if (Date.now() < remoteUntil) return;
+
+        if (e.data === 1 || e.data === 2) sendSync();
+
+      }
+
+    }
+
+  });
+
+}
+
+function showVK(m, generation) {
+
+  const frame = document.createElement('iframe');
+
+  frame.id = 'vkframe';
+
+  frame.src = m.embed;
+
+  frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+
+  frame.allowFullscreen = true;
+
+  $('vk').append(frame);
+
+  $('vk').style.display = 'block';
+
+  function init() {
+
+    if (generation !== playerGeneration || media?.type !== 'vk') return;
+
+    if (!window.VK?.VideoPlayer) return;
+
+    try {
+
+      vkPlayer = VK.VideoPlayer(frame);
+
+      const E = VK.VideoPlayer.Events || {};
+
+      for (const ev of ['started', 'resumed', 'paused']) {
+
+        vkPlayer.on(E[ev] || ev, () => {
+
+          if (Date.now() >= remoteUntil) sendSync();
+
+        });
+
+      }
+
+      socket.emit('request-sync');
+
+    } catch (e) {
+
+      console.warn('VK player API:', e);
+
+    }
+
+  }
+
+  frame.addEventListener('load', init);
+
+  if (!window.VK?.VideoPlayer) {
+
+    let script = document.getElementById('vkapi');
+
+    if (!script) {
+
+      script = document.createElement('script');
+
+      script.id = 'vkapi';
+
+      script.src = 'https://vk.com/js/api/videoplayer.js';
+
+      document.head.append(script);
+
+    }
+
+    script.addEventListener('load', init, { once: true });
+
+  }
+
+}
+
+function currentTime() {
+
+  try {
+
+    if (media?.type === 'youtube') return ytPlayer?.getCurrentTime() || 0;
+
+    if (media?.type === 'vk') return vkPlayer?.getCurrentTime() || 0;
+
+    return v.currentTime || 0;
+
+  } catch {
+
+    return 0;
+
+  }
+
+}
+
+function playing() {
+
+  try {
+
+    if (media?.type === 'youtube') return ytPlayer?.getPlayerState() === 1;
+
+    if (media?.type === 'vk') {
+
+      return String(vkPlayer?.getState() || '').toLowerCase() === 'playing';
+
+    }
+
+    return !v.paused;
+
+  } catch {
+
+    return false;
+
+  }
+
+}
+
+function sendSync() {
+
+  if (!room || !media || Date.now() < remoteUntil) return;
+
+  socket.emit('sync', { time: currentTime(), playing: playing() });
+
+  lastSync = Date.now();
+
+}
+
+function applySync(s) {
+
+  if (!media) return;
+
+  const t = Math.max(0, Number(s.time) || 0);
+
+  remoteUntil = Date.now() + 1600;
+
+  try {
+
+    if (media.type === 'video') {
+
+      if (v.readyState && Math.abs(v.currentTime - t) > 1.5) v.currentTime = t;
+
+      if (s.playing && v.paused) {
+
+        v.play().catch(() => toast('Нажмите Play для разрешения воспроизведения'));
+
+      }
+
+      if (!s.playing && !v.paused) v.pause();
+
+    } else if (media.type === 'vk' && vkPlayer) {
+
+      if (Math.abs((vkPlayer.getCurrentTime() || 0) - t) > 2) {
+
+        vkPlayer.seek(t);
+
+      }
+
+      if (s.playing) vkPlayer.play();
+
+      else vkPlayer.pause();
+
+    } else if (media.type === 'youtube' && ytPlayer?.seekTo) {
+
+      if (Math.abs((ytPlayer.getCurrentTime() || 0) - t) > 2) {
+
+        ytPlayer.seekTo(t, true);
+
+      }
+
+      if (s.playing && ytPlayer.getPlayerState() !== 1) ytPlayer.playVideo();
+
+      if (!s.playing && ytPlayer.getPlayerState() === 1) ytPlayer.pauseVideo();
+
+    }
+
+  } catch (e) {
+
+    console.warn('Sync:', e);
+
+  }
+
+}
+
+v.addEventListener('play', sendSync);
+
+v.addEventListener('pause', sendSync);
+
+v.addEventListener('seeked', sendSync);
+
+setInterval(() => {
+
+  if (room && media && playing() && Date.now() - lastSync > 5000) {
+
+    sendSync();
+
+  }
+
+}, 5000);
+
+socket.on('connect', () => {
+
+  if (room) {
+
+    const id = room;
+
+    room = '';
+
+    $('room').value = id;
+
+    $('join').click();
+
+  }
+
 });
+
+socket.on('disconnect', () => {
+
+  $('status').textContent = '● Нет соединения';
+
+});
+
+</script>
+
+</body>
+
+</html>
