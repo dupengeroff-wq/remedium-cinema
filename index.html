@@ -8,10 +8,12 @@
 <title>REMEDIUM CINEMA</title>
 <style>
 :root{
---bg:#08090b;--gold:#d9bd89;--text:#f3f1ed;
---muted:#92939b;--line:#ffffff1d;
+color-scheme:dark;
+--bg:#08090b;--gold:#d9bd89;
+--text:#f4f1ed;--muted:#999ba2;
+--line:#ffffff20;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-color:var(--text);background:var(--bg);color-scheme:dark
+background:var(--bg);color:var(--text)
 }
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at 50% -10%,#a17a3820,transparent 50%),var(--bg)}
@@ -20,18 +22,19 @@ button{cursor:pointer}
 button:disabled{opacity:.4;cursor:not-allowed}
 .hidden{display:none!important}
 .wrap{max-width:1450px;margin:auto;padding:0 18px 40px}
-header{height:72px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+header{height:70px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
 .brand{font-size:14px;font-weight:800;letter-spacing:2px}
 .gold{color:var(--gold)}
 .muted{color:var(--muted)}
 .small{font-size:11px}
+.eyebrow{font-size:10px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
 .hero{padding:28px 0;display:flex;align-items:end;justify-content:space-between;gap:15px}
 .hero h1{font-size:clamp(26px,4vw,40px);font-weight:600;margin:10px 0}
 .hero p{font-size:12px;color:var(--muted);margin:0}
-.eyebrow{font-size:10px;color:var(--gold);letter-spacing:2.5px;font-weight:700}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{padding:12px 15px;border-radius:11px;background:#ffffff0c;border:1px solid var(--line);color:var(--text);font-size:12px}
-.btn.goldbtn{background:var(--gold);color:#16130e;border-color:var(--gold);font-weight:700}
-.field{min-width:0;width:100%;padding:14px;background:#08090dbd;color:white;border:1px solid #ffffff23;border-radius:11px;outline:none;font-size:13px}
+.btn.primary{background:var(--gold);color:#16130e;border-color:var(--gold);font-weight:700}
+.field{width:100%;min-width:0;padding:14px;background:#08090dbd;color:white;border:1px solid #ffffff23;border-radius:11px;outline:none;font-size:13px}
 .field:focus{border-color:var(--gold)}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:17px}
 .stage{min-width:0}
@@ -69,6 +72,8 @@ header{height:72px;display:flex;align-items:center;justify-content:space-between
 .msg{display:flex;align-items:start;gap:9px}
 .avatar{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;flex:none;background:linear-gradient(135deg,#d7bd8a,#68533c);color:#17120b;font-size:12px;font-weight:800}
 .msgname{font-size:11px;color:var(--gold);margin-bottom:5px;font-weight:700}
+.name-stack{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px}
+.crown{color:#e7c77e;font-size:13px;line-height:1;text-shadow:0 0 12px #d9bd8970}
 .bubble{background:#ffffff11;border:1px solid #ffffff13;border-radius:5px 13px 13px 13px;padding:10px 12px;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
 .msgtime{font-size:9px;color:#777;margin-top:5px}
 .chatinput{padding:12px;border-top:1px solid var(--line);display:flex;gap:8px}
@@ -119,10 +124,10 @@ body.theater .exit{display:block}
 <h1>Кино. <span class="gold">Только для вас.</span></h1>
 <p>Один экран. Два сердца. Любое расстояние.</p>
 </div>
-<div style="display:flex;gap:8px">
+<div class="actions">
 <button id="invite" class="btn" disabled>↗ Пригласить</button>
 <button id="editName" class="btn">✎ Имя</button>
-<button id="theater" class="btn goldbtn">⛶ Режим кино</button>
+<button id="theater" class="btn primary">⛶ Режим кино</button>
 </div>
 </section>
 
@@ -166,7 +171,7 @@ body.theater .exit{display:block}
 </div>
 <div class="movieform">
 <input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4">
-<button id="load" class="btn goldbtn" disabled>▶ Включить фильм</button>
+<button id="load" class="btn primary" disabled>▶ Включить фильм</button>
 </div>
 <div class="meta">
 <span id="roomInfo">Комната не создана</span>
@@ -187,7 +192,7 @@ body.theater .exit{display:block}
 </div>
 <form id="chatForm" class="chatinput">
 <input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled>
-<button id="send" class="btn goldbtn" disabled>➤</button>
+<button id="send" class="btn primary" disabled>➤</button>
 </form>
 </aside>
 </div>
@@ -200,8 +205,8 @@ body.theater .exit{display:block}
 <p>Создай свой кинозал или войди по приглашению. Регистрация не нужна.</p>
 <input id="name" class="field" maxlength="24" placeholder="Твоё имя">
 <input id="room" class="field" placeholder="Код комнаты (необязательно)">
-<button id="join" class="btn goldbtn">Продолжить →</button>
-<div class="modal-note">Имя можно изменить здесь перед входом. Комната и фильм останутся прежними.</div>
+<button id="join" class="btn primary">Продолжить →</button>
+<div class="modal-note">Имя можно менять перед каждым входом.</div>
 </div>
 </div>
 
@@ -216,9 +221,9 @@ let room='',self='',media=null,isHost=false;
 let ytPlayer=null,vkPlayer=null,generation=0;
 let joining=false,remoteUntil=0,lastSync=0;
 let clock=0,playingState=false,knownDuration=0;
-let muted=false;
+let muted=false,hostName='',hostToken='';
+let messages=[];
 const tokenKey=id=>'rc-token-'+id;
-
 const params=new URLSearchParams(location.search);
 $('room').value=params.get('room')||localStorage.getItem('rc-room')||'';
 $('name').value=localStorage.getItem('rc-name')||'';
@@ -234,7 +239,7 @@ const a=new Uint8Array(9);
 crypto.getRandomValues(a);
 return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');
 }
-function join(){
+function join(auto=false){
 if(!socket.connected)return toast('Подключаемся к серверу…');
 if(joining)return;
 const id=$('room').value.trim()||randomRoom();
@@ -242,8 +247,7 @@ const name=$('name').value.trim().slice(0,24);
 if(!name)return toast('Напиши своё имя');
 joining=true;
 socket.emit('join',{
-room:id,
-name,
+room:id,name,
 token:localStorage.getItem(tokenKey(id))||''
 },res=>{
 joining=false;
@@ -266,13 +270,14 @@ $('screenRoom').textContent='● ROOM '+id.slice(0,6).toUpperCase();
 $('status').textContent='● Подключено';
 if(changed){
 media=null;
+messages=[];
 $('messages').dataset.loaded='';
 }
 updateHost();
-toast('Добро пожаловать ♡');
+if(!auto)toast('Добро пожаловать ♡');
 });
 }
-$('join').onclick=join;
+$('join').onclick=()=>join();
 $('name').addEventListener('keydown',e=>{
 if(e.key==='Enter')join();
 });
@@ -300,7 +305,7 @@ for(const id of ['play','back','forward','progress']){
 $(id).disabled=!isHost||!media;
 }
 $('role').textContent=isHost?'♛ ВЫ СОЗДАТЕЛЬ':'♧ РЕЖИМ ГОСТЯ';
-$('hostBadge').textContent=isHost?'♛ Вы управляете':'♛ Управляет создатель';
+$('hostBadge').textContent='♛ '+(hostName||'Создатель')+(isHost?' · вы':'');
 video.controls=false;
 video.style.pointerEvents='none';
 $('yt').style.pointerEvents=isHost?'auto':'none';
@@ -331,6 +336,7 @@ if(!m)return;
 if(m.type==='video'){
 video.src=m.url;
 video.style.display='block';
+video.muted=muted;
 video.onloadedmetadata=()=>{
 knownDuration=video.duration||0;
 socket.emit('request-sync');
@@ -355,6 +361,7 @@ origin:location.origin
 events:{
 onReady:()=>{
 knownDuration=ytPlayer.getDuration()||0;
+if(muted)ytPlayer.mute();
 socket.emit('request-sync');
 },
 onStateChange:e=>{
@@ -411,8 +418,8 @@ s.addEventListener('load',init,{once:true});
 }
 function getTime(){
 try{
-if(media?.type==='youtube')return ytPlayer?.getCurrentTime()||clock;
-if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()||clock;
+if(media?.type==='youtube')return ytPlayer?.getCurrentTime()??clock;
+if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()??clock;
 if(media?.type==='video')return video.currentTime||clock;
 }catch{}
 return clock;
@@ -536,15 +543,10 @@ $('exit').onclick=()=>theater(false);
 $('full').onclick=async()=>{
 const el=$('screen');
 try{
-if(document.fullscreenElement){
-await document.exitFullscreen();
-}else if(el.requestFullscreen){
-await el.requestFullscreen();
-}else if(media?.type==='video'&&video.webkitEnterFullscreen){
-video.webkitEnterFullscreen();
-}else{
-theater(!document.body.classList.contains('theater'));
-}
+if(document.fullscreenElement)await document.exitFullscreen();
+else if(el.requestFullscreen)await el.requestFullscreen();
+else if(media?.type==='video'&&video.webkitEnterFullscreen)video.webkitEnterFullscreen();
+else theater(!document.body.classList.contains('theater'));
 }catch{
 theater(!document.body.classList.contains('theater'));
 }
@@ -552,19 +554,33 @@ theater(!document.body.classList.contains('theater'));
 function avatar(name){
 return String(name||'?').trim().slice(0,1).toUpperCase();
 }
+function isCrowned(msg){
+return !!msg.isHost;
+}
+function nameElement(msg){
+const stack=document.createElement('div');
+stack.className='name-stack';
+if(isCrowned(msg)){
+const crown=document.createElement('span');
+crown.className='crown';
+crown.textContent='♛';
+stack.append(crown);
+}
+const name=document.createElement('span');
+name.className='msgname';
+name.textContent=msg.name;
+stack.append(name);
+return stack;
+}
 function appendMessage(msg){
 const list=$('messages');
-const empty=list.querySelector('.empty');
-if(empty)empty.remove();
+list.querySelector('.empty')?.remove();
 const row=document.createElement('div');
 row.className='msg';
 const av=document.createElement('div');
 av.className='avatar';
 av.textContent=avatar(msg.name);
 const content=document.createElement('div');
-const who=document.createElement('div');
-who.className='msgname';
-who.textContent=msg.name;
 const bubble=document.createElement('div');
 bubble.className='bubble';
 bubble.textContent=msg.text;
@@ -573,7 +589,7 @@ time.className='msgtime';
 time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{
 hour:'2-digit',minute:'2-digit'
 });
-content.append(who,bubble,time);
+content.append(nameElement(msg),bubble,time);
 row.append(av,content);
 list.append(row);
 list.scrollTop=list.scrollHeight;
@@ -586,6 +602,12 @@ av.className='avatar';
 av.textContent=avatar(msg.name);
 const b=document.createElement('div');
 b.className='floatbubble';
+if(isCrowned(msg)){
+const crown=document.createElement('div');
+crown.className='crown';
+crown.textContent='♛';
+b.append(crown);
+}
 const who=document.createElement('b');
 who.textContent=msg.name+': ';
 const text=document.createElement('span');
@@ -604,14 +626,15 @@ socket.emit('chat',text);
 $('message').value='';
 };
 socket.on('chat',msg=>{
+messages.push(msg);
 appendMessage(msg);
 floatMessage(msg);
 });
 socket.on('room-state',state=>{
 if(!room)return;
 isHost=!!state.users.find(u=>u.id===self)?.isHost;
+hostName=state.hostName||'Создатель';
 $('online').textContent=state.users.length+' онлайн';
-$('hostBadge').textContent='♛ '+(state.hostName||'Создатель')+(isHost?' · вы':'');
 const changed=JSON.stringify(media)!==JSON.stringify(state.media);
 if(changed){
 media=state.media;
@@ -620,9 +643,10 @@ $('url').value=media?.url||'';
 }
 updateHost();
 if(!$('messages').dataset.loaded){
+messages=state.messages||[];
 $('messages').replaceChildren();
-for(const msg of state.messages||[])appendMessage(msg);
-if(!state.messages?.length){
+for(const msg of messages)appendMessage(msg);
+if(!messages.length){
 $('messages').innerHTML='<div class="empty">Тишина перед началом фильма ✦</div>';
 }
 $('messages').dataset.loaded='1';
@@ -631,21 +655,19 @@ if(changed)applySync({time:state.time,playing:state.playing});
 });
 socket.on('sync',applySync);
 socket.on('connect',()=>{
+$('status').textContent='● Подключено';
+$('entry').classList.remove('hidden');
 if(room){
 room='';
 media=null;
 $('messages').dataset.loaded='';
 }
-$('status').textContent='● Подключено';
-$('entry').classList.remove('hidden');
 });
 socket.on('disconnect',()=>{
 $('status').textContent='● Переподключение…';
 });
 document.addEventListener('visibilitychange',()=>{
-if(!document.hidden&&room&&socket.connected){
-socket.emit('request-sync');
-}
+if(!document.hidden&&room&&socket.connected)socket.emit('request-sync');
 });
 setInterval(()=>{
 if(room&&media){
