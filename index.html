@@ -90,17 +90,13 @@ header{height:70px;display:flex;align-items:center;justify-content:space-between
 .sound-prompt{
 position:absolute;left:50%;bottom:22%;
 transform:translateX(-50%);
-z-index:12;
-padding:13px 19px;
-border:1px solid #d9bd8980;
-border-radius:14px;
+z-index:12;padding:13px 19px;
+border:1px solid #d9bd8980;border-radius:14px;
 background:#191a1edb;
 backdrop-filter:blur(22px);
 -webkit-backdrop-filter:blur(22px);
-color:var(--gold);
-font-size:13px;font-weight:700;
-box-shadow:0 12px 35px #0009;
-white-space:nowrap
+color:var(--gold);font-size:13px;font-weight:700;
+box-shadow:0 12px 35px #0009;white-space:nowrap
 }
 body.theater .wrap{max-width:none;padding:0}
 body.theater header,body.theater .hero,body.theater .chat,body.theater .sectionhead,body.theater .movieform,body.theater .meta{display:none}
@@ -267,12 +263,16 @@ return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');
 
 function setSoundPrompt(show){
 soundPromptNeeded=!!show;
-$('soundPrompt').classList.toggle('hidden',!show||muted||!media);
+$('soundPrompt').classList.toggle(
+'hidden',
+!show||muted||!media||!isHost
+);
 }
 
 function refreshSoundButton(){
 $('sound').textContent=muted?'🔇':'🔊';
 $('sound').title=muted?'Включить звук':'Выключить звук';
+$('sound').classList.toggle('hidden',!isHost);
 if(muted)setSoundPrompt(false);
 }
 
@@ -309,6 +309,8 @@ refreshSoundButton();
 }
 
 function enableSoundFromGesture(){
+if(!isHost)return;
+
 muted=false;
 applyVolume();
 
@@ -443,7 +445,16 @@ $('hostBadge').textContent='♛ '+(hostName||'Создатель')+(isHost?' · 
 video.controls=false;
 video.style.pointerEvents='none';
 $('yt').style.pointerEvents=isHost?'auto':'none';
-$('vk').style.pointerEvents=isHost?'auto':'none';
+
+/*
+VK: гость может нажимать на встроенный плеер.
+Это позволяет использовать его собственные
+элементы управления звуком.
+*/
+$('vk').style.pointerEvents='auto';
+
+$('sound').classList.toggle('hidden',!isHost);
+setSoundPrompt(soundPromptNeeded);
 }
 
 $('load').onclick=()=>{
@@ -774,6 +785,8 @@ video.addEventListener(event,sendSync);
 }
 
 $('sound').onclick=()=>{
+if(!isHost)return;
+
 muted=!muted;
 applyVolume();
 
@@ -785,6 +798,7 @@ toast(muted?'Звук выключен':'Звук включён');
 };
 
 $('soundPrompt').onclick=()=>{
+if(!isHost)return;
 enableSoundFromGesture();
 };
 
