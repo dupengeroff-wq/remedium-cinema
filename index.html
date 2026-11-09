@@ -223,6 +223,7 @@ input,select,textarea{min-width:0;max-width:100%}
 .watch-ready{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 0;color:#eee;font-size:13px}.watch-ready[hidden],#startTogether[hidden]{display:none!important}#readyStatus{flex:1;min-width:170px}#readyBtn{white-space:nowrap}
  .vk-retry{position:absolute;right:12px;bottom:12px;z-index:8;border:1px solid #ffffff55;background:#111c;color:#fff;border-radius:12px;padding:8px 10px;font:inherit;font-size:11px;cursor:pointer;backdrop-filter:blur(12px)}
 .vk-retry[hidden]{display:none!important}
+.vk-fallback{margin:12px 0;padding:12px;border:1px solid #ffffff30;border-radius:12px;font-size:12px;line-height:1.6}.vk-fallback a{color:#fff;text-decoration:underline}
 
 /* Entry CTA: white porcelain with a restrained moving light reflection */
 #join.btn.primary{position:relative;isolation:isolate;overflow:hidden;background:#fff!important;color:#111!important;border:1px solid #fff!important;box-shadow:0 6px 24px #ffffff25,0 0 0 1px #ffffff18!important;transition:transform .25s ease,box-shadow .25s ease!important}
@@ -239,7 +240,7 @@ input,select,textarea{min-width:0;max-width:100%}
 <div class="wrap">
 <header><div class="brand"><span class="mark">✦</span> REMEDIUM <span class="accent">CINEMA</span></div><div class="header-right"><span class="online-dot"></span><span class="eyebrow">OUR LITTLE UNIVERSE</span></div></header>
 <section class="hero"><div><div class="eyebrow">A UNIVERSE FOR TWO</div><h1>Ближе, чем <span class="accent">звёзды.</span></h1><p>Один космос. Два сердца. Ваш собственный кинозал.</p></div><div class="actions"><button id="invite" class="btn" disabled>↗ Пригласить</button><button id="editName" class="btn">✎ Имя</button></div></section>
-<div class="layout"><main class="stage"><div class="player-shell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet">▶</div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline webkit-playsinline preload="metadata" controls></video><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Нажми для просмотра со звуком</button><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span></div><div id="floating" class="floating"></div><button id="vkRetry" class="vk-retry" type="button" hidden>↻ Перезагрузить VK-плеер</button><div class="screen-bottom"><span id="hostBadge" class="chip">♛ PRIVATE UNIVERSE</span></div></div></div><div class="sectionhead" id="nowWatchingHeading"><h2>Сейчас смотрим</h2><span id="role" class="role">✦ PRIVATE CINEMA</span></div><div class="movieform" id="nowWatchingForm"><div id="guestMovieTitle" class="guest-movie-title" hidden></div><input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div><details class="watchlist" id="watchlist"><summary><span>☷ &nbsp; Наш список фильмов <span id="watchCount" class="muted"></span></span><span class="arrow">⌄</span></summary><div class="watch-body"><div class="watch-tools"><input id="watchSearch" class="field" placeholder="⌕ Найти фильм…"><select id="watchCategory" class="field"><option value="all">Все разделы</option><option value="main">Наш список</option><option value="moderation">На модерации</option></select><input id="watchFile" type="file" accept=".json,.html,.htm,application/json,text/html" hidden></div><div class="watch-stats" id="watchStats"></div><div class="watch-items" id="watchItems"></div><div class="watch-note">Личный список на этом устройстве, без синхронизации с другим зрителем. Список доступен только для просмотра. Изменение и удаление записей отключены.</div></div></details><div class="watch-ready" id="watchReady" hidden><span id="readyStatus">Ожидаем участников…</span><button id="readyBtn" class="btn primary" type="button">✓ Я готов(а)</button><button id="startTogether" class="btn" type="button" hidden>▶ Начать вместе</button></div><div class="meta"><span id="roomInfo">Комната не создана</span><span id="status">● Не подключено</span></div></main>
+<div class="layout"><main class="stage"><div class="player-shell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet">▶</div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline webkit-playsinline preload="metadata" controls></video><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Нажми для просмотра со звуком</button><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span></div><div id="floating" class="floating"></div><button id="vkRetry" class="vk-retry" type="button" hidden>↻ Перезагрузить VK-плеер</button><div class="screen-bottom"><span id="hostBadge" class="chip">♛ PRIVATE UNIVERSE</span></div></div></div><div id="vkFallback" class="vk-fallback" role="status" hidden>VK-плеер не загрузился или видео недоступно. <a id="vkDirect" target="_blank" rel="noopener noreferrer">Открыть видео в VK Видео ↗</a></div><div class="sectionhead" id="nowWatchingHeading"><h2>Сейчас смотрим</h2><span id="role" class="role">✦ PRIVATE CINEMA</span></div><div class="movieform" id="nowWatchingForm"><div id="guestMovieTitle" class="guest-movie-title" hidden></div><input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div><details class="watchlist" id="watchlist"><summary><span>☷ &nbsp; Наш список фильмов <span id="watchCount" class="muted"></span></span><span class="arrow">⌄</span></summary><div class="watch-body"><div class="watch-tools"><input id="watchSearch" class="field" placeholder="⌕ Найти фильм…"><select id="watchCategory" class="field"><option value="all">Все разделы</option><option value="main">Наш список</option><option value="moderation">На модерации</option></select><input id="watchFile" type="file" accept=".json,.html,.htm,application/json,text/html" hidden></div><div class="watch-stats" id="watchStats"></div><div class="watch-items" id="watchItems"></div><div class="watch-note">Личный список на этом устройстве, без синхронизации с другим зрителем. Список доступен только для просмотра. Изменение и удаление записей отключены.</div></div></details><div class="watch-ready" id="watchReady" hidden><span id="readyStatus">Ожидаем участников…</span><button id="readyBtn" class="btn primary" type="button">✓ Я готов(а)</button><button id="startTogether" class="btn" type="button" hidden>▶ Начать вместе</button></div><div class="meta"><span id="roomInfo">Комната не создана</span><span id="status">● Не подключено</span></div></main>
 <aside class="chat"><div class="chathead"><div><div class="eyebrow">MESSAGES FROM THE STARS</div><h2>Наш космос ♡</h2></div><div class="chat-status"><button id="myBadge" class="my-badge hidden" title="Изменить свой значок">🎀</button><span id="online" class="small muted">0 онлайн</span></div></div><div id="messages" class="messages"><div class="empty">Здесь начнётся ваша история ✦<br>Зажми сообщение, чтобы поставить реакцию.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn primary" disabled>➤</button></form></aside></div></div>
 <div id="entry" class="overlay"><div class="modal"><div class="eyebrow">✦ REMEDIUM CINEMA</div><h2>Добро пожаловать <span class="accent">во Вселенную ♡</span></h2><p>Создай свой кинозал или войди по приглашению. Регистрация не нужна.</p><input id="name" class="field" maxlength="24" placeholder="Твоё имя"><input id="room" class="field" placeholder="Код комнаты (необязательно)"><button id="join" class="btn primary">Начать путешествие →</button><div class="modal-note">Имя можно менять перед каждым входом.</div></div></div>
 <div id="pickerOverlay" class="picker-overlay hidden"><div class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle"><h3 id="pickerTitle">Выбери значок</h3><p id="pickerHint">Твой знак в нашем космосе</p><div id="pickerChoices" class="choices"></div><button id="pickerClose" class="picker-close">Закрыть</button></div></div>
@@ -291,7 +292,7 @@ function activateSound(){
   }else if(media?.type==='youtube'){
     try{ytPlayer?.setVolume?.(100);if(playingState)ytPlayer?.playVideo?.();setSoundPrompt(false)}catch{setSoundPrompt(true)}
   }else if(media?.type==='vk'){
-    try{vkPlayer?.setVolume?.(1);if(playingState)vkPlayer?.play?.();setSoundPrompt(false)}catch{setSoundPrompt(true)}
+    try{vkPlayer?.unmute?.();vkPlayer?.setVolume?.(1);if(playingState)vkPlayer?.play?.();setSoundPrompt(false)}catch{setSoundPrompt(true)}
   }
 }
 $('soundPrompt').onclick=activateSound;
@@ -330,15 +331,24 @@ function updateGuestShield(){
   shield.style.display='none';shield.style.pointerEvents='none';
 }
 $('vkRetry').onclick=()=>{if(media?.type!=='vk')return;showMedia(media);socket.emit('request-sync');toast('Перезагружаем VK-плеер…')};
-function showMedia(m){const g=++generation;try{video.pause()}catch{}video.removeAttribute('src');video.load();video.style.display='none';$('yt').style.display='none';$('vk').style.display='none';$('yt').replaceChildren();$('vk').replaceChildren();try{ytPlayer?.destroy()}catch{}ytPlayer=null;vkPlayer=null;tryInitVKPlayer=null;knownDuration=0;muted=false;video.muted=false;video.volume=1;refreshSoundButton();setSoundPrompt(false);$('placeholder').classList.toggle('hidden',!!m);updateGuestShield();if(!m)return;
+function showMedia(m){const g=++generation;$('vkFallback').hidden=true;try{video.pause()}catch{}video.removeAttribute('src');video.load();video.style.display='none';$('yt').style.display='none';$('vk').style.display='none';$('yt').replaceChildren();$('vk').replaceChildren();try{ytPlayer?.destroy()}catch{}try{vkPlayer?.destroy?.()}catch{}ytPlayer=null;vkPlayer=null;tryInitVKPlayer=null;knownDuration=0;muted=false;video.muted=false;video.volume=1;refreshSoundButton();setSoundPrompt(false);$('placeholder').classList.toggle('hidden',!!m);updateGuestShield();if(!m)return;
 if(m.type==='video'){video.onloadedmetadata=null;video.onerror=null;video.src=m.url;video.style.display='block';video.onerror=()=>toast('Не удалось открыть видеофайл. Проверь ссылку.');video.onloadedmetadata=()=>{knownDuration=video.duration||0;applyVolume();updateHost();socket.emit('request-sync')};return}
 if(m.type==='youtube'){const el=document.createElement('div');el.id='ytframe';$('yt').append(el);$('yt').style.display='block';const init=()=>{if(g!==generation||!window.YT?.Player)return;ytPlayer=new YT.Player('ytframe',{videoId:m.id,width:'100%',height:'100%',playerVars:{playsinline:1,controls:1,disablekb:0,fs:1,origin:location.origin},events:{onReady:()=>{knownDuration=ytPlayer.getDuration()||0;try{ytPlayer.unMute();ytPlayer.setVolume(100)}catch{}updateHost();socket.emit('request-sync')},onAutoplayBlocked:()=>setSoundPrompt(true),onStateChange:e=>{if(e.data===1)setSoundPrompt(muted);if(Date.now()>remoteUntil&&[0,1,2].includes(e.data))sendSync()}}})};if(window.YT?.Player)init();else{window.onYouTubeIframeAPIReady=init;if(!document.getElementById('ytapi')){const s=document.createElement('script');s.id='ytapi';s.src='https://www.youtube.com/iframe_api';document.head.append(s)}}return}
 if(m.type==='vk'){
-  // Native VK player, same iframe-based playback as the earlier working version.
+  $('vkDirect').href=m.url;
+  const unavailable=()=>{if(g===generation)$('vkFallback').hidden=false};
+  setTimeout(()=>{
+    if(g===generation&&(!vkPlayer||['uninited','error'].includes(vkPlayer.getState())))unavailable();
+  },12000);
+  // The official SDK requires js_api=1 before it can initialize the iframe.
   const frame=document.createElement('iframe');
   let frameLoaded=false;
   frame.id='vkframe';
-  frame.src=m.embed+(m.embed.includes('?')?'&':'?')+'autoplay=0';
+  const embedURL=new URL(m.embed);
+  embedURL.hostname='vkvideo.ru';
+  embedURL.searchParams.set('js_api','1');
+  embedURL.searchParams.set('autoplay','0');
+  frame.src=embedURL.href;
   frame.loading='eager';
   frame.referrerPolicy='strict-origin-when-cross-origin';
   frame.style.cssText='width:100%;height:100%;border:0;display:block';
@@ -352,22 +362,31 @@ if(m.type==='vk'){
     try{
       vkPlayer=window.VK.VideoPlayer(frame);
       const events=window.VK.VideoPlayer.Events||{};
+      vkPlayer.on(events.AUTOPLAY_SOUND_PROHIBITED||'autoplaySoundProhibited',()=>{
+        if(g!==generation)return;
+        vkPlayer.mute();setSoundPrompt(true);
+        if(playingState)vkPlayer.play();
+      });
+      vkPlayer.on(events.ERROR||'error',()=>{
+        unavailable();
+      });
       for(const event of ['started','resumed','paused']){
-        const key=events[event]||event;
+        const key=events[event.toUpperCase()]||event;
         vkPlayer?.on?.(key,()=>{
           if(g!==generation)return;
-          if(event!=='paused')setSoundPrompt(false);
+          if(event!=='paused'){$('vkFallback').hidden=true;setSoundPrompt(!!vkPlayer?.isMuted?.())}
           if(isHost&&Date.now()>=remoteUntil){playingState=event!=='paused';sendSync()}
         });
       }
-      vkPlayer?.on?.(events.inited||'inited',()=>{if(g===generation)socket.emit('request-sync')});
+      vkPlayer?.on?.(events.INITED||'inited',()=>{if(g===generation){$('vkFallback').hidden=true;socket.emit('request-sync')}});
       socket.emit('request-sync');
-    }catch(e){console.warn('VK API unavailable; native player may be controlled manually',e)}
+    }catch(e){unavailable();console.warn('VK API initialization failed',e)}
   };
   frame.addEventListener('load',()=>{frameLoaded=true;init();if(!isHost){setTimeout(()=>socket.emit('request-sync'),800);setTimeout(()=>socket.emit('request-sync'),2200)}});
   if(window.VK?.VideoPlayer){setTimeout(init,150)}else{
     let script=document.getElementById('vkapi');
-    if(!script){script=document.createElement('script');script.id='vkapi';script.src='https://vk.com/js/api/videoplayer.js';document.head.append(script)}
+    if(script?.dataset.failed){script.remove();script=null}
+    if(!script){script=document.createElement('script');script.id='vkapi';script.src='https://vkvideo.ru/js/api/videoplayer.js';script.onerror=()=>{script.dataset.failed='1';unavailable()};document.head.append(script)}
     script.addEventListener('load',init,{once:true});
   }
 }
@@ -384,7 +403,7 @@ function applySync(d){if(!media)return;clock=Math.max(0,Number(d.time)||0);playi
   
   ytPlayer.playVideo();
 }else ytPlayer.pauseVideo()}if(media.type==='vk'&&vkPlayer){try{if(Math.abs((vkPlayer.getCurrentTime?.()||0)-clock)>2)vkPlayer.seek?.(clock);if(playingState){
-  setSoundPrompt(true);vkPlayer.play?.();
+  vkPlayer.play?.();
 }else vkPlayer.pause?.()}catch{}}}catch(e){console.warn(e)}updateTimeline()}
 function formatTime(n){n=Math.max(0,Math.floor(Number(n)||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0')}
 function updateTimeline(){

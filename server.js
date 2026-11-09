@@ -48,10 +48,10 @@ function parseMedia(input){
     const oid=url.searchParams.get('oid');const id=url.searchParams.get('id');
     let embed;
     if(oid&&id&&/^-?\d+$/.test(oid)&&/^\d+$/.test(id)){
-      embed=`https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`;
+      embed=`https://vkvideo.ru/video_ext.php?oid=${oid}&id=${id}&hd=2&js_api=1`;
     }else{
       const match=url.pathname.match(/video(-?\d+)_(\d+)/);
-      if(match)embed=`https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2`;
+      if(match)embed=`https://vkvideo.ru/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2&js_api=1`;
     }
     if(!embed)return null;
     // The embed hash grants access to link-only videos to invited viewers.
@@ -70,7 +70,7 @@ async function discoverTitle(m){
   }
   let endpoint;
   if(m.type==='youtube') endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+m.id);
-  else if(m.type==='vk') endpoint='https://vk.com/oembed?url='+encodeURIComponent(m.url);
+  else if(m.type==='vk') endpoint='https://vkvideo.ru/oembed?url='+encodeURIComponent(m.url);
   else return null;
   try{
     const response=await fetch(endpoint,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5500)});
