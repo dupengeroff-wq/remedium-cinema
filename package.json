@@ -1,12 +1,12 @@
 
 {
   "name": "remedium-cinema",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "REMEDIUM CINEMA — совместный просмотр фильмов",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js"
   },
   "engines": {
     "node": ">=18"
