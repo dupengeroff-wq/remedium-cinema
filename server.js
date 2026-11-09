@@ -28,7 +28,7 @@ try{
     const saved=JSON.parse(fs.readFileSync(DATA,'utf8'));
     for(const [id,r] of Object.entries(saved)){
       if(!r||typeof r!=='object')continue;
-      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},users:new Map()});
+      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media?.type==='vk'?{...r.media,...(parseMedia(r.media.url)||{})}:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},users:new Map()});
     }
   }
 }catch(e){console.warn('Unable to read stored rooms:',e.message);}
@@ -38,28 +38,26 @@ function parseMedia(input){
   try{url=new URL(clean(input,2000));}catch{return null;}
   if(!['https:','http:'].includes(url.protocol))return null;
   const host=url.hostname.toLowerCase().replace(/^www\./,'');
-  if(['youtu.be','youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com'].includes(host)){
+  if(host==='youtu.be'||host==='youtube.com'||host==='m.youtube.com'||host==='youtube-nocookie.com'){
     let id=host==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v');
-    if(!id)id=url.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})/)?.[1];
+    if(!id){const m=url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/);id=m?.[1];}
     if(!/^[\w-]{11}$/.test(id||''))return null;
     return {type:'youtube',id,url:url.href};
   }
-  if(['rutube.ru','m.rutube.ru','rutube.com'].includes(host)){
-    const id=url.pathname.match(/^\/(?:video|play\/embed|shorts)\/([a-zA-Z0-9]{8,64})(?:\/|$)/)?.[1];
-    if(!id)return null;
-    return {type:'rutube',id,embed:`https://rutube.ru/play/embed/${id}/`,url:url.href};
-  }
-  if(['vk.com','m.vk.com','vkvideo.ru','m.vkvideo.ru','video.vk.com','vk.ru','m.vk.ru'].includes(host)){
-    let oid=url.searchParams.get('oid'),id=url.searchParams.get('id');
-    const embedded=url.searchParams.get('z')||url.searchParams.get('video')||'';
-    const match=(url.pathname+' '+embedded).match(/video(-?\d+)_(\d+)/);
-    if((!oid||!id)&&match){oid=match[1];id=match[2];}
-    if(!/^-?\d+$/.test(oid||'')||!/^\d+$/.test(id||''))return null;
-    const hash=url.searchParams.get('hash')||url.searchParams.get('access_key');
-    const embed=new URL('https://vk.com/video_ext.php');
-    embed.searchParams.set('oid',oid);embed.searchParams.set('id',id);embed.searchParams.set('hd','2');
-    if(hash&&/^[\w-]{4,128}$/.test(hash))embed.searchParams.set('hash',hash);
-    return {type:'vk',embed:embed.href,url:url.href};
+  if(host==='vk.com'||host==='m.vk.com'||host==='vkvideo.ru'||host==='m.vkvideo.ru'||host==='video.vk.com'){
+    const oid=url.searchParams.get('oid');const id=url.searchParams.get('id');
+    let embed;
+    if(oid&&id&&/^-?\d+$/.test(oid)&&/^\d+$/.test(id)){
+      embed=`https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`;
+    }else{
+      const match=url.pathname.match(/video(-?\d+)_(\d+)/);
+      if(match)embed=`https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2`;
+    }
+    if(!embed)return null;
+    // The embed hash grants access to link-only videos to invited viewers.
+    const hash=url.searchParams.get('hash');
+    if(hash)embed+='&hash='+encodeURIComponent(hash);
+    return {type:'vk',embed,url:url.href};
   }
   if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(url.href))return {type:'video',url:url.href};
   return null;
@@ -73,7 +71,6 @@ async function discoverTitle(m){
   let endpoint;
   if(m.type==='youtube') endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+m.id);
   else if(m.type==='vk') endpoint='https://vk.com/oembed?url='+encodeURIComponent(m.url);
-  else if(m.type==='rutube') endpoint='https://rutube.ru/api/oembed/?url='+encodeURIComponent(m.url)+'&format=json';
   else return null;
   try{
     const response=await fetch(endpoint,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5500)});
@@ -127,8 +124,9 @@ io.on('connection',socket=>{
     const r=getRoom(socket),u=getUser(socket);
     if(!r||!u?.isHost)return done({error:'Менять фильм может только создатель'});
     const m=parseMedia(payload?.url);
-    if(!m)return done({error:'Поддерживаются YouTube, VK Видео, Rutube и прямые MP4/WebM'});
-    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':m.type==='rutube'?'Видео Rutube':'Видео';
+    if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
+    m.key=uid();
+    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':'Видео';
     r.media=m;r.time=0;r.playing=false;r.updated=Date.now();for(const person of r.users.values())person.ready=false;
     broadcast(r,socket.data.room);persist();done({ok:true});
     const selectedMedia=m;
@@ -140,7 +138,7 @@ io.on('connection',socket=>{
   });
   socket.on('sync',payload=>{
     const r=getRoom(socket),u=getUser(socket);
-    if(!r||!u||!r.media)return;
+    if(!r||!u?.isHost||!r.media)return;
     const t=Number(payload?.time);
     if(!Number.isFinite(t)||t<0||t>86400*12)return;
     r.time=t;r.playing=!!payload.playing;r.updated=Date.now();
@@ -149,12 +147,15 @@ io.on('connection',socket=>{
   });
   socket.on('watch-ready',value=>{
     const r=getRoom(socket),u=getUser(socket);if(!r||!u||!r.media)return;
-    u.ready=!!value;
-    if(r.users.size>=2&&[...r.users.values()].every(person=>person.ready)){
-      r.time=currentTime(r);r.playing=true;r.updated=Date.now();
-      io.to(socket.data.room).emit('sync',{time:r.time,playing:true});persist();
-    }
-    broadcast(r,socket.data.room);
+    u.ready=!!value;broadcast(r,socket.data.room);
+  });
+  socket.on('start-together',(_payload,ack)=>{
+    const done=typeof ack==='function'?ack:()=>{};
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u||!r.media)return done({error:'Сначала выберите фильм'});
+    if(r.users.size<2||![...r.users.values()].every(person=>person.ready))return done({error:'Дождитесь, пока оба участника нажмут «Я готов(а)»'});
+    r.time=currentTime(r);r.playing=true;r.updated=Date.now();
+    io.to(socket.data.room).emit('sync',{time:r.time,playing:true});persist();done({ok:true});
   });
   socket.on('request-sync',()=>{
     const r=getRoom(socket);if(r)socket.emit('sync',{time:currentTime(r),playing:r.playing});
