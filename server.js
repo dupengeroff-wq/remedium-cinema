@@ -38,23 +38,28 @@ function parseMedia(input){
   try{url=new URL(clean(input,2000));}catch{return null;}
   if(!['https:','http:'].includes(url.protocol))return null;
   const host=url.hostname.toLowerCase().replace(/^www\./,'');
-  if(host==='youtu.be'||host==='youtube.com'||host==='m.youtube.com'||host==='youtube-nocookie.com'){
+  if(['youtu.be','youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com'].includes(host)){
     let id=host==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v');
-    if(!id){const m=url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/);id=m?.[1];}
+    if(!id)id=url.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})/)?.[1];
     if(!/^[\w-]{11}$/.test(id||''))return null;
     return {type:'youtube',id,url:url.href};
   }
-  if(host==='vk.com'||host==='m.vk.com'||host==='vkvideo.ru'||host==='m.vkvideo.ru'||host==='video.vk.com'){
-    const oid=url.searchParams.get('oid');const id=url.searchParams.get('id');
-    let embed;
-    if(oid&&id&&/^-?\d+$/.test(oid)&&/^\d+$/.test(id)){
-      embed=`https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`;
-    }else{
-      const match=url.pathname.match(/video(-?\d+)_(\d+)/);
-      if(match)embed=`https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2`;
-    }
-    if(!embed)return null;
-    return {type:'vk',embed,url:url.href};
+  if(['rutube.ru','m.rutube.ru','rutube.com'].includes(host)){
+    const id=url.pathname.match(/^\/(?:video|play\/embed|shorts)\/([a-zA-Z0-9]{8,64})(?:\/|$)/)?.[1];
+    if(!id)return null;
+    return {type:'rutube',id,embed:`https://rutube.ru/play/embed/${id}/`,url:url.href};
+  }
+  if(['vk.com','m.vk.com','vkvideo.ru','m.vkvideo.ru','video.vk.com','vk.ru','m.vk.ru'].includes(host)){
+    let oid=url.searchParams.get('oid'),id=url.searchParams.get('id');
+    const embedded=url.searchParams.get('z')||url.searchParams.get('video')||'';
+    const match=(url.pathname+' '+embedded).match(/video(-?\d+)_(\d+)/);
+    if((!oid||!id)&&match){oid=match[1];id=match[2];}
+    if(!/^-?\d+$/.test(oid||'')||!/^\d+$/.test(id||''))return null;
+    const hash=url.searchParams.get('hash')||url.searchParams.get('access_key');
+    const embed=new URL('https://vk.com/video_ext.php');
+    embed.searchParams.set('oid',oid);embed.searchParams.set('id',id);embed.searchParams.set('hd','2');
+    if(hash&&/^[\w-]{4,128}$/.test(hash))embed.searchParams.set('hash',hash);
+    return {type:'vk',embed:embed.href,url:url.href};
   }
   if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(url.href))return {type:'video',url:url.href};
   return null;
@@ -68,6 +73,7 @@ async function discoverTitle(m){
   let endpoint;
   if(m.type==='youtube') endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+m.id);
   else if(m.type==='vk') endpoint='https://vk.com/oembed?url='+encodeURIComponent(m.url);
+  else if(m.type==='rutube') endpoint='https://rutube.ru/api/oembed/?url='+encodeURIComponent(m.url)+'&format=json';
   else return null;
   try{
     const response=await fetch(endpoint,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5500)});
@@ -121,8 +127,8 @@ io.on('connection',socket=>{
     const r=getRoom(socket),u=getUser(socket);
     if(!r||!u?.isHost)return done({error:'Менять фильм может только создатель'});
     const m=parseMedia(payload?.url);
-    if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
-    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':'Видео';
+    if(!m)return done({error:'Поддерживаются YouTube, VK Видео, Rutube и прямые MP4/WebM'});
+    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':m.type==='rutube'?'Видео Rutube':'Видео';
     r.media=m;r.time=0;r.playing=false;r.updated=Date.now();for(const person of r.users.values())person.ready=false;
     broadcast(r,socket.data.room);persist();done({ok:true});
     const selectedMedia=m;

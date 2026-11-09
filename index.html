@@ -282,7 +282,7 @@ function updateHost(){
   $('url').disabled=!isHost;
 
   $('guestMovieTitle').hidden=true;
-  $('guestMovieTitle').textContent=media?.title||'Видео VK / YouTube';
+  $('guestMovieTitle').textContent=media?.title||'Видео VK / YouTube / Rutube';
   $('url').style.display=isHost?'':'none';
   $('load').style.display=isHost?'':'none';
   $('role').textContent=isHost?'👑 ВЫ СОЗДАТЕЛЬ':'✦ ВЫ ГОСТЬ';
@@ -328,6 +328,16 @@ function updateGuestShield(){
 function showMedia(m){const g=++generation;try{video.pause()}catch{}video.removeAttribute('src');video.load();video.style.display='none';$('yt').style.display='none';$('vk').style.display='none';$('yt').replaceChildren();$('vk').replaceChildren();try{ytPlayer?.destroy()}catch{}ytPlayer=null;vkPlayer=null;tryInitVKPlayer=null;knownDuration=0;muted=false;video.muted=false;video.volume=1;refreshSoundButton();setSoundPrompt(false);$('placeholder').classList.toggle('hidden',!!m);updateGuestShield();if(!m)return;
 if(m.type==='video'){video.src=m.url;video.style.display='block';video.onerror=()=>toast('Не удалось открыть видеофайл. Проверь ссылку.');video.onloadedmetadata=()=>{knownDuration=video.duration||0;applyVolume();updateHost();socket.emit('request-sync')};return}
 if(m.type==='youtube'){const el=document.createElement('div');el.id='ytframe';$('yt').append(el);$('yt').style.display='block';const init=()=>{if(g!==generation||!window.YT?.Player)return;ytPlayer=new YT.Player('ytframe',{videoId:m.id,width:'100%',height:'100%',playerVars:{playsinline:1,controls:1,disablekb:0,fs:1,origin:location.origin},events:{onReady:()=>{knownDuration=ytPlayer.getDuration()||0;try{ytPlayer.setVolume(100)}catch{}updateHost();socket.emit('request-sync')},onStateChange:e=>{if(Date.now()>remoteUntil&&[0,1,2].includes(e.data))sendSync()}}})};if(window.YT?.Player)init();else{window.onYouTubeIframeAPIReady=init;if(!document.getElementById('ytapi')){const s=document.createElement('script');s.id='ytapi';s.src='https://www.youtube.com/iframe_api';document.head.append(s)}}return}
+if(m.type==='rutube'){
+  const frame=document.createElement('iframe');
+  frame.id='rutubeframe';frame.src=m.embed;frame.loading='eager';
+  frame.style.cssText='width:100%;height:100%;border:0;display:block';
+  frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
+  frame.setAttribute('allowfullscreen','');frame.title='Rutube';
+  $('vk').append(frame);$('vk').style.display='block';
+  frame.addEventListener('load',()=>{if(g===generation)socket.emit('request-sync')});
+  return;
+}
 if(m.type==='vk'){
   // Native VK player, same iframe-based playback as the earlier working version.
   const frame=document.createElement('iframe');
@@ -369,7 +379,7 @@ if(m.type==='vk'){
 function getTime(){try{if(media?.type==='youtube')return ytPlayer?.getCurrentTime()??clock;if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()??clock;if(media?.type==='video')return video.currentTime||clock}catch{}return clock}
 function getDuration(){try{if(media?.type==='youtube')return ytPlayer?.getDuration()||knownDuration;if(media?.type==='vk')return vkPlayer?.getDuration?.()||knownDuration;if(media?.type==='video')return video.duration||knownDuration}catch{}return knownDuration}
 function getPlaying(){try{if(media?.type==='youtube')return ytPlayer?ytPlayer.getPlayerState()===1:playingState;if(media?.type==='vk'){const s=vkPlayer?.getState?.();return s==null?playingState:String(s).toLowerCase()==='playing'}if(media?.type==='video')return video.readyState ? !video.paused : playingState}catch{}return playingState}
-function sendSync(){if(!room||!media||Date.now()<remoteUntil)return;if(media.type==='vk'&&!vkPlayer)return;if(media.type==='youtube'&&!ytPlayer)return;if(media.type==='video'&&!video.readyState)return;clock=getTime();playingState=getPlaying();socket.emit('sync',{time:clock,playing:playingState});lastSync=Date.now();updateTimeline()}
+function sendSync(){if(!room||!media||Date.now()<remoteUntil)return;if(media.type==='vk'&&!vkPlayer)return;if(media.type==='rutube')return;if(media.type==='youtube'&&!ytPlayer)return;if(media.type==='video'&&!video.readyState)return;clock=getTime();playingState=getPlaying();socket.emit('sync',{time:clock,playing:playingState});lastSync=Date.now();updateTimeline()}
 function applySync(d){if(!media)return;clock=Math.max(0,Number(d.time)||0);playingState=!!d.playing;remoteUntil=Date.now()+2400;try{if(media.type==='video'){if(video.readyState&&Math.abs(video.currentTime-clock)>1.5)video.currentTime=clock;if(playingState){
   
   video.play().catch(err=>console.info('Browser blocked guest autoplay:',err));
