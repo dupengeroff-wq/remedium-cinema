@@ -1,1275 +1,145 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#05060e">
+<meta name="description" content="REMEDIUM CINEMA — ваш космический кинозал для двоих">
 <title>REMEDIUM CINEMA · COSMOS</title>
 <style>
-:root{
-color-scheme:dark;
---bg:#05060e;
---glass:#141728dc;
---line:#ffffff1d;
---text:#f7f6ff;
---muted:#999bb7;
---purple:#b9a7ff;
---pink:#ffb1df;
-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
-}
-*{box-sizing:border-box}
-body{
-margin:0;min-height:100vh;
-background:radial-gradient(ellipse at 15% 10%,#4d37874a,transparent 42%),
-radial-gradient(ellipse at 85% 70%,#20467836,transparent 48%),var(--bg);
-color:var(--text);overflow-x:hidden
-}
-button,input{font:inherit}
-button{cursor:pointer}
-button:disabled{opacity:.35;cursor:not-allowed}
-.hidden{display:none!important}
-#cosmos{
-position:fixed;inset:0;width:100%;height:100%;
-pointer-events:none;z-index:0
-}
-.wrap{
-position:relative;z-index:1;
-max-width:1480px;margin:auto;padding:0 20px 45px
-}
-header{
-height:74px;display:flex;align-items:center;
-justify-content:space-between;border-bottom:1px solid var(--line)
-}
-.brand{font-size:15px;font-weight:850;letter-spacing:2px}
-.brand span{color:var(--purple)}
-.eyebrow{
-font-size:10px;font-weight:750;
-letter-spacing:2px;color:var(--purple)
-}
-.muted{color:var(--muted)}
-.hero{
-padding:32px 0 28px;display:flex;
-justify-content:space-between;align-items:end;gap:15px
-}
-.hero h1{
-font-size:clamp(28px,4vw,46px);
-letter-spacing:-1.3px;font-weight:650;margin:12px 0
-}
-.hero p{font-size:12px;color:var(--muted);margin:0}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{
-background:#ffffff0d;color:white;
-border:1px solid #ffffff27;border-radius:12px;
-padding:12px 15px;font-size:12px
-}
-.btn.primary{
-background:linear-gradient(120deg,#c4b1ff,#9edbff);
-color:#111324;border:0;font-weight:800
-}
-.field{
-width:100%;min-width:0;background:#090c1cba;
-border:1px solid #ffffff28;border-radius:12px;
-padding:14px;color:white;outline:none;font-size:13px
-}
-.field:focus{border-color:var(--purple)}
-.layout{
-display:grid;grid-template-columns:minmax(0,1fr) 345px;gap:18px
-}
-.stage{min-width:0}
-.player-shell,.chat{
-border:1px solid var(--line);
-border-radius:21px;overflow:hidden;
-background:linear-gradient(145deg,#1a1d32d9,#080a18ef);
-backdrop-filter:blur(25px);
--webkit-backdrop-filter:blur(25px);
-box-shadow:0 20px 65px #0008
-}
-.screen{
-position:relative;aspect-ratio:16/9;
-background:radial-gradient(ellipse,#252b55,#050610 70%);
-overflow:hidden
-}
-.screen video,.embed{
-position:absolute;inset:0;width:100%;height:100%;
-display:none;background:black
-}
-.embed iframe{width:100%;height:100%;border:0}
-.placeholder{
-position:absolute;inset:0;display:flex;
-align-items:center;justify-content:center;
-flex-direction:column;text-align:center;padding:20px
-}
-.planet{
-width:90px;height:90px;border-radius:50%;
-background:radial-gradient(circle at 28% 25%,#c5b7ff,#6850bb 45%,#171a43);
-box-shadow:inset -15px -12px 25px #050514aa,0 0 50px #b19aff55;
-position:relative;display:grid;place-items:center;
-font-size:40px;animation:float 5s ease-in-out infinite
-}
-.planet:after{
-content:"";position:absolute;width:135px;height:39px;
-border:2px solid #c4b6ff99;border-radius:50%;
-transform:rotate(-25deg)
-}
-@keyframes float{50%{transform:translateY(-9px)}}
-.placeholder h2{font-size:21px;font-weight:600;margin:27px 0 8px}
-.placeholder p{font-size:12px;color:var(--muted)}
-.screen-top{
-position:absolute;top:14px;left:14px;right:14px;
-z-index:5;display:flex;justify-content:space-between;
-gap:8px;pointer-events:none
-}
-.chip{
-background:#15172ab9;border:1px solid #ffffff28;
-border-radius:10px;padding:8px 10px;
-backdrop-filter:blur(14px);font-size:10px
-}
-.screen-bottom{
-position:absolute;bottom:15px;left:15px;
-z-index:5;pointer-events:none
-}
-.floating{
-position:absolute;top:60px;left:14px;z-index:6;
-width:min(310px,75%);display:flex;
-flex-direction:column;gap:7px;pointer-events:none
-}
-.floatmsg{
-background:#232641b9;border:1px solid #ffffff28;
-backdrop-filter:blur(18px);border-radius:12px;
-padding:9px 12px;font-size:12px;
-overflow-wrap:anywhere;animation:appear .25s ease
-}
-.floatmsg b{color:var(--pink)}
-@keyframes appear{
-from{opacity:0;transform:translateY(8px)}
-to{opacity:1;transform:translateY(0)}
-}
-.controls{
-display:flex;align-items:center;gap:7px;
-padding:11px;background:#0b0d1b
-}
-.iconbtn{
-min-width:37px;height:37px;border:1px solid var(--line);
-border-radius:10px;background:#ffffff0b;color:white
-}
-.seek{flex:1;min-width:0;accent-color:var(--purple)}
-.time{font-size:10px;color:#b1b3c9;white-space:nowrap}
-.sectionhead{
-display:flex;align-items:center;justify-content:space-between;
-margin:24px 0 12px;gap:10px
-}
-.sectionhead h2{font-size:17px;font-weight:650;margin:0}
-.role{font-size:11px;color:var(--purple)}
-.movieform{
-display:flex;gap:8px;padding:10px;
-border:1px solid var(--line);border-radius:15px;
-background:#141729a8
-}
-.movieform input{flex:1}
-.meta{
-display:flex;justify-content:space-between;
-gap:10px;margin-top:12px;font-size:11px;color:var(--muted)
-}
-.chat{height:630px;display:flex;flex-direction:column}
-.chathead{
-display:flex;align-items:center;justify-content:space-between;
-padding:19px;border-bottom:1px solid var(--line);gap:8px
-}
-.chathead h2{font-size:18px;margin:7px 0 0;font-weight:650}
-.chatstatus{display:flex;align-items:center;gap:8px}
-#myBadge{
-font-size:22px;padding:7px;border-radius:11px;
-border:1px solid #ffb4e64d;background:#ffb4e616
-}
-#online{font-size:11px;color:var(--muted)}
-.messages{
-flex:1;overflow:auto;padding:15px;
-display:flex;flex-direction:column;gap:15px
-}
-.empty{
-margin:auto;text-align:center;font-size:12px;
-line-height:1.7;color:var(--muted)
-}
+:root{color-scheme:dark;--bg:#05060e;--surface:#101324c9;--surface2:#171a2bd9;--border:#b5b9ff22;--text:#f6f6ff;--muted:#969bb6;--accent:#b9a7ff;--pink:#ffaddd;--cyan:#9ae6ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html{min-height:100%;background:var(--bg)}body{margin:0;min-height:100vh;color:var(--text);background:radial-gradient(ellipse at 14% 6%,#583d9e38,transparent 37%),radial-gradient(ellipse at 88% 42%,#294c8c25,transparent 43%),#05060e;overflow-x:hidden}button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.35;cursor:not-allowed}.hidden{display:none!important}
+#cosmos{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}.nebula{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 35% 25% at 75% 15%,#9858f012,transparent),radial-gradient(ellipse 30% 25% at 18% 72%,#4f8ef014,transparent)}.wrap{position:relative;z-index:1;max-width:1500px;margin:auto;padding:0 24px 44px}
+header{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}.brand{font-weight:850;font-size:15px;letter-spacing:2.2px}.brand .mark{color:var(--accent);font-size:23px;vertical-align:-2px}.accent{color:var(--accent)}.eyebrow{font-size:10px;letter-spacing:2.5px;font-weight:750;color:var(--accent)}.muted{color:var(--muted)}.small{font-size:11px}.header-right{display:flex;align-items:center;gap:12px}.online-dot{width:6px;height:6px;background:#a3ffdd;border-radius:50%;box-shadow:0 0 10px #a3ffdd}
+.hero{padding:34px 0 28px;display:flex;justify-content:space-between;align-items:end;gap:18px}.hero h1{font-size:clamp(30px,4.6vw,52px);line-height:1.08;font-weight:690;letter-spacing:-1.6px;margin:12px 0}.hero p{font-size:13px;color:var(--muted);margin:0}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:1px solid #c6c4ff27;background:#ffffff0a;color:var(--text);border-radius:13px;padding:12px 15px;font-size:12px;transition:background .2s,transform .2s,border-color .2s}.btn:hover:not(:disabled){background:#ffffff17;border-color:#c6c4ff50;transform:translateY(-1px)}.btn.primary{background:linear-gradient(120deg,#c3b1ff,#9dd5ff);color:#101222;border-color:transparent;font-weight:800;box-shadow:0 8px 26px #b3a7ff25}.field{min-width:0;width:100%;padding:14px 15px;border-radius:12px;background:#070a18a8;border:1px solid #c4c3ff24;color:white;outline:none;font-size:13px}.field:focus{border-color:#b7a6ff99;box-shadow:0 0 0 3px #b7a6ff12}.field::placeholder{color:#888da6}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px}.stage{min-width:0}.player-shell,.chat{border:1px solid var(--border);border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#171a2cc9,#080b19eb);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);box-shadow:0 24px 80px #0008,0 0 35px #b6a3ff08}.screen{position:relative;aspect-ratio:16/9;background:radial-gradient(ellipse at 50% 40%,#20264a,#060712 68%);overflow:hidden}.screen video,.screen .embed{position:absolute;inset:0;width:100%;height:100%;display:none;background:#000}.embed iframe{width:100%;height:100%;border:0}.placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:22px}.planet{position:relative;width:105px;height:105px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#b1a0ff,#5340a6 48%,#161a3b 80%);box-shadow:inset -18px -15px 30px #03030e99,0 0 45px #a68aff40;display:grid;place-items:center;font-size:42px;color:white;animation:levitate 5s ease-in-out infinite}.planet:after{content:"";position:absolute;width:155px;height:45px;border:2px solid #c3b1ff8a;border-radius:50%;transform:rotate(-24deg);box-shadow:0 0 18px #c3b1ff44;pointer-events:none}.placeholder h2{font-size:22px;font-weight:650;margin:27px 0 7px}.placeholder p{font-size:12px;color:var(--muted)}@keyframes levitate{50%{transform:translateY(-9px)}}
+.screen-top{position:absolute;top:15px;left:15px;right:15px;z-index:5;display:flex;justify-content:space-between;pointer-events:none;gap:10px}.chip{border:1px solid #e1dfff25;border-radius:11px;padding:8px 11px;background:#101225b8;backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);font-size:10px;letter-spacing:.7px}.screen-bottom{position:absolute;bottom:15px;left:15px;z-index:5;pointer-events:none}.floating{position:absolute;top:65px;left:15px;z-index:6;width:min(310px,70%);display:flex;flex-direction:column;gap:7px;pointer-events:none}.floatmsg{display:flex;gap:8px;align-items:start;animation:appear .3s ease}.floatbubble{background:#222641b8;border:1px solid #ffffff28;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;padding:10px 12px;font-size:12px;line-height:1.4;overflow-wrap:anywhere}.floatbubble b{color:var(--pink)}@keyframes appear{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.controls{display:flex;align-items:center;gap:8px;padding:12px;background:#0b0d1a}.iconbtn{min-width:38px;height:38px;border:1px solid #ffffff1d;border-radius:11px;background:#ffffff0b;color:white;transition:background .2s}.iconbtn:hover:not(:disabled){background:#b9a7ff2b}.seek{flex:1;min-width:0;accent-color:var(--accent)}.time{font-size:10px;color:#b3b5c7;font-variant-numeric:tabular-nums;white-space:nowrap}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:25px 0 12px}.sectionhead h2{font-size:17px;font-weight:650;margin:0}.role{font-size:11px;color:var(--accent)}.movieform{display:flex;gap:9px;padding:11px;background:#12152bb8;border:1px solid var(--border);border-radius:16px}.movieform input{flex:1}.meta{display:flex;justify-content:space-between;gap:10px;margin-top:13px;font-size:11px;color:var(--muted)}
+.chat{height:645px;display:flex;flex-direction:column}.chathead{padding:20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}.chathead h2{font-size:19px;font-weight:670;margin:7px 0 0}.chat-status{display:flex;align-items:center;gap:9px}.my-badge{border:1px solid #ffb4e655;border-radius:12px;background:#ffb4e615;padding:7px 9px;font-size:21px;cursor:pointer}.my-badge:hover{background:#ffb4e62c}.messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:16px;scrollbar-color:#8d84b655 transparent}.empty{margin:auto;text-align:center;color:var(--muted);font-size:12px;line-height:1.8}.msg{display:flex;align-items:flex-start;gap:10px}.msg.mine{flex-direction:row-reverse}.msg-content{min-width:0;max-width:calc(100% - 45px)}.msg.mine .msg-content{text-align:right}.avatar{width:32px;height:32px;border-radius:12px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,#c6b4ff,#627cb8);color:#101124;font-size:12px;font-weight:800;box-shadow:0 3px 15px #a897ff20}.msg.mine .avatar{background:linear-gradient(135deg,#ffa8db,#9a78d6)}.msg{gap:0}.msg-content{max-width:85%}.msg.mine{justify-content:flex-end}.name-stack{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;margin-bottom:6px}.msg.mine .name-stack{align-items:flex-end}.badge-icon{font-size:16px;line-height:1;display:inline-block;filter:drop-shadow(0 0 7px #ffb4e655)}button.badge-icon{padding:2px 5px;margin-left:-5px;background:transparent;border:0;border-radius:7px;cursor:pointer}.badge-icon.bow{color:#ffaddd}.badge-icon.editable:hover{background:#ffa8d921}.msgname{font-size:11px;color:#c6b4ff;font-weight:750}.msg.mine .msgname{color:#ffb9e3}.bubble{display:inline-block;text-align:left;max-width:100%;background:#ffffff0e;border:1px solid #ffffff18;border-radius:5px 14px 14px 14px;padding:11px 13px;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;user-select:none;-webkit-user-select:none;touch-action:pan-y;cursor:pointer}.msg.mine .bubble{background:#b3a1ff20;border-color:#b3a1ff30;border-radius:14px 5px 14px 14px}.bubble:active{background:#b3a1ff31}.msgtime{font-size:9px;color:#858aa3;margin-top:5px}.reaction-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.msg.mine .reaction-row{justify-content:flex-end}.reaction-pill{border:1px solid #b9a7ff32;background:#b9a7ff12;color:#f4f1ff;border-radius:12px;padding:4px 8px;font-size:12px}.reaction-pill.mine{border-color:#ffb0de99;background:#ffb0de20}.chatinput{padding:13px;border-top:1px solid var(--border);display:flex;gap:8px}.chatinput input{flex:1}
+.overlay{position:fixed;inset:0;z-index:40;background:#02030cda;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);display:flex;align-items:center;justify-content:center;padding:20px}.modal{width:min(450px,100%);background:linear-gradient(145deg,#242541,#0d1020);border:1px solid #b9a7ff55;border-radius:25px;padding:28px;box-shadow:0 30px 90px #000d,0 0 80px #a68aff18}.modal h2{font-size:27px;font-weight:650;margin:15px 0}.modal p{font-size:12px;line-height:1.8;color:var(--muted);margin:0 0 23px}.modal .field{margin-bottom:11px}.modal .btn{width:100%;padding:15px;margin-top:4px}.modal-note{text-align:center;font-size:11px;color:var(--muted);margin-top:16px;line-height:1.6}.toast{position:fixed;bottom:23px;left:50%;transform:translateX(-50%);z-index:100;background:#20213c;border:1px solid #b9a7ff88;border-radius:13px;padding:12px 17px;font-size:12px;display:none;max-width:90vw;box-shadow:0 8px 25px #0009}.exit{display:none;position:absolute;right:14px;bottom:15px;z-index:10}.sound-prompt{position:absolute;z-index:12;left:50%;bottom:23%;transform:translateX(-50%);border:1px solid #b9a7ff88;background:#1d1b35e8;color:white;padding:13px 17px;border-radius:13px;white-space:nowrap;font-size:12px;backdrop-filter:blur(18px)}
+.picker-overlay{position:fixed;inset:0;z-index:65;background:#0009;display:flex;align-items:center;justify-content:center;padding:18px}.picker{width:min(370px,100%);background:linear-gradient(145deg,#292744,#111425);border:1px solid #b9a7ff55;border-radius:20px;padding:20px;box-shadow:0 20px 60px #000b}.picker h3{margin:0 0 5px;font-size:16px}.picker p{color:var(--muted);font-size:11px;margin:0 0 16px}.choices{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.choice{font-size:25px;min-width:48px;height:48px;border-radius:13px;border:1px solid #ffffff24;background:#ffffff0a;color:white}.choice:hover{background:#b9a7ff2b}.picker-close{display:block;margin:16px auto 0;background:none;border:0;color:var(--muted);font-size:12px}
+body.theater .wrap{max-width:none;padding:0}body.theater header,body.theater .hero,body.theater .chat,body.theater .sectionhead,body.theater .movieform,body.theater .meta{display:none}body.theater .layout{display:block}body.theater .player-shell{border:0;border-radius:0}body.theater .screen{height:calc(100dvh - 61px);aspect-ratio:auto}body.theater .exit{display:block}
+@media(max-width:900px){.wrap{padding:0 13px 32px}.layout{grid-template-columns:1fr}.chat{height:430px}.hero{padding:24px 0}.hero h1{font-size:34px}}@media(max-width:500px){header{height:65px}.brand{font-size:12px;letter-spacing:1.5px}.header-right .eyebrow{font-size:8px;letter-spacing:1px}.hero{flex-direction:column;align-items:stretch}.hero h1{font-size:30px}.actions .btn{flex:1}.movieform{flex-wrap:wrap}.movieform input{flex-basis:100%}.movieform button{width:100%}.controls{gap:5px;padding:8px}.iconbtn{min-width:31px;height:35px}.time{font-size:9px}.chat{height:440px}.floating{top:55px}}@media(prefers-reduced-motion:reduce){.planet{animation:none}.floatmsg{animation:none}}
 
-/* Сообщения: только значок, имя и текст */
-.msg{
-display:flex;
-align-items:flex-start;
-gap:0;
+/* COSMOS: сообщение слева, значок и ник справа; без аватарок */
+.msg{display:flex;gap:0;align-items:flex-start}
+.msg.mine{justify-content:flex-end;flex-direction:row}
+.msg-content{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:5px 10px;max-width:100%;min-width:0}
+.msg.mine .msg-content{justify-content:flex-end;text-align:right}
+.msg-content>.bubble{order:1;max-width:calc(100% - 68px)}
+.msg-content>.name-stack{order:2;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;margin:0;max-width:110px;min-width:38px;text-align:center}
+.msg.mine .msg-content>.name-stack{align-items:center}
+.msg-content>.reaction-row{order:3;flex-basis:100%;margin-top:2px}
+.msg-content>.msgtime{order:4;flex-basis:100%;margin-top:0}
+.msg-content .msgname{overflow-wrap:anywhere}
+
+/* COSMOS 3.1 — зеркальные сообщения без аватарок */
+.msg,.msg.mine{display:flex;flex-direction:row;gap:0;width:100%}
+.msg.host{justify-content:flex-end}
+.msg.guest{justify-content:flex-start}
+.msg .msg-content,.msg.mine .msg-content{
+ display:grid;grid-template-columns:minmax(0,auto) auto;
+ column-gap:10px;row-gap:4px;align-items:center;
+ width:max-content;max-width:95%;text-align:left
 }
-.msg.mine{
-justify-content:flex-end;
+.msg.host .msg-content{grid-template-columns:minmax(0,auto) auto}
+.msg.guest .msg-content{grid-template-columns:auto minmax(0,auto)}
+.msg .name-stack,.msg.mine .name-stack{
+ display:inline-flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:4px;margin:0;white-space:nowrap
 }
-.msgcontent{
-min-width:0;
-max-width:85%;
+.msg.guest .name-stack{grid-column:1;grid-row:1}
+.msg.guest .bubble{grid-column:2;grid-row:1}
+.msg.host .bubble{grid-column:1;grid-row:1}
+.msg.host .name-stack{grid-column:2;grid-row:1}
+.msg .reaction-row,.msg.mine .reaction-row{
+ grid-column:1/-1;grid-row:2;margin-top:3px;
+ justify-content:flex-start
 }
-.msg.mine .msgcontent{text-align:right}
-.namestack{
-display:inline-flex;
-flex-direction:column;
-align-items:flex-start;
-gap:3px;
-margin-bottom:7px;
-}
-.msg.mine .namestack{align-items:flex-end}
-.namebadge{
-font-size:21px;
-line-height:1.2;
-background:transparent;
-border:0;
-color:white;
-padding:0;
-}
-.namebadge.editable{cursor:pointer}
-.msgname{
-font-size:12px;
-color:var(--purple);
-font-weight:700;
-}
-.msg.mine .msgname{color:var(--pink)}
-.bubble{
-display:inline-block;max-width:100%;
-text-align:left;background:#ffffff10;
-border:1px solid #ffffff19;border-radius:5px 14px 14px 14px;
-padding:11px 13px;font-size:12px;line-height:1.5;
-white-space:pre-wrap;overflow-wrap:anywhere;
--webkit-user-select:none;user-select:none;
-touch-action:pan-y
-}
-.msg.mine .bubble{
-background:#b9a7ff20;border-color:#b9a7ff32;
-border-radius:14px 5px 14px 14px
-}
-.msgtime{font-size:9px;color:#858ba5;margin-top:5px}
-.reactions{
-display:flex;gap:5px;flex-wrap:wrap;margin-top:6px
-}
-.msg.mine .reactions{justify-content:flex-end}
-.reaction{
-border:1px solid #b9a7ff43;background:#b9a7ff15;
-color:white;border-radius:11px;padding:4px 8px;font-size:12px
-}
-.reaction.mine{
-background:#ffb1df25;border-color:#ffb1df88
-}
-.chatinput{
-padding:12px;border-top:1px solid var(--line);
-display:flex;gap:8px
-}
-.chatinput input{flex:1}
-.overlay{
-position:fixed;inset:0;z-index:40;
-display:flex;align-items:center;justify-content:center;
-padding:20px;background:#02030cde;
-backdrop-filter:blur(17px);
--webkit-backdrop-filter:blur(17px)
-}
-.modal{
-width:min(440px,100%);padding:27px;
-border-radius:24px;border:1px solid #b9a7ff55;
-background:linear-gradient(145deg,#242541,#0c0f20);
-box-shadow:0 25px 90px #000c
-}
-.modal h2{font-size:25px;font-weight:650;margin:14px 0}
-.modal p{
-font-size:12px;line-height:1.7;
-color:var(--muted);margin:0 0 21px
-}
-.modal .field{margin-bottom:10px}
-.modal .btn{width:100%;padding:15px}
-.note{
-font-size:11px;color:var(--muted);
-text-align:center;margin-top:15px
-}
-.choices{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
-.choice{
-width:54px;height:54px;border-radius:15px;
-background:#ffffff0e;border:1px solid #ffffff2b;
-font-size:27px;color:white
-}
-.toast{
-position:fixed;z-index:100;bottom:22px;left:50%;
-transform:translateX(-50%);display:none;
-background:#24243d;border:1px solid #b9a7ff77;
-border-radius:12px;padding:12px 16px;
-font-size:12px;max-width:90vw
-}
-.exit{
-display:none;position:absolute;right:14px;
-bottom:14px;z-index:10
-}
-.soundprompt{
-position:absolute;z-index:12;left:50%;bottom:22%;
-transform:translateX(-50%);
-background:#22213ae8;border:1px solid #b9a7ff88;
-border-radius:12px;padding:12px 16px;
-color:white;font-size:12px;white-space:nowrap
-}
-body.theater .wrap{max-width:none;padding:0}
-body.theater header,body.theater .hero,
-body.theater .chat,body.theater .sectionhead,
-body.theater .movieform,body.theater .meta{display:none}
-body.theater .layout{display:block}
-body.theater .player-shell{border:0;border-radius:0}
-body.theater .screen{
-height:calc(100dvh - 60px);aspect-ratio:auto
-}
-body.theater .exit{display:block}
-@media(max-width:850px){
-.wrap{padding:0 12px 30px}
-.layout{grid-template-columns:1fr}
-.chat{height:420px}
-.hero{padding:24px 0}
-}
-@media(max-width:480px){
-.hero{flex-direction:column;align-items:stretch}
-.hero h1{font-size:29px}
-.movieform{flex-wrap:wrap}
-.movieform input{flex-basis:100%}
-.movieform button{width:100%}
-.controls{gap:5px;padding:8px}
-.iconbtn{min-width:31px;height:34px}
-.time{font-size:9px}
-}
-@media(prefers-reduced-motion:reduce){
-.planet{animation:none}
-}
+.msg.host .reaction-row{justify-content:flex-end}
+.msg .msgtime,.msg.mine .msgtime{grid-column:1/-1;grid-row:3;margin-top:0}
+.msg.host .msgtime{text-align:right}
+.msg.guest .msgtime{text-align:left}
+.msg .bubble{min-width:0;max-width:100%}
 </style>
 </head>
 <body>
-
-<canvas id="cosmos"></canvas>
-
+<canvas id="cosmos" aria-hidden="true"></canvas><div class="nebula"></div>
 <div class="wrap">
-<header>
-<div class="brand">✧ REMEDIUM <span>CINEMA</span></div>
-<div class="eyebrow">BEYOND THE STARS</div>
-</header>
-
-<section class="hero">
-<div>
-<div class="eyebrow">YOUR PRIVATE UNIVERSE</div>
-<h1>Наша маленькая <span style="color:var(--purple)">вселенная.</span></h1>
-<p>Одно кино. Две души. Бесконечное расстояние между звёздами.</p>
-</div>
-<div class="actions">
-<button id="invite" class="btn" disabled>↗ Пригласить</button>
-<button id="editName" class="btn">✎ Имя</button>
-<button id="theater" class="btn primary">⛶ Режим кино</button>
-</div>
-</section>
-
-<div class="layout">
-<main class="stage">
-<div class="player-shell">
-<div class="screen" id="screen">
-
-<div id="placeholder" class="placeholder">
-<div class="planet">✦</div>
-<h2>Ваш космический кинозал</h2>
-<p>Выберите фильм и отправляйтесь в путешествие вместе.</p>
-</div>
-
-<video id="video" playsinline></video>
-<div id="yt" class="embed"></div>
-<div id="vk" class="embed"></div>
-
-<div class="screen-top">
-<span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span>
-<span id="playingBadge" class="chip">● ОЖИДАНИЕ</span>
-</div>
-
-<div id="floating" class="floating"></div>
-
-<div class="screen-bottom">
-<span id="hostBadge" class="chip">👑 PRIVATE ROOM</span>
-</div>
-
-<button id="soundPrompt" class="soundprompt hidden">
-▶ Смотреть со звуком
-</button>
-<button id="exit" class="btn exit">⤢ Выйти</button>
-</div>
-
-<div class="controls">
-<button id="play" class="iconbtn" disabled>▶</button>
-<button id="back" class="iconbtn" disabled>↶</button>
-<button id="forward" class="iconbtn" disabled>↷</button>
-<span id="elapsed" class="time">0:00</span>
-<input id="progress" class="seek" type="range"
-min="0" max="100" value="0" disabled>
-<span id="duration" class="time">0:00</span>
-<button id="sound" class="iconbtn">🔊</button>
-<button id="full" class="iconbtn">⛶</button>
-</div>
-</div>
-
-<div class="sectionhead">
-<h2>Сейчас смотрим</h2>
-<span id="role" class="role">✦ PRIVATE UNIVERSE</span>
-</div>
-
-<div class="movieform">
-<input id="url" class="field"
-placeholder="Ссылка YouTube, VK Видео или MP4">
-<button id="load" class="btn primary" disabled>
-▶ Включить фильм
-</button>
-</div>
-
-<div class="meta">
-<span id="roomInfo">Комната не создана</span>
-<span id="status">● Не подключено</span>
-</div>
-</main>
-
-<aside class="chat">
-<div class="chathead">
-<div>
-<div class="eyebrow">OUR LITTLE GALAXY</div>
-<h2>Наш чат ♡</h2>
-</div>
-<div class="chatstatus">
-<button id="myBadge" class="hidden" title="Сменить значок">🎀</button>
-<span id="online">0 онлайн</span>
-</div>
-</div>
-
-<div id="messages" class="messages">
-<div class="empty">
-Здесь начнётся ваша космическая история ✦
-</div>
-</div>
-
-<form id="chatForm" class="chatinput">
-<input id="message" class="field" maxlength="1000"
-placeholder="Написать сообщение..." disabled>
-<button id="send" class="btn primary" disabled>➤</button>
-</form>
-</aside>
-</div>
-</div>
-
-<div id="entry" class="overlay">
-<div class="modal">
-<div class="eyebrow">REMEDIUM CINEMA · COSMOS</div>
-<h2>Добро пожаловать во <span style="color:var(--purple)">Вселенную ✦</span></h2>
-<p>Создай личный кинозал или присоединись по приглашению. Регистрация не нужна.</p>
-<input id="name" class="field" maxlength="24" placeholder="Твоё имя">
-<input id="room" class="field" placeholder="Код комнаты (необязательно)">
-<button id="join" class="btn primary">Продолжить →</button>
-<div class="note">Только вы, звёзды и любимое кино ♡</div>
-</div>
-</div>
-
-<div id="pickerOverlay" class="overlay hidden">
-<div class="modal">
-<div class="eyebrow">COSMIC INTERACTION</div>
-<h2 id="pickerTitle">Выбери значок</h2>
-<p id="pickerHint">Выбери свой космический символ.</p>
-<div id="pickerChoices" class="choices"></div>
-<button id="pickerClose" class="btn" style="margin-top:20px">
-Закрыть
-</button>
-</div>
-</div>
-
+<header><div class="brand"><span class="mark">✦</span> REMEDIUM <span class="accent">CINEMA</span></div><div class="header-right"><span class="online-dot"></span><span class="eyebrow">OUR LITTLE UNIVERSE</span></div></header>
+<section class="hero"><div><div class="eyebrow">A UNIVERSE FOR TWO</div><h1>Ближе, чем <span class="accent">звёзды.</span></h1><p>Один космос. Два сердца. Ваш собственный кинозал.</p></div><div class="actions"><button id="invite" class="btn" disabled>↗ Пригласить</button><button id="editName" class="btn">✎ Имя</button><button id="theater" class="btn primary">⛶ Режим кино</button></div></section>
+<div class="layout"><main class="stage"><div class="player-shell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet">▶</div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline></video><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span></div><div id="floating" class="floating"></div><div class="screen-bottom"><span id="hostBadge" class="chip">♛ PRIVATE UNIVERSE</span></div><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Смотреть со звуком</button><button id="exit" class="btn exit">⤢ Выйти</button></div><div class="controls"><button id="play" class="iconbtn" disabled>▶</button><button id="back" class="iconbtn" disabled>↶</button><button id="forward" class="iconbtn" disabled>↷</button><span id="elapsed" class="time">0:00</span><input id="progress" class="seek" type="range" min="0" max="100" value="0" disabled><span id="duration" class="time">0:00</span><button id="sound" class="iconbtn" title="Звук">🔊</button><button id="full" class="iconbtn" title="Полный экран">⛶</button></div></div><div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role">✦ PRIVATE CINEMA</span></div><div class="movieform"><input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div><div class="meta"><span id="roomInfo">Комната не создана</span><span id="status">● Не подключено</span></div></main>
+<aside class="chat"><div class="chathead"><div><div class="eyebrow">MESSAGES FROM THE STARS</div><h2>Наш космос ♡</h2></div><div class="chat-status"><button id="myBadge" class="my-badge hidden" title="Изменить свой значок">🎀</button><span id="online" class="small muted">0 онлайн</span></div></div><div id="messages" class="messages"><div class="empty">Здесь начнётся ваша история ✦<br>Зажми сообщение, чтобы поставить реакцию.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn primary" disabled>➤</button></form></aside></div></div>
+<div id="entry" class="overlay"><div class="modal"><div class="eyebrow">✦ REMEDIUM CINEMA</div><h2>Добро пожаловать <span class="accent">во Вселенную ♡</span></h2><p>Создай свой кинозал или войди по приглашению. Регистрация не нужна.</p><input id="name" class="field" maxlength="24" placeholder="Твоё имя"><input id="room" class="field" placeholder="Код комнаты (необязательно)"><button id="join" class="btn primary">Начать путешествие →</button><div class="modal-note">Имя можно менять перед каждым входом.</div></div></div>
+<div id="pickerOverlay" class="picker-overlay hidden"><div class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle"><h3 id="pickerTitle">Выбери значок</h3><p id="pickerHint">Твой знак в нашем космосе</p><div id="pickerChoices" class="choices"></div><button id="pickerClose" class="picker-close">Закрыть</button></div></div>
 <div id="toast" class="toast"></div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const socket=io();
 const video=$('video');
+let room='',self='',selfToken='',media=null,isHost=false;
+let ytPlayer=null,vkPlayer=null,generation=0,joining=false;
+let remoteUntil=0,lastSync=0,clock=0,playingState=false,knownDuration=0;
+let muted=false,hostName='',messages=[],soundPromptNeeded=false;
+let badge='🎀',pickerMessage=null;
 const BADGES=['🎀','🐈','🦊','💖','🐒'];
 const REACTIONS=['🔥','🥹','😍','🤤','❤️'];
-
-let room='',self='',selfToken='',isHost=false;
-let media=null,hostName='',badge='🎀';
-let messages=[],ytPlayer=null,vkPlayer=null;
-let generation=0,joining=false;
-let remoteUntil=0,lastSync=0;
-let clock=0,playingState=false,knownDuration=0;
-let muted=false;
-
-video.muted=false;
-video.volume=1;
-
 const tokenKey=id=>'rc-token-'+id;
 const params=new URLSearchParams(location.search);
-
 $('room').value=params.get('room')||localStorage.getItem('rc-room')||'';
 $('name').value=localStorage.getItem('rc-name')||'';
-
-function toast(text){
-$('toast').textContent=text;
-$('toast').style.display='block';
-clearTimeout(toast.timer);
-toast.timer=setTimeout(()=>$('toast').style.display='none',3000);
-}
-
-function randomRoom(){
-const a=new Uint8Array(9);
-crypto.getRandomValues(a);
-return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('');
-}
-
-function join(auto=false){
-if(!socket.connected)return toast('Подключаемся к серверу…');
-if(joining)return;
-
-const id=$('room').value.trim()||randomRoom();
-const name=$('name').value.trim().slice(0,24);
-
-if(!name)return toast('Напиши своё имя');
-
-joining=true;
-socket.emit('join',{
-room:id,name,
-token:localStorage.getItem(tokenKey(id))||''
-},res=>{
-joining=false;
-if(!res?.ok)return toast(res?.error||'Ошибка входа');
-
-const changed=room!==id;
-room=id;
-self=res.id;
-selfToken=res.token;
-isHost=!!res.isHost;
-
-localStorage.setItem('rc-name',name);
-localStorage.setItem('rc-room',id);
-localStorage.setItem(tokenKey(id),res.token);
-
-$('room').value=id;
-history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));
-$('entry').classList.add('hidden');
-$('invite').disabled=false;
-$('message').disabled=false;
-$('send').disabled=false;
-$('roomInfo').textContent='КОМНАТА · '+id;
-$('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();
-$('status').textContent='● Подключено';
-
-if(changed){
-messages=[];
-media=null;
-$('messages').dataset.loaded='';
-}
-
-updateHost();
-if(!auto)toast('Добро пожаловать во Вселенную ✦');
-});
-}
-
-$('join').onclick=()=>join();
-$('name').onkeydown=e=>{if(e.key==='Enter')join()};
-
-$('editName').onclick=()=>{
-$('entry').classList.remove('hidden');
-$('name').focus();
-};
-
-$('invite').onclick=async()=>{
-if(!room)return;
-const url=location.origin+location.pathname+'?room='+encodeURIComponent(room);
-try{
-if(navigator.share){
-await navigator.share({
-title:'REMEDIUM CINEMA',
-text:'Полетели смотреть кино вместе ♡',
-url
-});
-}else{
-await navigator.clipboard.writeText(url);
-toast('Ссылка скопирована');
-}
-}catch{}
-};
-
-function updateHost(){
-$('load').disabled=!isHost;
-$('url').disabled=!isHost;
-
-for(const id of ['play','back','forward','progress']){
-$(id).disabled=!isHost||!media;
-}
-
-$('role').textContent=isHost?'👑 СОЗДАТЕЛЬ':'🎀 ГОСТЬ';
-$('hostBadge').textContent='👑 '+(hostName||'Создатель');
-$('myBadge').classList.toggle('hidden',isHost);
-$('myBadge').textContent=badge;
-
-video.controls=false;
-video.style.pointerEvents='none';
-$('yt').style.pointerEvents=isHost?'auto':'none';
-$('vk').style.pointerEvents='auto';
-$('sound').textContent=muted?'🔇':'🔊';
-}
-
-function applyVolume(){
-video.muted=muted;
-video.volume=1;
-
-try{
-if(media?.type==='youtube'&&ytPlayer){
-if(muted)ytPlayer.mute();
-else{
-ytPlayer.unMute();
-ytPlayer.setVolume(100);
-}
-}
-if(media?.type==='vk'&&vkPlayer){
-if(muted){
-vkPlayer.mute?.();
-vkPlayer.setVolume?.(0);
-}else{
-vkPlayer.unmute?.();
-vkPlayer.unMute?.();
-vkPlayer.setVolume?.(1);
-}
-}
-}catch{}
-
-$('sound').textContent=muted?'🔇':'🔊';
-}
-
-function activateSound(){
-muted=false;
-applyVolume();
-$('soundPrompt').classList.add('hidden');
-
-if(media?.type==='video'&&playingState){
-video.play().catch(()=>{$('soundPrompt').classList.remove('hidden')});
-}
-if(media?.type==='youtube'){
-ytPlayer?.playVideo();
-}
-if(media?.type==='vk'){
-vkPlayer?.play?.();
-}
-}
-
-$('sound').onclick=()=>{
-muted=!muted;
-applyVolume();
-if(!muted)activateSound();
-};
-
-$('soundPrompt').onclick=activateSound;
-
-$('load').onclick=()=>{
-socket.emit('media',{url:$('url').value.trim()},res=>{
-if(res?.error)toast(res.error);
-});
-};
-
-function showMedia(m){
-const g=++generation;
-
-try{video.pause()}catch{}
-video.removeAttribute('src');
-video.load();
-video.style.display='none';
-
-$('yt').replaceChildren();
-$('vk').replaceChildren();
-$('yt').style.display='none';
-$('vk').style.display='none';
-
-try{ytPlayer?.destroy()}catch{}
-ytPlayer=null;
-vkPlayer=null;
-knownDuration=0;
-clock=0;
-
-$('placeholder').classList.toggle('hidden',!!m);
-if(!m)return;
-
-if(m.type==='video'){
-video.src=m.url;
-video.style.display='block';
-video.muted=muted;
-video.volume=1;
-video.onloadedmetadata=()=>{
-knownDuration=video.duration||0;
-socket.emit('request-sync');
-};
-return;
-}
-
-if(m.type==='youtube'){
-const el=document.createElement('div');
-el.id='ytframe';
-$('yt').append(el);
-$('yt').style.display='block';
-
-const init=()=>{
-if(g!==generation||!window.YT?.Player)return;
-
-ytPlayer=new YT.Player('ytframe',{
-videoId:m.id,
-width:'100%',
-height:'100%',
-playerVars:{
-playsinline:1,
-controls:isHost?1:0,
-disablekb:isHost?0:1,
-origin:location.origin
-},
-events:{
-onReady:()=>{
-applyVolume();
-socket.emit('request-sync');
-},
-onStateChange:e=>{
-if(isHost&&Date.now()>remoteUntil&&[0,1,2].includes(e.data))
-sendSync();
-}
-}
-});
-};
-
-if(window.YT?.Player)init();
-else{
-window.onYouTubeIframeAPIReady=init;
-if(!document.getElementById('ytapi')){
-const s=document.createElement('script');
-s.id='ytapi';
-s.src='https://www.youtube.com/iframe_api';
-document.head.append(s);
-}
-}
-return;
-}
-
-if(m.type==='vk'){
-const frame=document.createElement('iframe');
-frame.src=m.embed;
-frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
-frame.allowFullscreen=true;
-$('vk').append(frame);
-$('vk').style.display='block';
-
-const init=()=>{
-if(g!==generation||!window.VK?.VideoPlayer||vkPlayer)return;
-try{
-vkPlayer=VK.VideoPlayer(frame);
-const ev=VK.VideoPlayer.Events||{};
-for(const key of ['started','resumed','paused']){
-if(ev[key]){
-vkPlayer.on(ev[key],()=>{
-if(isHost&&Date.now()>remoteUntil)sendSync();
-});
-}
-}
-applyVolume();
-socket.emit('request-sync');
-}catch(e){console.warn(e)}
-};
-
-frame.onload=init;
-
-if(window.VK?.VideoPlayer)init();
-else{
-let s=document.getElementById('vkapi');
-if(!s){
-s=document.createElement('script');
-s.id='vkapi';
-s.src='https://vk.com/js/api/videoplayer.js';
-document.head.append(s);
-}
-s.addEventListener('load',init,{once:true});
-}
-}
-}
-
-function getTime(){
-try{
-if(media?.type==='video')return video.currentTime||clock;
-if(media?.type==='youtube')return ytPlayer?.getCurrentTime()??clock;
-if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()??clock;
-}catch{}
-return clock;
-}
-
-function getDuration(){
-try{
-if(media?.type==='video')return video.duration||knownDuration;
-if(media?.type==='youtube')return ytPlayer?.getDuration()||knownDuration;
-if(media?.type==='vk')return vkPlayer?.getDuration?.()||knownDuration;
-}catch{}
-return knownDuration;
-}
-
-function getPlaying(){
-try{
-if(media?.type==='video')return !video.paused;
-if(media?.type==='youtube')return ytPlayer?.getPlayerState()===1;
-if(media?.type==='vk'){
-const state=vkPlayer?.getState?.();
-return String(state).toLowerCase()==='playing';
-}
-}catch{}
-return playingState;
-}
-
-function sendSync(){
-if(!room||!media||!isHost||Date.now()<remoteUntil)return;
-clock=getTime();
-playingState=getPlaying();
-socket.emit('sync',{time:clock,playing:playingState});
-lastSync=Date.now();
-updateTimeline();
-}
-
-function applySync(d){
-if(!media)return;
-clock=Math.max(0,Number(d.time)||0);
-playingState=!!d.playing;
-remoteUntil=Date.now()+1600;
-
-try{
-if(media.type==='video'){
-if(video.readyState&&Math.abs(video.currentTime-clock)>1.5)
-video.currentTime=clock;
-if(playingState){
-video.play().catch(()=>{
-if(!isHost)$('soundPrompt').classList.remove('hidden');
-});
-}else video.pause();
-}
-
-if(media.type==='youtube'&&ytPlayer){
-if(Math.abs((ytPlayer.getCurrentTime()||0)-clock)>2)
-ytPlayer.seekTo(clock,true);
-applyVolume();
-if(playingState)ytPlayer.playVideo();
-else ytPlayer.pauseVideo();
-}
-
-if(media.type==='vk'&&vkPlayer){
-if(Math.abs((vkPlayer.getCurrentTime()||0)-clock)>2)
-vkPlayer.seek?.(clock);
-applyVolume();
-if(playingState)vkPlayer.play?.();
-else vkPlayer.pause?.();
-}
-}catch(e){console.warn(e)}
-
-updateTimeline();
-}
-
-function formatTime(n){
-n=Math.max(0,Math.floor(Number(n)||0));
-const h=Math.floor(n/3600);
-const m=Math.floor(n%3600/60);
-const s=n%60;
-return(h?h+':':'')+
-String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0');
-}
-
-function updateTimeline(){
-const t=getTime(),d=getDuration();
-$('elapsed').textContent=formatTime(t);
-$('duration').textContent=formatTime(d);
-$('progress').max=d||100;
-$('progress').value=Math.min(d||100,t);
-$('play').textContent=getPlaying()?'Ⅱ':'▶';
-$('playingBadge').textContent=getPlaying()?'◉ СМОТРИМ ВМЕСТЕ':'◉ ПАУЗА';
-}
-
-function seekTo(t){
-if(!isHost||!media)return;
-try{
-if(media.type==='video')video.currentTime=t;
-if(media.type==='youtube')ytPlayer?.seekTo(t,true);
-if(media.type==='vk')vkPlayer?.seek?.(t);
-}catch{}
-clock=t;
-setTimeout(sendSync,160);
-}
-
-$('play').onclick=()=>{
-if(!isHost||!media)return;
-try{
-if(media.type==='video'){
-if(video.paused)video.play().catch(()=>{});
-else video.pause();
-}else if(media.type==='youtube'){
-if(ytPlayer?.getPlayerState()===1)ytPlayer.pauseVideo();
-else ytPlayer?.playVideo();
-}else if(media.type==='vk'){
-if(getPlaying())vkPlayer?.pause?.();
-else vkPlayer?.play?.();
-}
-}catch{}
-setTimeout(sendSync,250);
-};
-
-$('back').onclick=()=>seekTo(Math.max(0,getTime()-10));
-$('forward').onclick=()=>seekTo(getTime()+10);
-$('progress').onchange=e=>seekTo(Number(e.target.value));
-
-for(const ev of ['play','pause','seeked','ended']){
-video.addEventListener(ev,sendSync);
-}
-
-function theater(on){
-document.body.classList.toggle('theater',on);
-}
-$('theater').onclick=()=>theater(!document.body.classList.contains('theater'));
-$('exit').onclick=()=>theater(false);
-
-$('full').onclick=async()=>{
-const el=$('screen');
-try{
-if(document.fullscreenElement)await document.exitFullscreen();
-else if(el.requestFullscreen)await el.requestFullscreen();
-else if(media?.type==='video'&&video.webkitEnterFullscreen)
-video.webkitEnterFullscreen();
-else theater(!document.body.classList.contains('theater'));
-}catch{
-theater(!document.body.classList.contains('theater'));
-}
-};
-
-function isMine(m){return m.author===selfToken}
-function badgeFor(m){return m.isHost?'👑':m.badge||'🎀'}
-
-function closePicker(){
-$('pickerOverlay').classList.add('hidden');
-}
-
-function openPicker(kind,msg=null){
-$('pickerTitle').textContent=kind==='badge'
-?'Твой космический знак':'Реакция на сообщение';
-$('pickerHint').textContent=kind==='badge'
-?'Выбери, что будет над твоим ником'
-:'Выбери эмоцию — её увидят оба участника';
-
-const choices=$('pickerChoices');
-choices.replaceChildren();
-
-for(const emoji of(kind==='badge'?BADGES:REACTIONS)){
-const b=document.createElement('button');
-b.className='choice';
-b.textContent=emoji;
-b.onclick=()=>{
-closePicker();
-if(kind==='badge'){
-socket.emit('set-badge',emoji,res=>{
-if(!res?.ok)toast(res?.error||'Ошибка');
-});
-}else if(msg?.id){
-socket.emit('react',{id:msg.id,emoji},res=>{
-if(!res?.ok)toast('Не удалось поставить реакцию');
-});
-}
-};
-choices.append(b);
-}
-$('pickerOverlay').classList.remove('hidden');
-}
-
+video.muted=false;video.volume=1;
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',3200)}
+function randomRoom(){const a=new Uint8Array(9);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
+function setSoundPrompt(show){soundPromptNeeded=!!show;$('soundPrompt').classList.toggle('hidden',!show||muted||!media||media.type==='vk')}
+function refreshSoundButton(){$('sound').textContent=muted?'🔇':'🔊';$('sound').title=muted?'Включить звук':'Выключить звук'}
+function applyVolume(){video.muted=muted;video.volume=1;try{if(media?.type==='youtube'&&ytPlayer){if(muted)ytPlayer.mute();else{ytPlayer.unMute();ytPlayer.setVolume(100)}}if(media?.type==='vk'&&vkPlayer){if(muted){vkPlayer.mute?.();vkPlayer.setVolume?.(0)}else{vkPlayer.unmute?.();vkPlayer.unMute?.();vkPlayer.setVolume?.(1)}}}catch(e){console.warn(e)}refreshSoundButton()}
+function activateSound(){muted=false;applyVolume();if(media?.type==='video'&&playingState)video.play().then(()=>setSoundPrompt(false)).catch(()=>setSoundPrompt(true));else if(media?.type==='youtube'&&ytPlayer){ytPlayer.unMute();ytPlayer.setVolume(100);if(playingState)ytPlayer.playVideo();setSoundPrompt(false)}else if(media?.type==='vk'){try{vkPlayer?.unmute?.();vkPlayer?.unMute?.();vkPlayer?.setVolume?.(1);if(playingState)vkPlayer?.play?.()}catch{}setSoundPrompt(false)}}
+function join(auto=false){if(!socket.connected)return toast('Подключаемся к серверу…');if(joining)return;const id=$('room').value.trim()||randomRoom(),name=$('name').value.trim().slice(0,24);if(!name)return toast('Напиши своё имя');joining=true;socket.emit('join',{room:id,name,token:localStorage.getItem(tokenKey(id))||''},res=>{joining=false;if(!res?.ok)return toast(res?.error||'Ошибка входа');const changed=room!==id;room=id;self=res.id;selfToken=res.token;isHost=!!res.isHost;localStorage.setItem('rc-room',id);localStorage.setItem('rc-name',name);localStorage.setItem(tokenKey(id),res.token);$('room').value=id;history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));$('entry').classList.add('hidden');$('invite').disabled=false;$('message').disabled=false;$('send').disabled=false;$('roomInfo').textContent='КОМНАТА · '+id;$('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();$('status').textContent='● Подключено';if(changed){media=null;messages=[];$('messages').dataset.loaded='';setSoundPrompt(false)}updateHost();if(!auto)toast('Добро пожаловать в наш космос ♡')})}
+$('join').onclick=()=>join();$('name').addEventListener('keydown',e=>{if(e.key==='Enter')join()});$('editName').onclick=()=>{$('entry').classList.remove('hidden');$('name').focus();$('name').select()};
+$('invite').onclick=async()=>{if(!room)return;const url=location.origin+location.pathname+'?room='+encodeURIComponent(room);try{if(navigator.share)await navigator.share({title:'REMEDIUM CINEMA',text:'Смотрим кино среди звёзд ♡',url});else{await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}}catch{}};
+function updateHost(){$('myBadge').classList.toggle('hidden',isHost);$('myBadge').textContent=badge;$('load').disabled=!isHost;$('url').disabled=!isHost;for(const id of ['play','back','forward','progress'])$(id).disabled=!isHost||!media;$('role').textContent=isHost?'👑 ВЫ СОЗДАТЕЛЬ':'✦ ВЫ ГОСТЬ';$('hostBadge').textContent='♛ '+(hostName||'Создатель')+(isHost?' · вы':'');video.controls=false;video.style.pointerEvents='none';$('yt').style.pointerEvents=isHost?'auto':'none';$('vk').style.pointerEvents='auto';refreshSoundButton()}
+$('load').onclick=()=>{if(!room)return toast('Сначала войдите');socket.emit('media',{url:$('url').value.trim()},res=>{if(res?.error)toast(res.error)})};
+function showMedia(m){const g=++generation;try{video.pause()}catch{}video.removeAttribute('src');video.load();video.style.display='none';$('yt').style.display='none';$('vk').style.display='none';$('yt').replaceChildren();$('vk').replaceChildren();try{ytPlayer?.destroy()}catch{}ytPlayer=null;vkPlayer=null;knownDuration=0;muted=false;video.muted=false;video.volume=1;refreshSoundButton();setSoundPrompt(false);$('placeholder').classList.toggle('hidden',!!m);if(!m)return;
+if(m.type==='video'){video.src=m.url;video.style.display='block';video.onloadedmetadata=()=>{knownDuration=video.duration||0;applyVolume();socket.emit('request-sync')};return}
+if(m.type==='youtube'){const el=document.createElement('div');el.id='ytframe';$('yt').append(el);$('yt').style.display='block';const init=()=>{if(g!==generation||!window.YT?.Player)return;ytPlayer=new YT.Player('ytframe',{videoId:m.id,width:'100%',height:'100%',playerVars:{playsinline:1,controls:isHost?1:0,disablekb:isHost?0:1,origin:location.origin},events:{onReady:()=>{knownDuration=ytPlayer.getDuration()||0;applyVolume();socket.emit('request-sync')},onStateChange:e=>{if(isHost&&Date.now()>remoteUntil&&[0,1,2].includes(e.data))sendSync()}}})};if(window.YT?.Player)init();else{window.onYouTubeIframeAPIReady=init;if(!document.getElementById('ytapi')){const s=document.createElement('script');s.id='ytapi';s.src='https://www.youtube.com/iframe_api';document.head.append(s)}}return}
+if(m.type==='vk'){const frame=document.createElement('iframe');frame.src=m.embed;frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';frame.allowFullscreen=true;$('vk').append(frame);$('vk').style.display='block';const init=()=>{if(g!==generation||!window.VK?.VideoPlayer||vkPlayer)return;try{vkPlayer=VK.VideoPlayer(frame);const ev=VK.VideoPlayer.Events||{};for(const key of ['started','resumed','paused'])if(ev[key])vkPlayer.on(ev[key],()=>{if(isHost&&Date.now()>remoteUntil)sendSync()});applyVolume();socket.emit('request-sync')}catch(e){console.warn(e)}};frame.onload=init;if(window.VK?.VideoPlayer)init();else{let s=document.getElementById('vkapi');if(!s){s=document.createElement('script');s.id='vkapi';s.src='https://vk.com/js/api/videoplayer.js';document.head.append(s)}s.addEventListener('load',init,{once:true})}}}
+function getTime(){try{if(media?.type==='youtube')return ytPlayer?.getCurrentTime()??clock;if(media?.type==='vk')return vkPlayer?.getCurrentTime?.()??clock;if(media?.type==='video')return video.currentTime||clock}catch{}return clock}
+function getDuration(){try{if(media?.type==='youtube')return ytPlayer?.getDuration()||knownDuration;if(media?.type==='vk')return vkPlayer?.getDuration?.()||knownDuration;if(media?.type==='video')return video.duration||knownDuration}catch{}return knownDuration}
+function getPlaying(){try{if(media?.type==='youtube')return ytPlayer?ytPlayer.getPlayerState()===1:playingState;if(media?.type==='vk'){const s=vkPlayer?.getState?.();return s==null?playingState:String(s).toLowerCase()==='playing'}if(media?.type==='video')return !video.paused}catch{}return playingState}
+function sendSync(){if(!room||!media||!isHost||Date.now()<remoteUntil)return;clock=getTime();playingState=getPlaying();socket.emit('sync',{time:clock,playing:playingState});lastSync=Date.now();updateTimeline()}
+function applySync(d){if(!media)return;clock=Math.max(0,Number(d.time)||0);playingState=!!d.playing;remoteUntil=Date.now()+1600;try{if(media.type==='video'){if(video.readyState&&Math.abs(video.currentTime-clock)>1.5)video.currentTime=clock;if(playingState)video.play().then(()=>setSoundPrompt(false)).catch(()=>setSoundPrompt(true));else{video.pause();setSoundPrompt(false)}}if(media.type==='youtube'&&ytPlayer?.seekTo){if(Math.abs((ytPlayer.getCurrentTime()||0)-clock)>2)ytPlayer.seekTo(clock,true);applyVolume();if(playingState)ytPlayer.playVideo();else ytPlayer.pauseVideo()}if(media.type==='vk'&&vkPlayer){if(Math.abs((vkPlayer.getCurrentTime()||0)-clock)>2)vkPlayer.seek?.(clock);applyVolume();if(playingState)vkPlayer.play?.();else vkPlayer.pause?.()}}catch(e){console.warn(e)}updateTimeline()}
+function formatTime(n){n=Math.max(0,Math.floor(Number(n)||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0')}
+function updateTimeline(){const t=getTime(),d=getDuration();$('elapsed').textContent=formatTime(t);$('duration').textContent=formatTime(d);$('progress').max=d||100;$('progress').value=Math.min(d||100,t);$('play').textContent=getPlaying()?'Ⅱ':'▶';$('playingBadge').textContent=getPlaying()?'◉ СМОТРИМ ВМЕСТЕ':'◉ ПАУЗА'}
+function seekTo(t){if(!isHost||!media)return;try{if(media.type==='video')video.currentTime=t;if(media.type==='youtube')ytPlayer?.seekTo(t,true);if(media.type==='vk')vkPlayer?.seek?.(t)}catch{}clock=t;setTimeout(sendSync,160)}
+$('play').onclick=()=>{if(!isHost||!media)return;try{if(media.type==='video'){if(video.paused)video.play().catch(()=>setSoundPrompt(true));else video.pause()}else if(media.type==='youtube'){if(ytPlayer?.getPlayerState()===1)ytPlayer.pauseVideo();else ytPlayer?.playVideo()}else if(media.type==='vk'){if(getPlaying())vkPlayer?.pause?.();else vkPlayer?.play?.()}}catch{}setTimeout(sendSync,250)};
+$('back').onclick=()=>seekTo(Math.max(0,getTime()-10));$('forward').onclick=()=>seekTo(getTime()+10);$('progress').onchange=e=>seekTo(Number(e.target.value));for(const event of ['play','pause','seeked','ended'])video.addEventListener(event,sendSync);
+$('sound').onclick=()=>{muted=!muted;applyVolume();if(!muted)activateSound();toast(muted?'Звук выключен':'Звук включён')};$('soundPrompt').onclick=activateSound;
+function theater(on){document.body.classList.toggle('theater',on)}$('theater').onclick=()=>theater(!document.body.classList.contains('theater'));$('exit').onclick=()=>theater(false);$('full').onclick=async()=>{const el=$('screen');try{if(document.fullscreenElement)await document.exitFullscreen();else if(el.requestFullscreen)await el.requestFullscreen();else if(media?.type==='video'&&video.webkitEnterFullscreen)video.webkitEnterFullscreen();else theater(!document.body.classList.contains('theater'))}catch{theater(!document.body.classList.contains('theater'))}};
+function avatar(name){return String(name||'?').trim().slice(0,1).toUpperCase()}
+function isMine(msg){return !!selfToken&&msg.author===selfToken}
+function badgeFor(msg){return msg.isHost?'👑':msg.badge||'🎀'}
+function openPicker(kind,msg=null){pickerMessage=msg;$('pickerTitle').textContent=kind==='badge'?'Твой космический знак':'Реакция на сообщение';$('pickerHint').textContent=kind==='badge'?'Нажми, чтобы заменить бантик':'Выбери эмоцию — она появится у обоих';const choices=$('pickerChoices');choices.replaceChildren();for(const emoji of(kind==='badge'?BADGES:REACTIONS)){const b=document.createElement('button');b.className='choice';b.type='button';b.textContent=emoji;b.onclick=()=>{closePicker();if(kind==='badge'){socket.emit('set-badge',emoji,res=>{if(!res?.ok)toast(res?.error||'Не удалось изменить значок')})}else if(msg?.id){socket.emit('react',{id:msg.id,emoji},res=>{if(!res?.ok)toast('Не удалось поставить реакцию')})}};choices.append(b)}$('pickerOverlay').classList.remove('hidden')}
 $('myBadge').onclick=()=>{if(!isHost)openPicker('badge')};
-$('pickerClose').onclick=closePicker;
-$('pickerOverlay').onclick=e=>{
-if(e.target===$('pickerOverlay'))closePicker();
-};
-document.addEventListener('keydown',e=>{
-if(e.key==='Escape')closePicker();
-});
-
-function nameElement(m){
-const stack=document.createElement('div');
-stack.className='namestack';
-
-const editable=!m.isHost&&isMine(m);
-const sign=document.createElement(editable?'button':'span');
-sign.className='namebadge'+(editable?' editable':'');
-sign.textContent=badgeFor(m);
-if(editable){
-sign.type='button';
-sign.title='Сменить значок';
-sign.onclick=()=>openPicker('badge');
-}
-
-const name=document.createElement('span');
-name.className='msgname';
-name.textContent=m.name;
-
-stack.append(sign,name);
-return stack;
-}
-
-function renderReactions(m,container){
-container.replaceChildren();
-for(const emoji of REACTIONS){
-const tokens=m.reactions?.[emoji]||[];
-if(!tokens.length)continue;
-
-const b=document.createElement('button');
-b.className='reaction'+(tokens.includes(selfToken)?' mine':'');
-b.textContent=emoji+' '+tokens.length;
-b.onclick=()=>socket.emit('react',{id:m.id,emoji});
-container.append(b);
-}
-}
-
-function attachLongPress(el,m){
-let timer=null,x=0,y=0;
-const cancel=()=>{clearTimeout(timer);timer=null};
-
-el.addEventListener('pointerdown',e=>{
-if(e.pointerType==='mouse'&&e.button!==0)return;
-x=e.clientX;y=e.clientY;
-cancel();
-timer=setTimeout(()=>openPicker('reaction',m),480);
-});
-
-el.addEventListener('pointermove',e=>{
-if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)cancel();
-});
-
-for(const ev of ['pointerup','pointercancel','pointerleave']){
-el.addEventListener(ev,cancel);
-}
-
-el.addEventListener('contextmenu',e=>{
-e.preventDefault();
-cancel();
-openPicker('reaction',m);
-});
-}
-
-/* Готовое отображение без квадратных аватарок */
-function appendMessage(m){
-const list=$('messages');
-list.querySelector('.empty')?.remove();
-
-const row=document.createElement('div');
-row.className='msg'+(isMine(m)?' mine':'');
-row.dataset.id=m.id;
-
-const content=document.createElement('div');
-content.className='msgcontent';
-
-const bubble=document.createElement('div');
-bubble.className='bubble';
-bubble.textContent=m.text;
-attachLongPress(bubble,m);
-
-const reactions=document.createElement('div');
-reactions.className='reactions';
-renderReactions(m,reactions);
-
-const time=document.createElement('div');
-time.className='msgtime';
-time.textContent=new Date(m.at).toLocaleTimeString('ru-RU',{
-hour:'2-digit',minute:'2-digit'
-});
-
-content.append(nameElement(m),bubble,reactions,time);
-row.append(content);
-list.append(row);
-list.scrollTop=list.scrollHeight;
-}
-
-function renderMessages(){
-$('messages').replaceChildren();
-for(const m of messages)appendMessage(m);
-if(!messages.length){
-const e=document.createElement('div');
-e.className='empty';
-e.textContent='Здесь начнётся ваша история ✦ Зажми сообщение, чтобы поставить реакцию.';
-$('messages').append(e);
-}
-}
-
-function floatMessage(m){
-const e=document.createElement('div');
-e.className='floatmsg';
-const name=document.createElement('b');
-name.textContent=badgeFor(m)+' '+m.name+': ';
-const text=document.createElement('span');
-text.textContent=m.text;
-e.append(name,text);
-$('floating').append(e);
-while($('floating').children.length>4)
-$('floating').firstElementChild.remove();
-setTimeout(()=>e.remove(),8500);
-}
-
-$('chatForm').onsubmit=e=>{
-e.preventDefault();
-const text=$('message').value.trim();
-if(!text||!room)return;
-socket.emit('chat',text);
-$('message').value='';
-};
-
-socket.on('chat',m=>{
-if(!room)return;
-messages.push(m);
-appendMessage(m);
-floatMessage(m);
-});
-
-socket.on('reaction-update',data=>{
-const m=messages.find(x=>x.id===data.id);
-if(!m)return;
-m.reactions=data.reactions;
-const row=[...$('messages').children].find(x=>x.dataset.id===data.id);
-if(row)renderReactions(m,row.querySelector('.reactions'));
-});
-
-socket.on('room-state',state=>{
-if(!room)return;
-
-const me=state.users.find(u=>u.id===self);
-isHost=!!me?.isHost;
-badge=me?.badge||'🎀';
-hostName=state.hostName||'Создатель';
-$('online').textContent=state.users.length+' онлайн';
-
-const changed=JSON.stringify(media)!==JSON.stringify(state.media);
-if(changed){
-media=state.media;
-showMedia(media);
-$('url').value=media?.url||'';
-}
-
-updateHost();
-
-const previous=JSON.stringify(messages);
-messages=state.messages||[];
-if(!$('messages').dataset.loaded||previous!==JSON.stringify(messages)){
-renderMessages();
-$('messages').dataset.loaded='1';
-}
-
-if(changed)applySync({
-time:state.time,
-playing:state.playing
-});
-});
-
+function closePicker(){$('pickerOverlay').classList.add('hidden');pickerMessage=null}$('pickerClose').onclick=closePicker;$('pickerOverlay').onclick=e=>{if(e.target===$('pickerOverlay'))closePicker()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closePicker()});
+function nameElement(msg){const stack=document.createElement('div');stack.className='name-stack';const badgeEl=document.createElement(!msg.isHost&&isMine(msg)?'button':'span');badgeEl.className='badge-icon'+(!msg.isHost&&isMine(msg)?' editable':'');badgeEl.textContent=badgeFor(msg);if(badgeEl.tagName==='BUTTON'){badgeEl.type='button';badgeEl.title='Изменить значок';badgeEl.onclick=()=>openPicker('badge')}stack.append(badgeEl);const name=document.createElement('span');name.className='msgname';name.textContent=msg.name;stack.append(name);return stack}
+function renderReactions(msg,container){container.replaceChildren();for(const emoji of REACTIONS){const tokens=msg.reactions?.[emoji]||[];if(!tokens.length)continue;const b=document.createElement('button');b.type='button';b.className='reaction-pill'+(tokens.includes(selfToken)?' mine':'');b.textContent=emoji+' '+tokens.length;b.title='Изменить реакцию';b.onclick=()=>socket.emit('react',{id:msg.id,emoji});container.append(b)}}
+function attachLongPress(el,msg){let timer=null,x=0,y=0,opened=false;const cancel=()=>{clearTimeout(timer);timer=null};el.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;opened=false;x=e.clientX;y=e.clientY;cancel();timer=setTimeout(()=>{opened=true;openPicker('reaction',msg)},480)});el.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)cancel()});for(const ev of ['pointerup','pointercancel','pointerleave'])el.addEventListener(ev,cancel);el.addEventListener('contextmenu',e=>{e.preventDefault();cancel();if(!opened)openPicker('reaction',msg)});el.addEventListener('click',e=>{if(opened){e.preventDefault();opened=false}})}
+function appendMessage(msg){const list=$('messages');list.querySelector('.empty')?.remove();const row=document.createElement('div');row.className='msg '+(msg.isHost?'host':'guest')+(isMine(msg)?' mine':'');row.dataset.messageId=msg.id||'';const content=document.createElement('div');content.className='msg-content';const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=msg.text;attachLongPress(bubble,msg);const reactionRow=document.createElement('div');reactionRow.className='reaction-row';renderReactions(msg,reactionRow);const time=document.createElement('div');time.className='msgtime';time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});content.append(nameElement(msg),bubble,reactionRow,time);row.append(content);list.append(row);list.scrollTop=list.scrollHeight}
+function renderAllMessages(){const list=$('messages');list.replaceChildren();for(const msg of messages)appendMessage(msg);if(!messages.length){const e=document.createElement('div');e.className='empty';e.textContent='Тишина перед началом фильма ✦ Зажми сообщение, чтобы поставить реакцию.';list.append(e)}}
+function floatMessage(msg){const row=document.createElement('div');row.className='floatmsg';const av=document.createElement('div');av.className='avatar';av.textContent=avatar(msg.name);const b=document.createElement('div');b.className='floatbubble';const who=document.createElement('b');who.textContent=badgeFor(msg)+' '+msg.name+': ';const text=document.createElement('span');text.textContent=msg.text;b.append(who,text);row.append(b);$('floating').append(row);while($('floating').children.length>4)$('floating').firstElementChild.remove();setTimeout(()=>row.remove(),8500)}
+$('chatForm').onsubmit=e=>{e.preventDefault();const text=$('message').value.trim();if(!text||!room)return;socket.emit('chat',text);$('message').value=''};
+socket.on('chat',msg=>{if(!room)return;messages.push(msg);appendMessage(msg);floatMessage(msg)});
+socket.on('reaction-update',update=>{const msg=messages.find(m=>m.id===update.id);if(!msg)return;msg.reactions=update.reactions;const row=[...$('messages').children].find(el=>el.dataset.messageId===update.id);if(row)renderReactions(msg,row.querySelector('.reaction-row'))});
+socket.on('room-state',state=>{if(!room)return;isHost=!!state.users.find(u=>u.id===self)?.isHost;hostName=state.hostName||'Создатель';badge=state.users.find(u=>u.id===self)?.badge||'🎀';$('online').textContent=state.users.length+' онлайн';const changed=JSON.stringify(media)!==JSON.stringify(state.media);if(changed){media=state.media;showMedia(media);$('url').value=media?.url||''}updateHost();const previous=JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]));messages=state.messages||[];if(!$('messages').dataset.loaded||previous!==JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]))){renderAllMessages();$('messages').dataset.loaded='1'}if(changed)applySync({time:state.time,playing:state.playing})});
 socket.on('sync',applySync);
-
-socket.on('connect',()=>{
-$('status').textContent='● Подключено';
-if(room){
-const id=room;
-room='';
-media=null;
-$('messages').dataset.loaded='';
-$('room').value=id;
-join(true);
-}else{
-$('entry').classList.remove('hidden');
-}
-});
-
-socket.on('disconnect',()=>{
-$('status').textContent='● Переподключение…';
-});
-
-document.addEventListener('visibilitychange',()=>{
-if(!document.hidden&&room&&socket.connected)
-socket.emit('request-sync');
-});
-
-setInterval(()=>{
-if(room&&media){
-updateTimeline();
-if(isHost&&getPlaying()&&Date.now()-lastSync>5000)
-sendSync();
-}
-},1000);
-
-// Звёзды и пролетающие кометы
-(()=>{
-const canvas=$('cosmos');
-const ctx=canvas.getContext('2d');
-if(!ctx)return;
-
-const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let w=0,h=0,dpr=1;
-let stars=[],meteors=[],nextMeteor=0;
-
-function resize(){
-dpr=Math.min(devicePixelRatio||1,2);
-w=innerWidth;
-h=innerHeight;
-canvas.width=Math.round(w*dpr);
-canvas.height=Math.round(h*dpr);
-ctx.setTransform(dpr,0,0,dpr,0,0);
-
-stars=Array.from({
-length:Math.min(220,Math.floor(w*h/5000))
-},()=>({
-x:Math.random()*w,
-y:Math.random()*h,
-r:.3+Math.random()*1.2,
-a:.2+Math.random()*.7,
-phase:Math.random()*6.28,
-speed:.0004+Math.random()*.001
-}));
-}
-
-function draw(t){
-ctx.clearRect(0,0,w,h);
-
-for(const s of stars){
-const alpha=reduced?s.a:s.a*(.75+.25*Math.sin(t*s.speed+s.phase));
-ctx.fillStyle=`rgba(215,221,255,${alpha})`;
-ctx.beginPath();
-ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-ctx.fill();
-}
-
-if(!reduced){
-if(t>nextMeteor){
-meteors.push({
-x:Math.random()*w*.8+w*.1,
-y:-40,
-speed:4+Math.random()*3,
-len:75+Math.random()*110,
-alpha:1
-});
-nextMeteor=t+2400+Math.random()*4800;
-}
-
-for(const m of meteors){
-m.x-=m.speed*1.3;
-m.y+=m.speed;
-m.alpha-=.007;
-
-const grad=ctx.createLinearGradient(
-m.x,m.y,
-m.x+m.len*.8,m.y-m.len*.6
-);
-grad.addColorStop(0,`rgba(215,199,255,${Math.max(0,m.alpha)})`);
-grad.addColorStop(1,'rgba(170,195,255,0)');
-ctx.strokeStyle=grad;
-ctx.lineWidth=1.7;
-ctx.beginPath();
-ctx.moveTo(m.x,m.y);
-ctx.lineTo(m.x+m.len*.8,m.y-m.len*.6);
-ctx.stroke();
-}
-meteors=meteors.filter(m=>m.alpha>0&&m.y<h+120);
-requestAnimationFrame(draw);
-}
-}
-
-resize();
-addEventListener('resize',resize,{passive:true});
-requestAnimationFrame(draw);
-})();
+socket.on('connect',()=>{$('status').textContent='● Подключено';if(room){const id=room;room='';media=null;$('messages').dataset.loaded='';$('room').value=id;join(true)}else $('entry').classList.remove('hidden')});
+socket.on('disconnect',()=>{$('status').textContent='● Переподключение…'});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&room&&socket.connected)socket.emit('request-sync')});
+setInterval(()=>{if(room&&media){updateTimeline();if(isHost&&getPlaying()&&Date.now()-lastSync>5000)sendSync()}},1000);
+// Lightweight star field with meteors; stops moving for reduced-motion users.
+(()=>{const canvas=$('cosmos'),ctx=canvas.getContext('2d');if(!ctx)return;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let w=0,h=0,dpr=1,stars=[],meteors=[],last=0,nextMeteor=0;function resize(){dpr=Math.min(devicePixelRatio||1,2);w=innerWidth;h=innerHeight;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);stars=Array.from({length:Math.min(200,Math.floor(w*h/5700))},()=>({x:Math.random()*w,y:Math.random()*h,r:.35+Math.random()*1.15,a:.18+Math.random()*.7,p:Math.random()*6.28,s:.0003+Math.random()*.001}))}function draw(t){ctx.clearRect(0,0,w,h);for(const s of stars){const a=reduced?s.a:s.a*(.7+.3*Math.sin(t*s.s+s.p));ctx.fillStyle=`rgba(213,220,255,${a})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}if(!reduced){if(t>nextMeteor){meteors.push({x:Math.random()*w*.8+w*.1,y:-40,v:4+Math.random()*3,len:75+Math.random()*110,a:1});nextMeteor=t+2500+Math.random()*5000}for(const m of meteors){m.x-=m.v*1.3;m.y+=m.v;m.a-=.007;const grad=ctx.createLinearGradient(m.x,m.y,m.x+m.len*.8,m.y-m.len*.6);grad.addColorStop(0,`rgba(210,195,255,${Math.max(0,m.a)})`);grad.addColorStop(1,'rgba(170,195,255,0)');ctx.strokeStyle=grad;ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+m.len*.8,m.y-m.len*.6);ctx.stroke()}meteors=meteors.filter(m=>m.a>0&&m.y<h+120)}last=t;if(!reduced)requestAnimationFrame(draw)}resize();addEventListener('resize',resize,{passive:true});requestAnimationFrame(draw)})();
 </script>
 </body>
 </html>
