@@ -1,26 +1,164 @@
 import express from 'express';
 import {createServer} from 'node:http';
 import {Server} from 'socket.io';
-import {randomBytes} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
-const app=express();const http=createServer(app);const io=new Server(http,{maxHttpBufferSize:100000});
-const here=path.dirname(fileURLToPath(import.meta.url));
-app.get('/',(_,res)=>res.sendFile(path.join(here,'index.html')));
-app.get('/index.html',(_,res)=>res.sendFile(path.join(here,'index.html')));
+import {fileURLToPath} from 'node:url';
+
+const __dirname=path.dirname(fileURLToPath(import.meta.url));
+const DATA=path.join(__dirname,'cinema-data.json');
+const app=express();
+const http=createServer(app);
+const io=new Server(http,{maxHttpBufferSize:100_000});
 const rooms=new Map();
-const validId=s=>typeof s==='string'&&/^[a-zA-Z0-9_-]{6,32}$/.test(s);
-const clean=s=>String(s??'').trim().slice(0,500);
-function state(r){return {media:r.media,playing:r.playing,time:r.time,updated:r.updated,users:[...r.users.values()].map(u=>({id:u.id,name:u.name})),messages:r.messages.slice(-100)}}
-function broadcast(id){const r=rooms.get(id);if(r)io.to(id).emit('room-state',state(r))}
+const BADGES=new Set(['🎀','🐈','🦊','💖','🐒']);
+const REACTIONS=new Set(['🔥','🥹','😍','🤤','❤️']);
+const uid=()=>crypto.randomBytes(16).toString('hex');
+const clean=(s,n)=>String(s??'').trim().slice(0,n);
+const persist=()=>{
+  try{
+    const out={};
+    for(const [id,r] of rooms){out[id]={hostToken:r.hostToken,hostName:r.hostName,media:r.media,time:r.time,playing:r.playing,updated:r.updated,messages:r.messages.slice(-250),badges:r.badges};}
+    const temp=DATA+'.tmp';fs.writeFileSync(temp,JSON.stringify(out));fs.renameSync(temp,DATA);
+  }catch(e){console.error('Save failed:',e.message);}
+};
+try{
+  if(fs.existsSync(DATA)){
+    const saved=JSON.parse(fs.readFileSync(DATA,'utf8'));
+    for(const [id,r] of Object.entries(saved)){
+      if(!r||typeof r!=='object')continue;
+      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},users:new Map()});
+    }
+  }
+}catch(e){console.warn('Unable to read stored rooms:',e.message);}
+
+function parseMedia(input){
+  let url;
+  try{url=new URL(clean(input,2000));}catch{return null;}
+  if(!['https:','http:'].includes(url.protocol))return null;
+  const host=url.hostname.toLowerCase().replace(/^www\./,'');
+  if(host==='youtu.be'||host==='youtube.com'||host==='m.youtube.com'||host==='youtube-nocookie.com'){
+    let id=host==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v');
+    if(!id){const m=url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/);id=m?.[1];}
+    if(!/^[\w-]{11}$/.test(id||''))return null;
+    return {type:'youtube',id,url:url.href};
+  }
+  if(host==='vk.com'||host==='m.vk.com'||host==='vkvideo.ru'||host==='m.vkvideo.ru'||host==='video.vk.com'){
+    const oid=url.searchParams.get('oid');const id=url.searchParams.get('id');
+    let embed;
+    if(oid&&id&&/^-?\d+$/.test(oid)&&/^\d+$/.test(id)){
+      embed=`https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`;
+    }else{
+      const match=url.pathname.match(/video(-?\d+)_(\d+)/);
+      if(match)embed=`https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2`;
+    }
+    if(!embed)return null;
+    return {type:'vk',embed,url:url.href};
+  }
+  if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(url.href))return {type:'video',url:url.href};
+  return null;
+}
+function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
+function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
+function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages};}
+function broadcast(r,id){io.to(id).emit('room-state',state(r));}
+function getRoom(socket){const id=socket.data.room;const r=rooms.get(id);return r?.users.get(socket.id)?r:null;}
+function getUser(socket){return getRoom(socket)?.users.get(socket.id);}
+function leave(socket){
+  const id=socket.data.room;
+  if(!id)return;
+  const r=rooms.get(id);
+  if(r){r.users.delete(socket.id);broadcast(r,id);}
+  socket.leave(id);socket.data.room=null;
+}
+
 io.on('connection',socket=>{
- socket.on('join',({room,name},reply)=>{if(!validId(room))return reply?.({error:'Неверный код комнаты'});let r=rooms.get(room);if(!r){r={media:null,playing:false,time:0,updated:Date.now(),users:new Map(),messages:[]};rooms.set(room,r)}if(r.users.size>=12)return reply?.({error:'Комната заполнена'});if(socket.data.room){socket.leave(socket.data.room);const prev=rooms.get(socket.data.room);prev?.users.delete(socket.id);broadcast(socket.data.room)}const user={id:socket.id,name:clean(name).slice(0,24)||'Гость'};r.users.set(socket.id,user);socket.data.room=room;socket.join(room);reply?.({ok:true,id:socket.id});broadcast(room)});
- socket.on('media',({url},reply)=>{const room=socket.data.room,r=rooms.get(room);if(!r)return;const media=parseMedia(url);if(!media)return reply?.({error:'Поддерживаются YouTube, VK Видео и прямые HTTPS-ссылки на MP4/WebM'});r.media=media;r.time=0;r.playing=false;r.updated=Date.now();broadcast(room);reply?.({ok:true})});
- socket.on('sync',data=>{const r=rooms.get(socket.data.room);if(!r||!r.users.has(socket.id))return;const time=Number(data?.time);if(!Number.isFinite(time)||time<0||time>864000)return;r.time=time;r.playing=!!data.playing;r.updated=Date.now();socket.to(socket.data.room).emit('sync',{time,playing:r.playing,origin:socket.id,updated:r.updated})});
- socket.on('request-sync',()=>{const r=rooms.get(socket.data.room);if(r)socket.emit('sync',{time:r.time+(r.playing?(Date.now()-r.updated)/1000:0),playing:r.playing,updated:Date.now()})});
- socket.on('chat',msg=>{const r=rooms.get(socket.data.room);if(!r||!r.users.has(socket.id))return;const text=clean(msg).slice(0,1000);if(!text)return;const user=r.users.get(socket.id);const item={id:randomBytes(8).toString('hex'),name:user.name,text,at:Date.now(),sender:socket.id};r.messages.push(item);if(r.messages.length>100)r.messages.shift();io.to(socket.data.room).emit('chat',item)});
- socket.on('disconnect',()=>{const room=socket.data.room,r=rooms.get(room);if(!r)return;r.users.delete(socket.id);broadcast(room);if(!r.users.size)setTimeout(()=>{if(!r.users.size)rooms.delete(room)},3600000)})
+  socket.on('join',(payload,ack)=>{
+    const done=typeof ack==='function'?ack:()=>{};
+    const id=clean(payload?.room,80),name=clean(payload?.name,24);
+    if(!/^[a-zA-Z0-9_-]{3,80}$/.test(id)||!name)return done({ok:false,error:'Укажи имя и корректный код комнаты'});
+    leave(socket);
+    let r=rooms.get(id);
+    let token=clean(payload?.token,128);
+    if(!r){
+      token=uid();
+      r={hostToken:token,hostName:name,media:null,time:0,playing:false,updated:Date.now(),messages:[],badges:{},users:new Map()};
+      rooms.set(id,r);
+    }
+    const isHost=token===r.hostToken;
+    if(!token||token===r.hostToken&&r.users.has(socket.id))token=token||uid();
+    if(!token)token=uid();
+    if(isHost)r.hostName=name;
+    const u={id:socket.id,name,token,isHost};
+    r.users.set(socket.id,u);
+    socket.data.room=id;
+    socket.join(id);
+    done({ok:true,id:socket.id,token,isHost});
+    broadcast(r,id);
+    persist();
+  });
+  socket.on('media',(payload,ack)=>{
+    const done=typeof ack==='function'?ack:()=>{};
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u?.isHost)return done({error:'Менять фильм может только создатель'});
+    const m=parseMedia(payload?.url);
+    if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
+    r.media=m;r.time=0;r.playing=false;r.updated=Date.now();
+    broadcast(r,socket.data.room);persist();done({ok:true});
+  });
+  socket.on('sync',payload=>{
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u?.isHost||!r.media)return;
+    const t=Number(payload?.time);
+    if(!Number.isFinite(t)||t<0||t>86400*12)return;
+    r.time=t;r.playing=!!payload.playing;r.updated=Date.now();
+    socket.to(socket.data.room).emit('sync',{time:r.time,playing:r.playing});
+    persist();
+  });
+  socket.on('request-sync',()=>{
+    const r=getRoom(socket);if(r)socket.emit('sync',{time:currentTime(r),playing:r.playing});
+  });
+  socket.on('chat',input=>{
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u)return;
+    const value=typeof input==='string'?input:input?.text;
+    const text=clean(value,1000);
+    if(!text)return;
+    const msg={id:uid(),name:u.name,author:u.token,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀',text,at:Date.now(),reactions:{}};
+    r.messages.push(msg);if(r.messages.length>250)r.messages.shift();
+    io.to(socket.data.room).emit('chat',msg);persist();
+  });
+  socket.on('set-badge',(badge,ack)=>{
+    const done=typeof ack==='function'?ack:()=>{};
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u||u.isHost)return done({ok:false,error:'Значок выбирает гость'});
+    if(!BADGES.has(badge))return done({ok:false,error:'Недоступный значок'});
+    r.badges[u.token]=badge;
+    for(const m of r.messages)if(m.author===u.token&&!m.isHost)m.badge=badge;
+    broadcast(r,socket.data.room);persist();done({ok:true});
+  });
+  socket.on('react',(payload,ack)=>{
+    const done=typeof ack==='function'?ack:()=>{};
+    const r=getRoom(socket),u=getUser(socket);
+    if(!r||!u)return done({ok:false});
+    const emoji=payload?.emoji;
+    if(!REACTIONS.has(emoji))return done({ok:false});
+    const m=r.messages.find(x=>x.id===payload?.id);
+    if(!m)return done({ok:false});
+    m.reactions=m.reactions||{};
+    // One reaction per participant per message. Clicking the same reaction removes it.
+    const previous=Object.entries(m.reactions).find(([,users])=>Array.isArray(users)&&users.includes(u.token))?.[0];
+    if(previous)m.reactions[previous]=m.reactions[previous].filter(x=>x!==u.token);
+    if(previous!==emoji){m.reactions[emoji]=m.reactions[emoji]||[];m.reactions[emoji].push(u.token);}
+    io.to(socket.data.room).emit('reaction-update',{id:m.id,reactions:m.reactions});
+    persist();done({ok:true});
+  });
+  socket.on('disconnect',()=>leave(socket));
 });
-function parseMedia(value){try{const u=new URL(String(value));if(u.protocol!=='https:')return null;const h=u.hostname.toLowerCase();let id=null;if(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(h)){if(u.pathname==='/watch')id=u.searchParams.get('v');else if(u.pathname.startsWith('/shorts/')||u.pathname.startsWith('/embed/')||u.pathname.startsWith('/live/'))id=u.pathname.split('/')[2]}else if(h==='youtu.be'||h==='www.youtu.be')id=u.pathname.slice(1).split('/')[0];if(id&&/^[\w-]{11}$/.test(id))return {type:'youtube',id,url:'https://www.youtube.com/watch?v='+id};const vkHosts=['vkvideo.ru','m.vkvideo.ru','www.vkvideo.ru','vk.com','m.vk.com','www.vk.com','vk.ru','m.vk.ru'];if(vkHosts.includes(h)){let match=u.pathname.match(/^\/video(-?\d+)_(\d+)/);let oid=match?.[1],vid=match?.[2];if(u.pathname==='/video_ext.php'){oid=u.searchParams.get('oid');vid=u.searchParams.get('id')}if(oid&&vid&&/^-?\d+$/.test(oid)&&/^\d+$/.test(vid)){const hash=u.searchParams.get('hash');const embed=new URL('https://vkvideo.ru/video_ext.php');embed.searchParams.set('oid',oid);embed.searchParams.set('id',vid);if(hash&&/^[a-zA-Z0-9_-]{1,128}$/.test(hash))embed.searchParams.set('hash',hash);embed.searchParams.set('js_api','1');return {type:'vk',url:'https://vkvideo.ru/video'+oid+'_'+vid,embed:embed.href}}}if(/\.(mp4|webm)$/i.test(u.pathname))return {type:'video',url:u.href};return null}catch{return null}}
-app.get('/health',(_,res)=>res.json({ok:true}));
-const port=process.env.PORT||3000;http.listen(port,()=>console.log(`REMEDIUM CINEMA on ${port}`));
+
+app.get('/health',(_,res)=>res.json({ok:true,rooms:rooms.size}));
+app.get(['/', '/index.html'],(_,res)=>res.sendFile(path.join(__dirname,'index.html')));
+// Do not expose cinema-data.json or server-side files over HTTP.
+const PORT=Number(process.env.PORT)||3000;
+http.listen(PORT,'0.0.0.0',()=>console.log(`REMEDIUM CINEMA COSMOS listening on ${PORT}`));
