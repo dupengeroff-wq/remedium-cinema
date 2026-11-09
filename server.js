@@ -59,6 +59,24 @@ function parseMedia(input){
   if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(url.href))return {type:'video',url:url.href};
   return null;
 }
+async function discoverTitle(m){
+  if(m.type==='video'){
+    try{const p=new URL(m.url).pathname.split('/').pop()||'';
+      return decodeURIComponent(p).replace(/\.(mp4|webm|ogg)$/i,'').replace(/[_-]+/g,' ').slice(0,120)||null;
+    }catch{return null;}
+  }
+  let endpoint;
+  if(m.type==='youtube') endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+m.id);
+  else if(m.type==='vk') endpoint='https://vk.com/oembed?url='+encodeURIComponent(m.url);
+  else return null;
+  try{
+    const response=await fetch(endpoint,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5500)});
+    if(!response.ok)return null;
+    const data=await response.json();
+    const title=clean(data?.title,120);
+    return title||null;
+  }catch(e){console.info('Video title unavailable:',m.type,e.message);return null;}
+}
 function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
 function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
 function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages};}
@@ -104,12 +122,19 @@ io.on('connection',socket=>{
     if(!r||!u?.isHost)return done({error:'Менять фильм может только создатель'});
     const m=parseMedia(payload?.url);
     if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
+    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':'Видео';
     r.media=m;r.time=0;r.playing=false;r.updated=Date.now();
     broadcast(r,socket.data.room);persist();done({ok:true});
+    const selectedMedia=m;
+    discoverTitle(m).then(title=>{
+      if(!title||r.media!==selectedMedia)return;
+      selectedMedia.title=title;
+      broadcast(r,socket.data.room);persist();
+    }).catch(e=>console.warn('Title lookup failed:',e.message));
   });
   socket.on('sync',payload=>{
     const r=getRoom(socket),u=getUser(socket);
-    if(!r||!u?.isHost||!r.media)return;
+    if(!r||!u||!r.media)return;
     const t=Number(payload?.time);
     if(!Number.isFinite(t)||t<0||t>86400*12)return;
     r.time=t;r.playing=!!payload.playing;r.updated=Date.now();
