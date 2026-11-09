@@ -20,12 +20,10 @@ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 }
 *{box-sizing:border-box}
 body{
-margin:0;
-min-height:100vh;
+margin:0;min-height:100vh;
 background:radial-gradient(ellipse at 15% 10%,#4d37874a,transparent 42%),
 radial-gradient(ellipse at 85% 70%,#20467836,transparent 48%),var(--bg);
-color:var(--text);
-overflow-x:hidden
+color:var(--text);overflow-x:hidden
 }
 button,input{font:inherit}
 button{cursor:pointer}
@@ -193,30 +191,43 @@ display:flex;flex-direction:column;gap:15px
 margin:auto;text-align:center;font-size:12px;
 line-height:1.7;color:var(--muted)
 }
-.msg{display:flex;gap:9px;align-items:flex-start}
-.msg.mine{flex-direction:row-reverse}
-.avatar{
-width:31px;height:31px;flex:none;
-display:grid;place-items:center;border-radius:11px;
-background:linear-gradient(135deg,#c6b5ff,#5c78ba);
-color:#151426;font-size:12px;font-weight:800
+
+/* Сообщения: только значок, имя и текст */
+.msg{
+display:flex;
+align-items:flex-start;
+gap:0;
 }
-.msg.mine .avatar{
-background:linear-gradient(135deg,#ffb3df,#9378d4)
+.msg.mine{
+justify-content:flex-end;
 }
-.msgcontent{min-width:0;max-width:calc(100% - 42px)}
+.msgcontent{
+min-width:0;
+max-width:85%;
+}
 .msg.mine .msgcontent{text-align:right}
 .namestack{
-display:inline-flex;flex-direction:column;
-align-items:flex-start;gap:3px;margin-bottom:6px
+display:inline-flex;
+flex-direction:column;
+align-items:flex-start;
+gap:3px;
+margin-bottom:7px;
 }
 .msg.mine .namestack{align-items:flex-end}
 .namebadge{
-font-size:17px;background:transparent;
-border:0;color:white;padding:0 3px
+font-size:21px;
+line-height:1.2;
+background:transparent;
+border:0;
+color:white;
+padding:0;
 }
 .namebadge.editable{cursor:pointer}
-.msgname{font-size:11px;color:var(--purple);font-weight:750}
+.msgname{
+font-size:12px;
+color:var(--purple);
+font-weight:700;
+}
 .msg.mine .msgname{color:var(--pink)}
 .bubble{
 display:inline-block;max-width:100%;
@@ -278,7 +289,6 @@ width:54px;height:54px;border-radius:15px;
 background:#ffffff0e;border:1px solid #ffffff2b;
 font-size:27px;color:white
 }
-.choice:active{background:#b9a7ff33}
 .toast{
 position:fixed;z-index:100;bottom:22px;left:50%;
 transform:translateX(-50%);display:none;
@@ -926,9 +936,6 @@ theater(!document.body.classList.contains('theater'));
 }
 };
 
-function avatar(name){
-return String(name||'?').trim().slice(0,1).toUpperCase();
-}
 function isMine(m){return m.author===selfToken}
 function badgeFor(m){return m.isHost?'👑':m.badge||'🎀'}
 
@@ -1038,6 +1045,7 @@ openPicker('reaction',m);
 });
 }
 
+/* Готовое отображение без квадратных аватарок */
 function appendMessage(m){
 const list=$('messages');
 list.querySelector('.empty')?.remove();
@@ -1045,10 +1053,6 @@ list.querySelector('.empty')?.remove();
 const row=document.createElement('div');
 row.className='msg'+(isMine(m)?' mine':'');
 row.dataset.id=m.id;
-
-const av=document.createElement('div');
-av.className='avatar';
-av.textContent=avatar(m.name);
 
 const content=document.createElement('div');
 content.className='msgcontent';
@@ -1069,7 +1073,7 @@ hour:'2-digit',minute:'2-digit'
 });
 
 content.append(nameElement(m),bubble,reactions,time);
-row.append(av,content);
+row.append(content);
 list.append(row);
 list.scrollTop=list.scrollHeight;
 }
