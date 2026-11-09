@@ -181,6 +181,42 @@ body.guest-view #yt iframe,body.guest-view #vk iframe{pointer-events:auto!import
 body.guest-view #video{pointer-events:none!important}
 .guest-player-shield{position:absolute;inset:0;z-index:3;background:transparent;touch-action:pan-y}
 .screen-top,.screen-bottom{z-index:5}
+ .guest-movie-title{padding:13px 15px;border:1px solid #ffffff24;border-radius:14px;font-size:15px;font-weight:600;color:#f5f5f5;background:#ffffff0b}
+.guest-movie-title[hidden]{display:none!important}
+
+/* iPhone: natural 1:1 viewport, no manual pinch zoom needed */
+html{width:100%;max-width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{width:100%;max-width:100%;overflow-x:clip}
+.wrap,.layout,.stage,.chat,.player-shell,.screen,.movieform,.watchlist{min-width:0;max-width:100%}
+input,select,textarea{min-width:0;max-width:100%}
+@media(max-width:900px){
+ .layout{display:grid;grid-template-columns:minmax(0,1fr)!important}
+ .wrap{width:100%;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+ .player-shell,.chat{width:100%}
+ .screen{width:100%;aspect-ratio:16/9;height:auto}
+ .screen video,.screen .embed,.screen iframe{max-width:100%}
+}
+@media(max-width:600px){
+ header{gap:8px;min-width:0}
+ .brand{min-width:0;letter-spacing:1px;font-size:clamp(11px,3.3vw,14px)}
+ .header-right{min-width:0;gap:6px;flex-shrink:0}
+ .header-right .eyebrow{font-size:clamp(7px,2vw,9px);letter-spacing:.2px}
+ .hero{gap:12px;padding:20px 0 17px}
+ .hero h1{font-size:clamp(25px,7.1vw,34px);overflow-wrap:break-word}
+ .actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .actions .btn{width:100%;min-width:0;padding:11px 7px}
+ .movieform{display:flex;flex-wrap:wrap;padding:10px;gap:8px}
+ .movieform .field,.movieform input,.movieform .guest-movie-title{width:100%;flex:1 1 100%;min-width:0}
+ .movieform button{width:100%;max-width:100%}
+ .watch-tools,.watch-add{max-width:100%;min-width:0}
+ .watch-tools .field,.watch-add .field{min-width:0;max-width:100%}
+ .chat{height:min(490px,68dvh);min-height:340px}
+ .chathead,.chatfoot{min-width:0;max-width:100%}
+ .msg-content,.bubble{overflow-wrap:anywhere}
+ .modal{width:min(100%,450px);max-height:calc(100dvh - 30px);overflow-y:auto;padding:clamp(16px,5vw,28px)}
+ input,select,textarea{font-size:16px!important} /* prevent iOS input-focus auto-zoom */
+}
+@media(max-width:360px){.wrap{padding-left:9px;padding-right:9px}.hero h1{font-size:25px}.chat{height:400px}}
 </style>
 </head>
 <body>
@@ -188,7 +224,7 @@ body.guest-view #video{pointer-events:none!important}
 <div class="wrap">
 <header><div class="brand"><span class="mark">✦</span> REMEDIUM <span class="accent">CINEMA</span></div><div class="header-right"><span class="online-dot"></span><span class="eyebrow">OUR LITTLE UNIVERSE</span></div></header>
 <section class="hero"><div><div class="eyebrow">A UNIVERSE FOR TWO</div><h1>Ближе, чем <span class="accent">звёзды.</span></h1><p>Один космос. Два сердца. Ваш собственный кинозал.</p></div><div class="actions"><button id="invite" class="btn" disabled>↗ Пригласить</button><button id="editName" class="btn">✎ Имя</button></div></section>
-<div class="layout"><main class="stage"><div class="player-shell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet">▶</div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline controls></video><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span></div><div id="floating" class="floating"></div><div class="screen-bottom"><span id="hostBadge" class="chip">♛ PRIVATE UNIVERSE</span></div></div></div><div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role">✦ PRIVATE CINEMA</span></div><div class="movieform"><input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div><details class="watchlist" id="watchlist"><summary><span>☷ &nbsp; Наш список фильмов <span id="watchCount" class="muted"></span></span><span class="arrow">⌄</span></summary><div class="watch-body"><div class="watch-tools"><input id="watchSearch" class="field" placeholder="⌕ Найти фильм…"><select id="watchCategory" class="field"><option value="all">Все разделы</option><option value="main">Наш список</option><option value="moderation">На модерации</option></select><button id="watchImport" class="btn" type="button">↑ Импорт</button><button id="watchExport" class="btn" type="button">↓ Копия</button><input id="watchFile" type="file" accept=".json,.html,.htm,application/json,text/html" hidden></div><form class="watch-add" id="watchForm"><input id="watchName" class="field" maxlength="120" placeholder="Название фильма или сериала" required><select id="watchNewCategory" class="field"><option value="main">Наш список</option><option value="moderation">На модерации</option></select><button class="btn primary" type="submit">＋ Добавить</button></form><div class="watch-stats" id="watchStats"></div><div class="watch-items" id="watchItems"></div><div class="watch-note">Личный список на этом устройстве, без синхронизации с другим зрителем. Можно импортировать исходный HTML «Наши фильмы» или JSON-копию. Для защиты от потери данных сохраняй копию отдельно.</div></div></details><div class="meta"><span id="roomInfo">Комната не создана</span><span id="status">● Не подключено</span></div></main>
+<div class="layout"><main class="stage"><div class="player-shell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet">▶</div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline controls></video><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span></div><div id="floating" class="floating"></div><div class="screen-bottom"><span id="hostBadge" class="chip">♛ PRIVATE UNIVERSE</span></div></div></div><div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role">✦ PRIVATE CINEMA</span></div><div class="movieform"><div id="guestMovieTitle" class="guest-movie-title" hidden></div><input id="url" class="field" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div><details class="watchlist" id="watchlist"><summary><span>☷ &nbsp; Наш список фильмов <span id="watchCount" class="muted"></span></span><span class="arrow">⌄</span></summary><div class="watch-body"><div class="watch-tools"><input id="watchSearch" class="field" placeholder="⌕ Найти фильм…"><select id="watchCategory" class="field"><option value="all">Все разделы</option><option value="main">Наш список</option><option value="moderation">На модерации</option></select><button id="watchImport" class="btn" type="button">↑ Импорт</button><button id="watchExport" class="btn" type="button">↓ Копия</button><input id="watchFile" type="file" accept=".json,.html,.htm,application/json,text/html" hidden></div><form class="watch-add" id="watchForm"><input id="watchName" class="field" maxlength="120" placeholder="Название фильма или сериала" required><select id="watchNewCategory" class="field"><option value="main">Наш список</option><option value="moderation">На модерации</option></select><button class="btn primary" type="submit">＋ Добавить</button></form><div class="watch-stats" id="watchStats"></div><div class="watch-items" id="watchItems"></div><div class="watch-note">Личный список на этом устройстве, без синхронизации с другим зрителем. Можно импортировать исходный HTML «Наши фильмы» или JSON-копию. Для защиты от потери данных сохраняй копию отдельно.</div></div></details><div class="meta"><span id="roomInfo">Комната не создана</span><span id="status">● Не подключено</span></div></main>
 <aside class="chat"><div class="chathead"><div><div class="eyebrow">MESSAGES FROM THE STARS</div><h2>Наш космос ♡</h2></div><div class="chat-status"><button id="myBadge" class="my-badge hidden" title="Изменить свой значок">🎀</button><span id="online" class="small muted">0 онлайн</span></div></div><div id="messages" class="messages"><div class="empty">Здесь начнётся ваша история ✦<br>Зажми сообщение, чтобы поставить реакцию.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn primary" disabled>➤</button></form></aside></div></div>
 <div id="entry" class="overlay"><div class="modal"><div class="eyebrow">✦ REMEDIUM CINEMA</div><h2>Добро пожаловать <span class="accent">во Вселенную ♡</span></h2><p>Создай свой кинозал или войди по приглашению. Регистрация не нужна.</p><input id="name" class="field" maxlength="24" placeholder="Твоё имя"><input id="room" class="field" placeholder="Код комнаты (необязательно)"><button id="join" class="btn primary">Начать путешествие →</button><div class="modal-note">Имя можно менять перед каждым входом.</div></div></div>
 <div id="pickerOverlay" class="picker-overlay hidden"><div class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle"><h3 id="pickerTitle">Выбери значок</h3><p id="pickerHint">Твой знак в нашем космосе</p><div id="pickerChoices" class="choices"></div><button id="pickerClose" class="picker-close">Закрыть</button></div></div>
@@ -227,6 +263,10 @@ function updateHost(){
   $('myBadge').textContent=badge;
   $('load').disabled=!isHost;
   $('url').disabled=!isHost;
+  $('guestMovieTitle').hidden=isHost||!media;
+  $('guestMovieTitle').textContent=media?.title||'Видео VK / YouTube';
+  $('url').style.display=isHost?'':'none';
+  $('load').style.display=isHost?'':'none';
   $('role').textContent=isHost?'👑 ВЫ СОЗДАТЕЛЬ':'✦ ВЫ ГОСТЬ';
   $('hostBadge').textContent='♛ '+(hostName||'Создатель')+(isHost?' · вы':'');
   video.controls=isHost;
@@ -252,6 +292,7 @@ if(m.type==='vk'){
   frame.id='vkframe';
   frame.src=m.embed;
   frame.loading='eager';
+  frame.referrerPolicy='strict-origin-when-cross-origin';
   frame.style.cssText='width:100%;height:100%;border:0;display:block';
   frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
   frame.setAttribute('allowfullscreen','');
@@ -274,7 +315,7 @@ if(m.type==='vk'){
       socket.emit('request-sync');
     }catch(e){console.warn('VK API unavailable; native player still works',e)}
   };
-  frame.addEventListener('load',()=>{init();if(!isHost)socket.emit('request-sync')});
+  frame.addEventListener('load',()=>{setTimeout(init,350);if(!isHost)socket.emit('request-sync')});
   if(window.VK?.VideoPlayer){setTimeout(init,150)}else{
     let script=document.getElementById('vkapi');
     if(!script){script=document.createElement('script');script.id='vkapi';script.src='https://vk.com/js/api/videoplayer.js';document.head.append(script)}
@@ -294,7 +335,6 @@ function applySync(d){if(!media)return;clock=Math.max(0,Number(d.time)||0);playi
   if(!isHost)ytPlayer.mute();
   ytPlayer.playVideo();
 }else ytPlayer.pauseVideo()}if(media.type==='vk'&&vkPlayer&&!isHost){try{if(Math.abs((vkPlayer.getCurrentTime?.()||0)-clock)>2)vkPlayer.seek?.(clock);if(playingState){
-  if(!isHost)vkPlayer.mute?.();
   vkPlayer.play?.();
 }else vkPlayer.pause?.()}catch{}}}catch(e){console.warn(e)}updateTimeline()}
 function formatTime(n){n=Math.max(0,Math.floor(Number(n)||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0')}
@@ -318,7 +358,7 @@ function floatMessage(msg){const row=document.createElement('div');row.className
 $('chatForm').onsubmit=e=>{e.preventDefault();const text=$('message').value.trim();if(!text||!room)return;socket.emit('chat',text);$('message').value=''};
 socket.on('chat',msg=>{if(!room)return;messages.push(msg);appendMessage(msg);floatMessage(msg)});
 socket.on('reaction-update',update=>{const msg=messages.find(m=>m.id===update.id);if(!msg)return;msg.reactions=update.reactions;const row=[...$('messages').children].find(el=>el.dataset.messageId===update.id);if(row)renderReactions(msg,row.querySelector('.reaction-row'))});
-socket.on('room-state',state=>{if(!room)return;isHost=!!state.users.find(u=>u.id===self)?.isHost;hostName=state.hostName||'Создатель';badge=state.users.find(u=>u.id===self)?.badge||'🎀';$('online').textContent=state.users.length+' онлайн';const changed=JSON.stringify(media)!==JSON.stringify(state.media);if(changed){media=state.media;showMedia(media);$('url').value=media?.url||''}updateHost();const previous=JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]));messages=state.messages||[];if(!$('messages').dataset.loaded||previous!==JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]))){renderAllMessages();$('messages').dataset.loaded='1'}if(changed)applySync({time:state.time,playing:state.playing});else if(media){playingState=!!state.playing;updateTimeline()}});
+socket.on('room-state',state=>{if(!room)return;isHost=!!state.users.find(u=>u.id===self)?.isHost;hostName=state.hostName||'Создатель';badge=state.users.find(u=>u.id===self)?.badge||'🎀';$('online').textContent=state.users.length+' онлайн';const changed=JSON.stringify(media)!==JSON.stringify(state.media);if(changed){media=state.media;showMedia(media);$('url').value=media?.url||''}updateHost();const previous=JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]));messages=state.messages||[];if(!$('messages').dataset.loaded||previous!==JSON.stringify(messages.map(m=>[m.id,m.badge,m.reactions]))){renderAllMessages();$('messages').dataset.loaded='1'}if(changed){applySync({time:state.time,playing:state.playing});setTimeout(()=>{if(room&&socket.connected)socket.emit('request-sync')},1300)}else if(media){playingState=!!state.playing;updateTimeline()}});
 socket.on('sync',applySync);
 socket.on('connect',()=>{$('status').textContent='● Подключено';if(room){const id=room;room='';media=null;$('messages').dataset.loaded='';$('room').value=id;join(true)}else $('entry').classList.remove('hidden')});
 socket.on('disconnect',()=>{$('status').textContent='● Переподключение…'});
