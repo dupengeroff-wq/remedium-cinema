@@ -1,3 +1,4 @@
+import {parseMedia} from './media.js';
 import express from 'express';
 import {createServer} from 'node:http';
 import {Server} from 'socket.io';
@@ -28,60 +29,13 @@ try{
     const saved=JSON.parse(fs.readFileSync(DATA,'utf8'));
     for(const [id,r] of Object.entries(saved)){
       if(!r||typeof r!=='object')continue;
-      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media?.type==='vk'?{...r.media,...(parseMedia(r.media.url)||{})}:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},users:new Map()});
+      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},users:new Map()});
     }
   }
 }catch(e){console.warn('Unable to read stored rooms:',e.message);}
 
-function parseMedia(input){
-  let url;
-  try{url=new URL(clean(input,2000));}catch{return null;}
-  if(!['https:','http:'].includes(url.protocol))return null;
-  const host=url.hostname.toLowerCase().replace(/^www\./,'');
-  if(host==='youtu.be'||host==='youtube.com'||host==='m.youtube.com'||host==='youtube-nocookie.com'){
-    let id=host==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v');
-    if(!id){const m=url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/);id=m?.[1];}
-    if(!/^[\w-]{11}$/.test(id||''))return null;
-    return {type:'youtube',id,url:url.href};
-  }
-  if(host==='vk.com'||host==='m.vk.com'||host==='vkvideo.ru'||host==='m.vkvideo.ru'||host==='video.vk.com'){
-    const oid=url.searchParams.get('oid');const id=url.searchParams.get('id');
-    let embed;
-    if(oid&&id&&/^-?\d+$/.test(oid)&&/^\d+$/.test(id)){
-      embed=`https://vkvideo.ru/video_ext.php?oid=${oid}&id=${id}&hd=2&js_api=1`;
-    }else{
-      const match=url.pathname.match(/video(-?\d+)_(\d+)/);
-      if(match)embed=`https://vkvideo.ru/video_ext.php?oid=${match[1]}&id=${match[2]}&hd=2&js_api=1`;
-    }
-    if(!embed)return null;
-    // The embed hash grants access to link-only videos to invited viewers.
-    const hash=url.searchParams.get('hash');
-    if(hash)embed+='&hash='+encodeURIComponent(hash);
-    return {type:'vk',embed,url:url.href};
-  }
-  if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(url.href))return {type:'video',url:url.href};
-  return null;
-}
-async function discoverTitle(m){
-  if(m.type==='video'){
-    try{const p=new URL(m.url).pathname.split('/').pop()||'';
-      return decodeURIComponent(p).replace(/\.(mp4|webm|ogg)$/i,'').replace(/[_-]+/g,' ').slice(0,120)||null;
-    }catch{return null;}
-  }
-  let endpoint;
-  if(m.type==='youtube') endpoint='https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+m.id);
-  else if(m.type==='vk') endpoint='https://vkvideo.ru/oembed?url='+encodeURIComponent(m.url);
-  else return null;
-  try{
-    const response=await fetch(endpoint,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5500)});
-    if(!response.ok)return null;
-    const data=await response.json();
-    const title=clean(data?.title,120);
-    return title||null;
-  }catch(e){console.info('Video title unavailable:',m.type,e.message);return null;}
-}
 function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
-function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,ready:!!u.ready,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
+function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
 function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages};}
 function broadcast(r,id){io.to(id).emit('room-state',state(r));}
 function getRoom(socket){const id=socket.data.room;const r=rooms.get(id);return r?.users.get(socket.id)?r:null;}
@@ -111,7 +65,7 @@ io.on('connection',socket=>{
     if(!token||token===r.hostToken&&r.users.has(socket.id))token=token||uid();
     if(!token)token=uid();
     if(isHost)r.hostName=name;
-    const u={id:socket.id,name,token,isHost,ready:false};
+    const u={id:socket.id,name,token,isHost};
     r.users.set(socket.id,u);
     socket.data.room=id;
     socket.join(id);
@@ -125,16 +79,8 @@ io.on('connection',socket=>{
     if(!r||!u?.isHost)return done({error:'Менять фильм может только создатель'});
     const m=parseMedia(payload?.url);
     if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
-    m.key=uid();
-    m.title=m.type==='vk'?'Видео VK':m.type==='youtube'?'Видео YouTube':'Видео';
-    r.media=m;r.time=0;r.playing=false;r.updated=Date.now();for(const person of r.users.values())person.ready=false;
+    r.media=m;r.time=0;r.playing=false;r.updated=Date.now();
     broadcast(r,socket.data.room);persist();done({ok:true});
-    const selectedMedia=m;
-    discoverTitle(m).then(title=>{
-      if(!title||r.media!==selectedMedia)return;
-      selectedMedia.title=title;
-      broadcast(r,socket.data.room);persist();
-    }).catch(e=>console.warn('Title lookup failed:',e.message));
   });
   socket.on('sync',payload=>{
     const r=getRoom(socket),u=getUser(socket);
@@ -144,18 +90,6 @@ io.on('connection',socket=>{
     r.time=t;r.playing=!!payload.playing;r.updated=Date.now();
     socket.to(socket.data.room).emit('sync',{time:r.time,playing:r.playing});
     persist();
-  });
-  socket.on('watch-ready',value=>{
-    const r=getRoom(socket),u=getUser(socket);if(!r||!u||!r.media)return;
-    u.ready=!!value;broadcast(r,socket.data.room);
-  });
-  socket.on('start-together',(_payload,ack)=>{
-    const done=typeof ack==='function'?ack:()=>{};
-    const r=getRoom(socket),u=getUser(socket);
-    if(!r||!u||!r.media)return done({error:'Сначала выберите фильм'});
-    if(r.users.size<2||![...r.users.values()].every(person=>person.ready))return done({error:'Дождитесь, пока оба участника нажмут «Я готов(а)»'});
-    r.time=currentTime(r);r.playing=true;r.updated=Date.now();
-    io.to(socket.data.room).emit('sync',{time:r.time,playing:true});persist();done({ok:true});
   });
   socket.on('request-sync',()=>{
     const r=getRoom(socket);if(r)socket.emit('sync',{time:currentTime(r),playing:r.playing});
@@ -200,6 +134,9 @@ io.on('connection',socket=>{
 
 app.get('/health',(_,res)=>res.json({ok:true,rooms:rooms.size}));
 app.get(['/', '/index.html'],(_,res)=>res.sendFile(path.join(__dirname,'index.html')));
+for(const asset of ['app.js','cinema-ui.js','player.css']){
+  app.get('/'+asset,(_,res)=>res.sendFile(path.join(__dirname,asset)));
+}
 // Do not expose cinema-data.json or server-side files over HTTP.
 const PORT=Number(process.env.PORT)||3000;
 http.listen(PORT,'0.0.0.0',()=>console.log(`REMEDIUM CINEMA COSMOS listening on ${PORT}`));
