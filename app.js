@@ -366,52 +366,18 @@ const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
 
 // Movie posters are optional and never modify stored film names, status, or collection.
-
-// Posters are resolved by our own server, without changing Russian film titles or saved items.
-const posterCache=new Map();
-const posterTasks=[];let posterBusy=0;
-const posterObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
- for(const entry of entries)if(entry.isIntersecting){
-  posterObserver.unobserve(entry.target);
-  const task=entry.target._posterJob;
-  if(task){posterTasks.push(task);posterPump()}
- }
-},{rootMargin:'350px 0px'}):null;
+// Locally bundled original illustrated covers. No external network requests.
+const POSTER_FILES={"парни с тату":"/posters/film-001.svg","ты умрешь через 6 часов":"/posters/film-002.svg","гретель и гензель":"/posters/film-003.svg","платформа 1,2":"/posters/film-004.svg","мы":"/posters/film-005.svg","игра джеральда":"/posters/film-006.svg","уроки фарси":"/posters/film-007.svg","воровка книг":"/posters/film-008.svg","дориан грей":"/posters/film-009.svg","магазинчик самоубийств":"/posters/film-010.svg","коралина в стране кошмаров":"/posters/film-011.svg","труп невесты":"/posters/film-012.svg","глаза сердечки":"/posters/film-013.svg","франкенвини":"/posters/film-014.svg","пиноккио":"/posters/film-015.svg","шрек 1":"/posters/film-016.svg","шрек 2":"/posters/film-017.svg","шрек 3":"/posters/film-018.svg","шрек 4":"/posters/film-019.svg","короткометражки шрек":"/posters/film-020.svg","носферату":"/posters/film-021.svg","обезьяна":"/posters/film-022.svg","сумерки все сага":"/posters/film-023.svg","в поисках аляски (сериал)":"/posters/film-024.svg","осд (сериал) 1-3 сезоны, 4,5":"/posters/film-025.svg","леденящие душу приключения сабрины":"/posters/film-026.svg","джинни и джорджия":"/posters/film-027.svg","конец ебаного мира":"/posters/film-028.svg","13 причин почему":"/posters/film-029.svg","scam (стыд) 1,2,3":"/posters/film-030.svg","укрытие (сериал)":"/posters/film-031.svg","эйфория":"/posters/film-032.svg","тьма":"/posters/film-033.svg","поделиться":"/posters/film-034.svg","финес и ферб":"/posters/film-035.svg","эй, арнольд!":"/posters/film-036.svg","мне это не нравится":"/posters/film-037.svg","острые козырьки":"/posters/film-038.svg","гарри поттер":"/posters/film-039.svg","оно новая глава":"/posters/film-040.svg","крик 1":"/posters/film-041.svg","крик 2":"/posters/film-042.svg","крик 3":"/posters/film-043.svg","крик 4":"/posters/film-044.svg","крик 5":"/posters/film-045.svg","крик 6":"/posters/film-046.svg","крик 7":"/posters/film-047.svg","пророк а.с. пушкин":"/posters/film-048.svg","трилогия гоголя":"/posters/film-049.svg","анна каренина":"/posters/film-050.svg","компаньон":"/posters/film-051.svg","чикатило":"/posters/film-052.svg","фишер":"/posters/film-053.svg","триггер":"/posters/film-054.svg","холоп":"/posters/film-055.svg","аватар 3":"/posters/film-056.svg","один дома на нг 🎄":"/posters/film-057.svg","оно 1":"/posters/film-058.svg","оно 2":"/posters/film-059.svg","оно 3":"/posters/film-060.svg","выбывшая":"/posters/film-061.svg","ход королевы":"/posters/film-062.svg","одни из нас":"/posters/film-063.svg","озарк 1–4":"/posters/film-064.svg","список смертников":"/posters/film-065.svg","переходный возраст":"/posters/film-066.svg","карма":"/posters/film-067.svg","призраки дома на холме":"/posters/film-068.svg","охотник за голова":"/posters/film-069.svg","килербот":"/posters/film-070.svg","во всем виновата она":"/posters/film-071.svg","красные нити":"/posters/film-072.svg","черное зеркало":"/posters/film-073.svg","декстер 1–7":"/posters/film-075.svg","во все тяжкие":"/posters/film-076.svg","периферийные устройства":"/posters/film-077.svg","злой умысел":"/posters/film-078.svg","добро пожаловать в дерри":"/posters/film-079.svg","одна из многих":"/posters/film-080.svg","чудовище внутри меня":"/posters/film-081.svg","оленёнок":"/posters/film-082.svg","дорогой санта":"/posters/film-083.svg","настоящий детектив":"/posters/film-084.svg","последний человек на земле":"/posters/film-085.svg","фоллаут":"/posters/film-086.svg","побег":"/posters/film-087.svg","половое воспитание":"/posters/film-088.svg","чернобыль":"/posters/film-089.svg","слабый герой":"/posters/film-090.svg","линкольн для адвоката":"/posters/film-091.svg","школьные духи":"/posters/film-092.svg","сделано в кореи":"/posters/film-093.svg","кросс":"/posters/film-094.svg","ночной агент":"/posters/film-095.svg","снова на воле":"/posters/film-096.svg","больница питт":"/posters/film-097.svg","выход 8":"/posters/film-098.svg","извне":"/posters/film-099.svg","невидимая стороны":"/posters/film-100.svg","волшебник изумрудного города":"/posters/film-101.svg","интерстеллар":"/posters/film-102.svg","начальница":"/posters/film-103.svg","лудермилк":"/posters/film-104.svg","начальная школа эбботт":"/posters/film-105.svg","мег 2: впадина":"/posters/film-106.svg","уэйндвард пайнс":"/posters/film-107.svg","общество":"/posters/film-108.svg","академия":"/posters/film-109.svg","манифест":"/posters/film-110.svg","архив 81":"/posters/film-111.svg","зло":"/posters/film-112.svg","лаки":"/posters/film-113.svg","бороуз":"/posters/film-114.svg","старьевщик":"/posters/film-115.svg","люпен":"/posters/film-116.svg","соник — 4 части":"/posters/film-117.svg","мыс страха":"/posters/film-118.svg","проект гутенберг":"/posters/film-119.svg","кэрри":"/posters/film-120.svg","милые обманщицы":"/posters/film-121.svg","элита":"/posters/film-122.svg","молокососы":"/posters/film-123.svg","деграсси":"/posters/film-124.svg","ривердейл":"/posters/film-125.svg"};
 function posterEnqueue(item,holder){
- const job={item,holder};holder._posterJob=job;
- if(posterObserver)posterObserver.observe(holder);
- else{posterTasks.push(job);posterPump()}
-}
-function posterPump(){
- while(posterBusy<3&&posterTasks.length){
-  const task=posterTasks.shift();
-  if(!task.holder.isConnected)continue;
-  posterBusy++;
-  posterApply(task.item,task.holder).finally(()=>{posterBusy--;posterPump()});
- }
-}
-async function posterApply(item,holder){
- const key=item.name.trim().toLocaleLowerCase('ru');
- let url=typeof item.poster==='string'&&/^https:\/\//i.test(item.poster)?item.poster:posterCache.get(key);
- if(url===undefined){
-  try{
-   const controller=new AbortController();
-   const timer=setTimeout(()=>controller.abort(),13000);
-   let response;
-   try{response=await fetch('/api/poster?'+new URLSearchParams({title:item.name}),{signal:controller.signal})}
-   finally{clearTimeout(timer)}
-   const data=response.ok?await response.json():null;
-   url=typeof data?.url==='string'&&/^https:\/\//i.test(data.url)?data.url:null;
-  }catch{url=null}
-  posterCache.set(key,url);
- }
- if(!url||!holder.isConnected)return;
+ const custom=typeof item.poster==='string'&&/^https:\/\//i.test(item.poster)?item.poster:null;
+ const path=custom||POSTER_FILES[item.name.trim().toLocaleLowerCase('ru')];
+ if(!path)return;
  const img=document.createElement('img');
- img.alt='Обложка фильма «'+item.name+'»';img.loading='lazy';img.decoding='async';
- img.onload=()=>{if(holder.isConnected&&holder._posterJob?.item===item)holder.replaceChildren(img)};
- img.onerror=()=>{img.remove();holder.textContent='✦'};
- img.src=url;
+ img.alt='Обложка: '+item.name;img.loading='lazy';img.decoding='async';
+ img.onload=()=>{if(holder.isConnected)holder.replaceChildren(img)};
+ img.onerror=()=>img.remove();img.src=path;
 }
+const posterCache=new Map();
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
