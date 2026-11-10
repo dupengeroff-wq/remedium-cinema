@@ -365,35 +365,52 @@ const watchStatus={none:'Без отметки',done:'✓ Просмотрено
 const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
 
-// Poster lookup is optional: never changes the user's saved list.
-const posterCache=new Map(),posterPending=new Map();
-const posterAliases={'интерстеллар':'Interstellar','начало':'Inception','твоё имя':'Your Name','твое имя':'Your Name','гретель и гензель':'Gretel & Hansel','платформа 1,2':'The Platform','ты умрешь через 6 часов':'You Will Die in 6 Hours'};
+// Movie posters are optional and never modify stored film names, status, or collection.
+const posterCache=new Map();
+const posterAliases={'интерстеллар':'Interstellar','начало':'Inception','твоё имя':'Your Name','твое имя':'Your Name','гретель и гензель':'Gretel & Hansel','платформа 1,2':'The Platform','ты умрешь через 6 часов':'You Will Die in 6 Hours','ты умрёшь через 6 часов':'You Will Die in 6 Hours'};
 const posterTasks=[];let posterBusy=0;
-function posterEnqueue(item,holder){posterTasks.push({item,holder});posterPump()}
-function posterPump(){while(posterBusy<3&&posterTasks.length){const t=posterTasks.shift();if(!t.holder.isConnected)continue;posterBusy++;posterApply(t.item,t.holder).finally(()=>{posterBusy--;posterPump()})}}
+const posterObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
+ for(const e of entries){if(e.isIntersecting){posterObserver.unobserve(e.target);const job=e.target._posterJob;if(job){posterTasks.push(job);posterPump()}}}
+},{rootMargin:'240px 0px'}):null;
+function posterEnqueue(item,holder){
+ const job={item,holder};holder._posterJob=job;
+ if(posterObserver)posterObserver.observe(holder);else{posterTasks.push(job);posterPump()}
+}
+function posterPump(){while(posterBusy<2&&posterTasks.length){
+ const task=posterTasks.shift();if(!task.holder.isConnected)continue;
+ posterBusy++;posterApply(task.item,task.holder).finally(()=>{posterBusy--;posterPump()});
+}}
+const posterNormalize=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
+async function posterSearch(term,country){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
+ try{
+  const response=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,media:'movie',entity:'movie',limit:'20',country}),{signal:controller.signal});
+  if(!response.ok)return null;
+  const results=(await response.json()).results||[];
+  const normalized=posterNormalize(term);
+  const match=results.find(x=>x.artworkUrl100&&posterNormalize(x.trackName||x.collectionName)===normalized);
+  if(!match)return null;
+  return match.artworkUrl100.replace(/100x100(?:bb|-75)?/,'600x900bb').replace(/^http:/,'https:');
+ }catch{return null}finally{clearTimeout(timer)}
+}
 async function posterApply(item,holder){
  const key=item.name.trim().toLocaleLowerCase('ru');
  let url=typeof item.poster==='string'&&/^https:\/\//i.test(item.poster)?item.poster:posterCache.get(key);
  if(url===undefined){
-  const term=posterAliases[key]||item.name;
-  url=null;
-  for(const country of ['ru','us']){
-   try{
-    const ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),6000);
-    let res;try{res=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,entity:'movie',limit:'20',country}),{signal:ctrl.signal})}finally{clearTimeout(timeout)}
-    if(!res.ok)continue;
-    const results=(await res.json()).results||[];
-    const normalize=x=>String(x||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
-    const found=results.find(x=>x.artworkUrl100&&(normalize(x.trackName)===normalize(term)||normalize(x.trackName)===normalize(item.name)));
-    if(found){url=found.artworkUrl100.replace(/100x100(?:bb|-75)?/,'600x900bb');break}
-   }catch{}
+  const alias=posterAliases[key];url=null;
+  for(const term of [...new Set([item.name,alias].filter(Boolean))]){
+   for(const country of ['ru','us']){
+    url=await posterSearch(term,country);
+    if(url)break;
+   }
+   if(url)break;
   }
   posterCache.set(key,url);
  }
  if(!url||!holder.isConnected)return;
- const img=document.createElement('img');img.alt='Обложка: '+item.name;img.loading='lazy';img.decoding='async';
- img.onload=()=>{if(holder.isConnected)holder.replaceChildren(img)};
- img.onerror=()=>{img.remove()};img.src=url;
+ const img=document.createElement('img');img.alt='Обложка фильма «'+item.name+'»';img.loading='lazy';img.decoding='async';
+ img.onload=()=>{if(holder.isConnected&&holder._posterJob?.item===item)holder.replaceChildren(img)};
+ img.onerror=()=>img.remove();img.src=url;
 }
 
 function watchRender(){
