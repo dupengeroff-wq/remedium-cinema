@@ -373,3 +373,76 @@ function watchParseLegacy(html){const results=[];for(const [variable,category] o
 $('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();$('watchlist').open=true;toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
 $('watchExport').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,items:watchItems},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='remedium-cinema-watchlist.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)};
 watchRender();
+
+
+// Shared cosmic features
+let sharedCinemaHistory=[];
+let currentCinemaPoll=null;
+let latestCinemaMedia=null;
+let cinemaParticipants=[];
+let historyRequested=false;
+const featureEl=id=>document.getElementById(id);
+const safeText=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el};
+function showWish(data){
+ if(!data?.text)return;
+ const el=document.createElement('div');el.className='wish-visual';
+ el.append(safeText('div',data.name+' ✧ '+data.text));
+ document.body.append(el);setTimeout(()=>el.remove(),5100);
+}
+featureEl('wishOpen').onclick=()=>{
+ if(!room)return toast('Сначала войдите в комнату');
+ const wish=prompt('Напиши желание или послание ♡');
+ if(wish?.trim())socket.emit('wish',wish.trim().slice(0,140));
+};
+socket.on('wish',showWish);
+featureEl('ticketOpen').onclick=()=>{
+ if(!room)return toast('Сначала войдите в комнату');
+ const title=latestCinemaMedia?.title||'Наш фильм';
+ const names=cinemaParticipants.slice(0,2).map(x=>x.name).join(' ♡ ')||'Для нас двоих';
+ const ticket=`✦ REMEDIUM CINEMA ✦\n\nБИЛЕТ НА ДВОИХ ♡\n${names}\n${title}\n${new Date().toLocaleDateString('ru-RU')}\nКомната: ${room}\n\nНаш маленький космос`;
+ const win=window.open('','_blank');
+ if(win){win.document.write('<!doctype html><html lang="ru"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Билет на двоих</title><body style="background:#080808;color:white;font:20px system-ui;display:grid;place-items:center;min-height:95vh"><pre style="white-space:pre-wrap;text-align:center;border:1px solid #888;border-radius:22px;padding:30px;max-width:80vw"></pre></body></html>');win.document.querySelector('pre').textContent=ticket;win.document.close()}
+ else navigator.clipboard?.writeText(ticket).then(()=>toast('Билет скопирован'));
+};
+function renderCinemaHistory(){
+ const target=featureEl('historyList');target.replaceChildren();
+ for(const item of sharedCinemaHistory.slice(0,60)){
+  const row=document.createElement('div');row.className='feature-entry';
+  row.append(safeText('span',(item.title||'Видео')+' · '+new Date(item.at).toLocaleDateString('ru-RU')));
+  target.append(row);
+ }
+ if(!sharedCinemaHistory.length)target.append(safeText('div','Пока нет просмотров'));
+}
+socket.on('cinema-history',data=>{if(!Array.isArray(data))return;sharedCinemaHistory=data;renderCinemaHistory()});
+featureEl('historyExport').onclick=()=>{
+ const blob=new Blob([JSON.stringify({history:sharedCinemaHistory},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='remedium-cinema-history.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+featureEl('pollCreate').onclick=()=>{
+ if(!room)return toast('Сначала войдите в комнату');
+ const values=featureEl('pollOptions').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,8);
+ if(values.length<2)return toast('Нужно хотя бы два фильма');
+ socket.emit('poll-create',values);
+};
+function renderCinemaPoll(){
+ const target=featureEl('pollResults');target.replaceChildren();
+ if(!currentCinemaPoll){target.append(safeText('div','Пока нет голосования'));return}
+ const votes=Object.values(currentCinemaPoll.votes||{});
+ currentCinemaPoll.options.forEach((option,i)=>{
+  const row=document.createElement('div');row.className='feature-entry';
+  row.append(safeText('span',option+' · '+votes.filter(v=>v===i).length+' голос(ов)'));
+  const button=document.createElement('button');button.type='button';button.className='btn';button.textContent='Выбрать';
+  button.onclick=()=>socket.emit('poll-vote',i);row.append(button);target.append(row);
+ });
+}
+socket.on('room-state',state=>{
+ if(!room)return;
+ cinemaParticipants=state.users||[];
+ const connected=cinemaParticipants.length>=2;
+ featureEl('twinStars').classList.toggle('connected',connected);
+ featureEl('starsLabel').textContent=connected?'Две звезды встретились ♡':'Ждём вторую звезду';
+ currentCinemaPoll=state.poll||null;latestCinemaMedia=state.media||null;renderCinemaPoll();
+ if(!historyRequested){historyRequested=true;socket.emit('get-cinema-history')}
+});
+socket.on('disconnect',()=>{historyRequested=false});
+renderCinemaHistory();renderCinemaPoll();
