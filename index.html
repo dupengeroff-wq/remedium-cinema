@@ -133,6 +133,70 @@ html,body{background:#000!important}
 
 /* Remove redundant toolbar; native player controls remain. */
 .player-shell > .controls{display:none!important}
+
+/* Responsive layout: iPhone, iPad and desktop. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{width:100%;max-width:100%;overflow-x:clip}
+body{min-width:0}
+.wrap{width:100%;max-width:1500px;margin-inline:auto;padding-inline:clamp(12px,2.5vw,32px)}
+.layout,.stage,.player-shell,.chat,.movieform,.watchlist,.messages{min-width:0}
+.screen{width:100%;aspect-ratio:16/9;min-height:0}
+.screen video,.screen .embed,.screen .embed iframe{max-width:100%;max-height:100%}
+input,textarea,select{min-width:0;max-width:100%}
+img,svg{max-width:100%}
+.messages,.watch-items{-webkit-overflow-scrolling:touch}
+.overlay,.picker-overlay{padding:calc(14px + env(safe-area-inset-top,0px)) calc(12px + env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));overflow-y:auto}
+.modal,.picker{max-width:100%;max-height:calc(100dvh - 30px);overflow-y:auto}
+button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media(min-width:1200px){
+ .layout{grid-template-columns:minmax(0,1fr) clamp(330px,26vw,390px);gap:22px}
+ .chat{height:clamp(570px,60vh,760px)}
+}
+@media(min-width:701px) and (max-width:1199px){
+ .layout{grid-template-columns:1fr;gap:18px}
+ .chat{height:clamp(400px,48vh,570px)}
+ .hero{gap:20px}
+ .watch-items{max-height:430px}
+}
+@media(max-width:700px){
+ .wrap{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+ .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+ header{min-height:60px;height:auto;padding-block:13px;gap:8px}
+ .brand{font-size:clamp(11px,3.2vw,15px);letter-spacing:clamp(.7px,.35vw,1.5px)}
+ .header-right{min-width:0}
+ .hero{padding:20px 0;gap:14px}
+ .hero h1{font-size:clamp(27px,7vw,38px);letter-spacing:-1px}
+ .hero p{line-height:1.5}
+ .actions{width:100%}
+ .actions .btn{min-height:44px}
+ .player-shell,.chat,.watchlist{border-radius:16px}
+ .screen{aspect-ratio:16/9}
+ .screen-top{max-width:100%}
+ .movieform{display:flex;flex-wrap:wrap;gap:9px}
+ .movieform input{flex:1 1 100%;width:100%}
+ .movieform button{min-height:44px}
+ .chat{height:clamp(370px,54dvh,530px)}
+ .chathead{padding:14px}
+ .messages{padding:12px}
+ .watch-item{flex-wrap:wrap}
+ .modal{padding:clamp(17px,5vw,26px);border-radius:20px}
+ .modal h2{font-size:clamp(22px,6vw,27px)}
+ input,textarea,select{font-size:16px!important}
+}
+@media(max-width:380px){
+ .wrap{padding-inline:10px}
+ .header-right .eyebrow{display:none}
+ .hero h1{font-size:27px}
+ .chathead h2{font-size:17px}
+ .watch-item select{max-width:100px}
+}
+@media(orientation:landscape) and (max-height:500px) and (max-width:950px){
+ .overlay,.picker-overlay{align-items:flex-start}
+ .modal{margin:auto;max-height:none}
+ .chat{height:390px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}
+
 </style>
 <link rel="stylesheet" href="/player.css">
 </head>
