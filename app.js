@@ -391,10 +391,13 @@ async function cinemaLoadPoster(item,container){
  img.src=url;container.replaceChildren(img);
 }
 
+let watchActiveStatus='all';
+document.querySelectorAll('#watchFilterTabs button').forEach(btn=>btn.onclick=()=>{watchActiveStatus=btn.dataset.status;document.querySelectorAll('#watchFilterTabs button').forEach(x=>x.classList.toggle('active',x===btn));watchRender()});
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
- list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
+ list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&(watchActiveStatus==='all'||(watchActiveStatus==='none'?(x.status==='none'||x.status==='no'):x.status===watchActiveStatus))&&x.name.toLocaleLowerCase('ru').includes(q));
  $('watchCount').textContent='· '+watchItems.length;
+ $('watchDashboard').innerHTML='<div class="watch-metric"><strong>'+watchItems.length+'</strong><span>Всего</span></div><div class="watch-metric"><strong>'+watchItems.filter(x=>x.status==='done').length+'</strong><span>Просмотрено</span></div><div class="watch-metric"><strong>'+watchItems.filter(x=>x.status==='progress').length+'</strong><span>Смотрим</span></div>';
  const done=watchItems.filter(x=>x.status==='done').length;
  $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
  for(const item of filtered){
