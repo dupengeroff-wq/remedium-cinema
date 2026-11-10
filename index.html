@@ -199,13 +199,27 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 
 .cosmos-features{margin-top:16px;display:grid;gap:12px}
+
+
 .twin-stars,.cosmos-panel{background:rgba(20,20,20,.33);border:1px solid rgba(255,255,255,.17);border-radius:16px;padding:14px;backdrop-filter:blur(18px)}
-.twin-stars{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;min-height:78px}
-.star-point{font-size:25px;color:#fff;text-shadow:0 0 12px #fff8;animation:starPulse 3s ease-in-out infinite alternate}
-.star-point:nth-of-type(3){animation-delay:1s}
-.star-bridge{width:min(24vw,125px);height:1px;background:linear-gradient(90deg,transparent,#fff,transparent);opacity:.12;transition:opacity .8s}
-.twin-stars.connected .star-bridge{opacity:1;box-shadow:0 0 10px #fff9}
-.twin-stars small{width:100%;text-align:center;color:#aaa}
+.twin-stars{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;min-height:130px;overflow:hidden}
+.twin-stars:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 48% 70% at 50% 42%,#ffffff0d,transparent 80%)}
+.star-point{position:relative;z-index:2;font-size:24px;line-height:1;color:#fff;filter:drop-shadow(0 0 6px #ffffff88);animation:starIdle 3.8s ease-in-out infinite alternate}
+.star-point:first-child{transform:translateY(-3px)}
+.star-point:nth-of-type(3){transform:translateY(3px);animation-delay:1.2s}
+.star-bridge{position:relative;display:block;width:min(29vw,150px);height:1px;background:linear-gradient(90deg,transparent,#ffffff99 20%,#ffffff99 80%,transparent);opacity:0;transform:scaleX(.2)}
+.star-bridge:after{content:"♡";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.5);font-size:18px;line-height:1;color:#fff;background:#111;padding:0 9px;opacity:0;text-shadow:0 0 12px #ffffff66}
+.twin-stars small{width:100%;text-align:center;color:#929292;font-size:12px;margin-top:12px;letter-spacing:.4px;transition:color .8s}
+.twin-stars.connected .star-point:first-child{animation:orbitLeft 3.3s cubic-bezier(.25,.65,.2,1) both,starIdle 4s ease-in-out 3.3s infinite alternate}
+.twin-stars.connected .star-point:nth-of-type(3){animation:orbitRight 3.3s cubic-bezier(.25,.65,.2,1) both,starIdle 4s ease-in-out 4.3s infinite alternate}
+.twin-stars.connected .star-bridge{animation:threadAppear 3.3s ease forwards}
+.twin-stars.connected .star-bridge:after{animation:heartAppear 3.3s ease forwards}
+.twin-stars.connected small{color:#e0e0e0}
+@keyframes orbitLeft{0%{opacity:.3;transform:translate(-25px,18px) scale(.65)}30%{opacity:1;transform:translate(12px,-14px) scale(1)}55%{transform:translate(25px,-21px) scale(1.06)}75%{transform:translate(7px,-5px) scale(1)}100%{transform:translateY(-3px) scale(1)}}
+@keyframes orbitRight{0%{opacity:.3;transform:translate(25px,-18px) scale(.65)}30%{opacity:1;transform:translate(-12px,14px) scale(1)}55%{transform:translate(-25px,21px) scale(1.06)}75%{transform:translate(-7px,5px) scale(1)}100%{transform:translateY(3px) scale(1)}}
+@keyframes threadAppear{0%,65%{opacity:0;transform:scaleX(.15)}100%{opacity:.8;transform:scaleX(1)}}
+@keyframes heartAppear{0%,70%{opacity:0;transform:translate(-50%,-50%) scale(.5)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes starIdle{to{filter:drop-shadow(0 0 12px #ffffffbb);opacity:.78}}
 .feature-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.feature-actions .btn{min-height:44px}
 .cosmos-panel summary{cursor:pointer;font-weight:650;padding:5px 0}
 .cosmos-panel .field{width:100%;margin:12px 0;min-height:72px}
@@ -218,7 +232,7 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @keyframes starPulse{to{opacity:.55;transform:scale(.87)}}
 @keyframes wishFly{0%{opacity:0;top:55%}15%{opacity:1}80%{opacity:1}100%{opacity:0;top:8%}}
 @media(max-width:400px){.feature-actions{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){.star-point,.wish-visual,.wish-visual:before{animation:none}}
+@media(prefers-reduced-motion:reduce){.star-point,.wish-visual,.wish-visual:before,.twin-stars.connected .star-bridge,.twin-stars.connected .star-bridge:after{animation:none}}
 </style>
 <link rel="stylesheet" href="/player.css">
 </head>
