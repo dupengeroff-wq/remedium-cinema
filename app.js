@@ -365,72 +365,41 @@ const watchStatus={none:'Без отметки',done:'✓ Просмотрено
 const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
 
-
-const cinemaPosterCache=new Map();
-const cinemaPosterAliases={'интерстеллар':'Interstellar','начало':'Inception','твое имя':'Your Name','твоё имя':'Your Name','парни с тату':'Tattooed Guys','гретель и гензель':'Gretel & Hansel','ты умрешь через 6 часов':'You Will Die in 6 Hours','ты умрёшь через 6 часов':'You Will Die in 6 Hours','платформа 1,2':'The Platform'};
-const cinemaPosterQueue=[];
-let cinemaPosterRunning=0;
-function cinemaQueuePoster(item,container){
- cinemaPosterQueue.push({item,container});cinemaPumpPoster();
-}
-function cinemaPumpPoster(){
- while(cinemaPosterRunning<3&&cinemaPosterQueue.length){
-  const task=cinemaPosterQueue.shift();if(!task.container.isConnected)continue;
-  cinemaPosterRunning++;
-  cinemaLoadPoster(task.item,task.container).finally(()=>{cinemaPosterRunning--;cinemaPumpPoster()});
- }
-}
-async function cinemaLoadPoster(item,container){
+// Poster lookup is optional: never changes the user's saved list.
+const posterCache=new Map(),posterPending=new Map();
+const posterAliases={'интерстеллар':'Interstellar','начало':'Inception','твоё имя':'Your Name','твое имя':'Your Name','гретель и гензель':'Gretel & Hansel','платформа 1,2':'The Platform','ты умрешь через 6 часов':'You Will Die in 6 Hours'};
+const posterTasks=[];let posterBusy=0;
+function posterEnqueue(item,holder){posterTasks.push({item,holder});posterPump()}
+function posterPump(){while(posterBusy<3&&posterTasks.length){const t=posterTasks.shift();if(!t.holder.isConnected)continue;posterBusy++;posterApply(t.item,t.holder).finally(()=>{posterBusy--;posterPump()})}}
+async function posterApply(item,holder){
  const key=item.name.trim().toLocaleLowerCase('ru');
- const custom=item.poster&&/^https:\/\//i.test(item.poster)?item.poster:null;
- let url=custom||cinemaPosterCache.get(key);
+ let url=typeof item.poster==='string'&&/^https:\/\//i.test(item.poster)?item.poster:posterCache.get(key);
  if(url===undefined){
+  const term=posterAliases[key]||item.name;
   url=null;
-  const term=cinemaPosterAliases[key]||item.name;
-  // Search both English and Russian movie storefronts.
   for(const country of ['ru','us']){
    try{
-    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
-    let res;
-    try{res=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,entity:'movie',media:'movie',limit:'12',country}),{signal:ctrl.signal})}
-    finally{clearTimeout(timer)}
+    const ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),6000);
+    let res;try{res=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,entity:'movie',limit:'20',country}),{signal:ctrl.signal})}finally{clearTimeout(timeout)}
     if(!res.ok)continue;
-    const json=await res.json();
-    const norm=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
-    const targets=[norm(term),norm(item.name)];
-    const found=(json.results||[]).find(x=>x.artworkUrl100&&targets.includes(norm(x.trackName)));
+    const results=(await res.json()).results||[];
+    const normalize=x=>String(x||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
+    const found=results.find(x=>x.artworkUrl100&&(normalize(x.trackName)===normalize(term)||normalize(x.trackName)===normalize(item.name)));
     if(found){url=found.artworkUrl100.replace(/100x100(?:bb|-75)?/,'600x900bb');break}
    }catch{}
   }
-  // Wikimedia search supplies thumbnails for some films missing from iTunes.
-  if(!url){
-   try{
-    const query=cinemaPosterAliases[key]||item.name;
-    const endpoint='https://ru.wikipedia.org/w/api.php?'+new URLSearchParams({action:'query',generator:'search',gsrsearch:query+' фильм',gsrlimit:'4',prop:'pageimages',pithumbsize:'600',format:'json',origin:'*'});
-    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
-    let res;
-    try{res=await fetch(endpoint,{signal:ctrl.signal})}finally{clearTimeout(timer)}
-    if(res.ok){
-     const pages=Object.values((await res.json()).query?.pages||{});
-     const norm=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
-     const found=pages.find(p=>p.thumbnail?.source&&norm(p.title).includes(norm(item.name)));
-     if(found)url=found.thumbnail.source;
-    }
-   }catch{}
-  }
-  cinemaPosterCache.set(key,url);
+  posterCache.set(key,url);
  }
- if(!url||!container.isConnected)return;
- const img=document.createElement('img');img.alt='Постер фильма '+item.name;img.loading='lazy';img.decoding='async';
- img.onerror=()=>{img.remove();container.textContent='✦'};
- img.onload=()=>{if(container.isConnected)container.replaceChildren(img)};
- img.src=url;
+ if(!url||!holder.isConnected)return;
+ const img=document.createElement('img');img.alt='Обложка: '+item.name;img.loading='lazy';img.decoding='async';
+ img.onload=()=>{if(holder.isConnected)holder.replaceChildren(img)};
+ img.onerror=()=>{img.remove()};img.src=url;
 }
+
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
- list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&(watchActiveStatus==='all'||(watchActiveStatus==='none'?(x.status==='none'||x.status==='no'):x.status===watchActiveStatus))&&x.name.toLocaleLowerCase('ru').includes(q));
+ list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
  $('watchCount').textContent='· '+watchItems.length;
- $('watchDashboard').innerHTML='<div class="watch-metric"><strong>'+watchItems.length+'</strong><span>Всего</span></div><div class="watch-metric"><strong>'+watchItems.filter(x=>x.status==='done').length+'</strong><span>Просмотрено</span></div><div class="watch-metric"><strong>'+watchItems.filter(x=>x.status==='progress').length+'</strong><span>Смотрим</span></div>';
  const done=watchItems.filter(x=>x.status==='done').length;
  $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
  for(const item of filtered){
@@ -441,26 +410,16 @@ function watchRender(){
   const subtitle=document.createElement('div');subtitle.className='watch-subtitle';subtitle.textContent=item.category==='moderation'?'НА МОДЕРАЦИИ':'НАША КОЛЛЕКЦИЯ';info.append(title,subtitle);
   const actions=document.createElement('div');actions.className='watch-actions';
   const select=document.createElement('select');select.title='Статус';for(const [value,label] of Object.entries(watchStatus)){const opt=document.createElement('option');opt.value=value;opt.textContent=label;select.append(opt)}select.value=item.status;select.onchange=()=>{item.status=select.value;watchSave()};
-  const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить фильм или обложку';edit.onclick=()=>{
- const value=prompt('Название фильма',item.name);
- if(value===null)return;
- if(value.trim())item.name=value.trim().slice(0,120);
- const picture=prompt('Ссылка на постер (https://...). Оставь пустым для автоматического поиска.',item.poster||'');
- if(picture!==null){
-  const p=picture.trim();if(p&&!/^https:\/\//i.test(p)){toast('Для обложки нужна ссылка https://');return}
-  item.poster=p.slice(0,1200);
- }
- cinemaPosterCache.delete(item.name.toLocaleLowerCase('ru'));watchSave()
-};
+  const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить название';edit.onclick=()=>{const value=prompt('Название фильма',item.name);if(value===null)return;if(value.trim())item.name=value.trim().slice(0,120);const link=prompt('Ссылка на постер (https://). Оставь пустым для автоматического поиска.',item.poster||'');if(link!==null){if(link.trim()&&!/^https:\/\//i.test(link.trim())){toast('Нужна ссылка https://');return}item.poster=link.trim().slice(0,1200)}posterCache.delete(item.name.toLocaleLowerCase('ru'));watchSave()};
   const del=document.createElement('button');del.textContent='×';del.title='Удалить';del.onclick=()=>{if(confirm('Удалить «'+item.name+'»?')){watchItems=watchItems.filter(x=>x.id!==item.id);watchSave()}};
-  actions.append(select,edit,del);row.append(poster,info,actions);list.append(row);cinemaQueuePoster(item,poster)
+  actions.append(select,edit,del);row.append(poster,info,actions);list.append(row);posterEnqueue(item,poster)
  }
  if(!filtered.length){const empty=document.createElement('div');empty.className='watch-note';empty.textContent=watchItems.length?'Ничего не найдено':'Коллекция пока пуста. Добавь первый фильм ✦';list.append(empty)}
 }
 $('watchForm').onsubmit=e=>{e.preventDefault();const name=$('watchName').value.trim();if(!name)return;watchItems.push({id:watchId(),name,status:'none',category:$('watchNewCategory').value});$('watchName').value='';watchSave()};
 $('watchSearch').oninput=watchRender;$('watchCategory').onchange=watchRender;
 $('watchImport').onclick=()=>$('watchFile').click();
-function watchNormalize(arr){return arr.filter(x=>x&&typeof x.name==='string'&&x.name.trim()).map(x=>({id:watchId(),name:x.name.trim().slice(0,120),status:Object.hasOwn(watchStatus,x.status)?x.status:'none',category:x.category==='moderation'?'moderation':'main',poster:typeof x.poster==='string'&&/^https:\/\//.test(x.poster)?x.poster.slice(0,1200):undefined}))}
+function watchNormalize(arr){return arr.filter(x=>x&&typeof x.name==='string'&&x.name.trim()).map(x=>({id:watchId(),name:x.name.trim().slice(0,120),status:Object.hasOwn(watchStatus,x.status)?x.status:'none',category:x.category==='moderation'?'moderation':'main'}))}
 function watchParseLegacy(html){const results=[];for(const [variable,category] of [['initial','main'],['moderation','moderation']]){const section=html.match(new RegExp('const\\s+'+variable+'\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*\\.map'));if(!section)continue;const regex=/\[\s*("(?:\\.|[^"\\])*"|\x27(?:\\.|[^\x27\\])*\x27)\s*,\s*["\x27](done|no|progress|none)["\x27]\s*\]/g;for(const m of section[1].matchAll(regex)){let name;try{name=m[1][0]==='"'?JSON.parse(m[1]):m[1].slice(1,-1)}catch{continue}results.push({name,status:m[2],category})}}return results}
 $('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();$('watchlist').open=true;toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
 $('watchExport').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,items:watchItems},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='remedium-cinema-watchlist.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)};
