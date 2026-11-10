@@ -173,7 +173,7 @@ io.on('connection',socket=>{
 
 app.get('/health',(_,res)=>res.json({ok:true,rooms:rooms.size}));
 app.get(['/', '/index.html'],(_,res)=>res.sendFile(path.join(__dirname,'index.html')));
-for(const asset of ['app.js','cinema-ui.js','player.css','posters-atlas.png']){
+for(const asset of ['app.js','cinema-ui.js','player.css']){
   app.get('/'+asset,(_,res)=>res.sendFile(path.join(__dirname,asset)));
 }
 // Do not expose cinema-data.json or server-side files over HTTP.
