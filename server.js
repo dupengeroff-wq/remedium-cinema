@@ -24,7 +24,7 @@ const clean=(s,n)=>String(s??'').trim().slice(0,n);
 const persist=()=>{
   try{
     const out={};
-    for(const [id,r] of rooms){out[id]={hostToken:r.hostToken,hostName:r.hostName,media:r.media,time:r.time,playing:r.playing,updated:r.updated,messages:r.messages.slice(-250),badges:r.badges,wish:r.wish||null,poll:r.poll||null};}
+    for(const [id,r] of rooms){out[id]={hostToken:r.hostToken,hostName:r.hostName,media:r.media,time:r.time,playing:r.playing,updated:r.updated,messages:r.messages.slice(-250),badges:r.badges,wish:r.wish||null,letters:r.letters||[],poll:r.poll||null};}
     const temp=DATA+'.tmp';fs.writeFileSync(temp,JSON.stringify(out));fs.renameSync(temp,DATA);
   }catch(e){console.error('Save failed:',e.message);}
 };
@@ -33,14 +33,14 @@ try{
     const saved=JSON.parse(fs.readFileSync(DATA,'utf8'));
     for(const [id,r] of Object.entries(saved)){
       if(!r||typeof r!=='object')continue;
-      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},wish:r.wish||null,poll:r.poll||null,users:new Map()});
+      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},wish:r.wish||null,letters:r.letters||[],poll:r.poll||null,users:new Map()});
     }
   }
 }catch(e){console.warn('Unable to read stored rooms:',e.message);}
 
 function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
 function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
-function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages,wish:r.wish||null,poll:r.poll||null};}
+function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages,wish:r.wish||null,letters:r.letters||[],poll:r.poll||null};}
 function broadcast(r,id){io.to(id).emit('room-state',state(r));}
 function getRoom(socket){const id=socket.data.room;const r=rooms.get(id);return r?.users.get(socket.id)?r:null;}
 function getUser(socket){return getRoom(socket)?.users.get(socket.id);}
@@ -62,7 +62,7 @@ io.on('connection',socket=>{
     let token=clean(payload?.token,128);
     if(!r){
       token=uid();
-      r={hostToken:token,hostName:name,media:null,time:0,playing:false,updated:Date.now(),messages:[],badges:{},wish:null,poll:null,users:new Map()};
+      r={hostToken:token,hostName:name,media:null,time:0,playing:false,updated:Date.now(),messages:[],badges:{},wish:null,letters:[],poll:null,users:new Map()};
       rooms.set(id,r);
     }
     const isHost=token===r.hostToken;
@@ -73,6 +73,7 @@ io.on('connection',socket=>{
     r.users.set(socket.id,u);
     socket.data.room=id;
     socket.join(id);
+    socket.emit('wish-inbox',(r.letters||[]).filter(x=>x.to===token).map(x=>({id:x.id,name:x.name,read:!!x.read,text:x.read?x.text:null,at:x.at})));
     done({ok:true,id:socket.id,token,isHost});
     broadcast(r,id);
     persist();
@@ -137,11 +138,24 @@ io.on('connection',socket=>{
     persist();done({ok:true});
   });
   socket.on('get-cinema-history',()=>{if(getRoom(socket))socket.emit('cinema-history',history.slice(-100).reverse())});
+  const sendInbox=(r,token)=>{
+    const items=(r.letters||[]).filter(x=>x.to===token).map(x=>({id:x.id,name:x.name,read:!!x.read,text:x.read?x.text:null,at:x.at}));
+    for(const [sid,u] of r.users)if(u.token===token)io.to(sid).emit('wish-inbox',items);
+  };
   socket.on('wish',value=>{
     const r=getRoom(socket),u=getUser(socket);if(!r||!u)return;
     const message=clean(value,140);if(!message)return;
-    r.wish={text:message,name:u.name,at:Date.now()};
-    io.to(socket.data.room).emit('wish',r.wish);persist();
+    const recipients=[...new Set([...r.users.values()].filter(x=>x.token!==u.token).map(x=>x.token))];
+    if(!recipients.length){socket.emit('wish-error','В комнате пока нет второго участника');return}
+    r.letters=r.letters||[];
+    for(const token of recipients){r.letters.push({id:uid(),to:token,name:u.name,text:message,read:false,at:Date.now()});sendInbox(r,token)}
+    r.letters=r.letters.slice(-200);persist();socket.emit('wish-sent');
+  });
+  socket.on('wish-read',id=>{
+    const r=getRoom(socket),u=getUser(socket);if(!r||!u)return;
+    const letter=(r.letters||[]).find(x=>x.id===id&&x.to===u.token);
+    if(!letter||letter.read)return;
+    letter.read=true;sendInbox(r,u.token);socket.emit('wish-opened',{name:letter.name,text:letter.text});persist();
   });
   socket.on('poll-create',values=>{
     const r=getRoom(socket),u=getUser(socket);if(!r||!u||!Array.isArray(values))return;

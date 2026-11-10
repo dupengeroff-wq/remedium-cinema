@@ -364,7 +364,26 @@ if(localStorage.getItem(WATCH_SEED_FLAG)!=='yes'){
 const watchStatus={none:'Без отметки',done:'✓ Просмотрено',no:'× В планах',progress:'… В процессе'};
 const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
-function watchRender(){const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));$('watchCount').textContent='· '+watchItems.length;$('watchStats').textContent=`Всего: ${watchItems.length} · Просмотрено: ${watchItems.filter(x=>x.status==='done').length} · В процессе: ${watchItems.filter(x=>x.status==='progress').length}`;for(const item of filtered){const row=document.createElement('div');row.className='watch-item';const title=document.createElement('span');title.className='watch-title';title.textContent=item.name;const select=document.createElement('select');select.title='Статус';for(const [value,label] of Object.entries(watchStatus)){const opt=document.createElement('option');opt.value=value;opt.textContent=label;select.append(opt)}select.value=item.status;select.onchange=()=>{item.status=select.value;watchSave()};const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить название';edit.onclick=()=>{const value=prompt('Название фильма',item.name);if(value?.trim()){item.name=value.trim().slice(0,120);watchSave()}};const del=document.createElement('button');del.textContent='×';del.title='Удалить';del.onclick=()=>{if(confirm('Удалить «'+item.name+'»?')){watchItems=watchItems.filter(x=>x.id!==item.id);watchSave()}};row.append(title,select,edit,del);list.append(row)}if(!filtered.length){const empty=document.createElement('div');empty.className='watch-note';empty.textContent=watchItems.length?'Ничего не найдено':'Список пока пуст. Добавь фильм или импортируй свой HTML.';list.append(empty)}}
+function watchRender(){
+ const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
+ list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
+ $('watchCount').textContent='· '+watchItems.length;
+ const done=watchItems.filter(x=>x.status==='done').length;
+ $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
+ for(const item of filtered){
+  const row=document.createElement('article');row.className='watch-item';
+  const poster=document.createElement('div');poster.className='watch-poster';poster.textContent='✦';
+  const info=document.createElement('div');info.className='watch-info';
+  const title=document.createElement('div');title.className='watch-title';title.textContent=item.name;
+  const subtitle=document.createElement('div');subtitle.className='watch-subtitle';subtitle.textContent=item.category==='moderation'?'НА МОДЕРАЦИИ':'НАША КОЛЛЕКЦИЯ';info.append(title,subtitle);
+  const actions=document.createElement('div');actions.className='watch-actions';
+  const select=document.createElement('select');select.title='Статус';for(const [value,label] of Object.entries(watchStatus)){const opt=document.createElement('option');opt.value=value;opt.textContent=label;select.append(opt)}select.value=item.status;select.onchange=()=>{item.status=select.value;watchSave()};
+  const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить название';edit.onclick=()=>{const value=prompt('Название фильма',item.name);if(value?.trim()){item.name=value.trim().slice(0,120);watchSave()}};
+  const del=document.createElement('button');del.textContent='×';del.title='Удалить';del.onclick=()=>{if(confirm('Удалить «'+item.name+'»?')){watchItems=watchItems.filter(x=>x.id!==item.id);watchSave()}};
+  actions.append(select,edit,del);row.append(poster,info,actions);list.append(row)
+ }
+ if(!filtered.length){const empty=document.createElement('div');empty.className='watch-note';empty.textContent=watchItems.length?'Ничего не найдено':'Коллекция пока пуста. Добавь первый фильм ✦';list.append(empty)}
+}
 $('watchForm').onsubmit=e=>{e.preventDefault();const name=$('watchName').value.trim();if(!name)return;watchItems.push({id:watchId(),name,status:'none',category:$('watchNewCategory').value});$('watchName').value='';watchSave()};
 $('watchSearch').oninput=watchRender;$('watchCategory').onchange=watchRender;
 $('watchImport').onclick=()=>$('watchFile').click();
@@ -391,19 +410,28 @@ function showWish(data){
 }
 featureEl('wishOpen').onclick=()=>{
  if(!room)return toast('Сначала войдите в комнату');
- const wish=prompt('Напиши желание или послание ♡');
+ const wish=prompt('Напиши тайное послание ♡ — его увидит только получатель после открытия');
  if(wish?.trim())socket.emit('wish',wish.trim().slice(0,140));
 };
-socket.on('wish',showWish);
-featureEl('ticketOpen').onclick=()=>{
- if(!room)return toast('Сначала войдите в комнату');
- const title=latestCinemaMedia?.title||'Наш фильм';
- const names=cinemaParticipants.slice(0,2).map(x=>x.name).join(' ♡ ')||'Для нас двоих';
- const ticket=`✦ REMEDIUM CINEMA ✦\n\nБИЛЕТ НА ДВОИХ ♡\n${names}\n${title}\n${new Date().toLocaleDateString('ru-RU')}\nКомната: ${room}\n\nНаш маленький космос`;
- const win=window.open('','_blank');
- if(win){win.document.write('<!doctype html><html lang="ru"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Билет на двоих</title><body style="background:#080808;color:white;font:20px system-ui;display:grid;place-items:center;min-height:95vh"><pre style="white-space:pre-wrap;text-align:center;border:1px solid #888;border-radius:22px;padding:30px;max-width:80vw"></pre></body></html>');win.document.querySelector('pre').textContent=ticket;win.document.close()}
- else navigator.clipboard?.writeText(ticket).then(()=>toast('Билет скопирован'));
-};
+let wishMessages=[];
+function renderWishInbox(){
+ const unread=wishMessages.filter(x=>!x.read).length;
+ const badge=featureEl('wishBadge');badge.hidden=!unread;badge.textContent='+'+unread;
+ const list=featureEl('wishLetters');list.replaceChildren();
+ if(!wishMessages.length){list.append(safeText('div','Пока нет посланий ✧'));return}
+ for(const item of wishMessages.slice().reverse()){
+  const row=document.createElement('div');row.className='feature-entry';
+  row.append(safeText('span',item.read?'✧ '+item.name+': '+item.text:'✉ Запечатанное послание от '+item.name));
+  if(!item.read){const btn=document.createElement('button');btn.className='btn';btn.textContent='Открыть';btn.onclick=()=>socket.emit('wish-read',item.id);row.append(btn)}
+  list.append(row);
+ }
+}
+featureEl('wishInboxOpen').onclick=()=>{if(!room)return toast('Сначала войдите в комнату');const box=featureEl('wishInbox');box.hidden=!box.hidden};
+socket.on('wish-inbox',items=>{wishMessages=Array.isArray(items)?items:[];renderWishInbox()});
+socket.on('wish-opened',showWish);
+socket.on('wish-sent',()=>toast('Послание отправлено ✧'));
+socket.on('wish-error',msg=>toast(msg));
+renderWishInbox();
 function renderCinemaHistory(){
  const target=featureEl('historyList');target.replaceChildren();
  for(const item of sharedCinemaHistory.slice(0,60)){
