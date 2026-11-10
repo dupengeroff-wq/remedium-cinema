@@ -365,34 +365,67 @@ const watchStatus={none:'Без отметки',done:'✓ Просмотрено
 const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(36).slice(2);
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
 
+
 const cinemaPosterCache=new Map();
+const cinemaPosterAliases={'интерстеллар':'Interstellar','начало':'Inception','твое имя':'Your Name','твоё имя':'Your Name','парни с тату':'Tattooed Guys','гретель и гензель':'Gretel & Hansel','ты умрешь через 6 часов':'You Will Die in 6 Hours','ты умрёшь через 6 часов':'You Will Die in 6 Hours','платформа 1,2':'The Platform'};
+const cinemaPosterQueue=[];
+let cinemaPosterRunning=0;
+function cinemaQueuePoster(item,container){
+ cinemaPosterQueue.push({item,container});cinemaPumpPoster();
+}
+function cinemaPumpPoster(){
+ while(cinemaPosterRunning<3&&cinemaPosterQueue.length){
+  const task=cinemaPosterQueue.shift();if(!task.container.isConnected)continue;
+  cinemaPosterRunning++;
+  cinemaLoadPoster(task.item,task.container).finally(()=>{cinemaPosterRunning--;cinemaPumpPoster()});
+ }
+}
 async function cinemaLoadPoster(item,container){
  const key=item.name.trim().toLocaleLowerCase('ru');
- let url=item.poster||cinemaPosterCache.get(key);
+ const custom=item.poster&&/^https:\/\//i.test(item.poster)?item.poster:null;
+ let url=custom||cinemaPosterCache.get(key);
  if(url===undefined){
-  try{
-   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),6500);
-   let response;
-   try{response=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term:item.name,entity:'movie',limit:'8',country:'us'}),{signal:ctrl.signal})}
-   finally{clearTimeout(timer)}
-   if(!response.ok)throw Error('Poster service unavailable');
-   const json=await response.json();
-   const norm=x=>x.toLocaleLowerCase('ru').replace(/[^\\p{L}\\p{N}]/gu,'');
-   const target=norm(item.name);
-   const results=(json.results||[]).filter(x=>x.artworkUrl100);
-   const found=results.find(x=>norm(x.trackName||'')===target)||results.find(x=>norm(x.trackName||'').includes(target)||target.includes(norm(x.trackName||'')));
-   url=found?.artworkUrl100?.replace(/100x100bb|100x100-75/g,'600x900bb')||null;
-  }catch{url=null}
+  url=null;
+  const term=cinemaPosterAliases[key]||item.name;
+  // Search both English and Russian movie storefronts.
+  for(const country of ['ru','us']){
+   try{
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
+    let res;
+    try{res=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,entity:'movie',media:'movie',limit:'12',country}),{signal:ctrl.signal})}
+    finally{clearTimeout(timer)}
+    if(!res.ok)continue;
+    const json=await res.json();
+    const norm=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
+    const targets=[norm(term),norm(item.name)];
+    const found=(json.results||[]).find(x=>x.artworkUrl100&&targets.includes(norm(x.trackName)));
+    if(found){url=found.artworkUrl100.replace(/100x100(?:bb|-75)?/,'600x900bb');break}
+   }catch{}
+  }
+  // Wikimedia search supplies thumbnails for some films missing from iTunes.
+  if(!url){
+   try{
+    const query=cinemaPosterAliases[key]||item.name;
+    const endpoint='https://ru.wikipedia.org/w/api.php?'+new URLSearchParams({action:'query',generator:'search',gsrsearch:query+' фильм',gsrlimit:'4',prop:'pageimages',pithumbsize:'600',format:'json',origin:'*'});
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),6000);
+    let res;
+    try{res=await fetch(endpoint,{signal:ctrl.signal})}finally{clearTimeout(timer)}
+    if(res.ok){
+     const pages=Object.values((await res.json()).query?.pages||{});
+     const norm=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
+     const found=pages.find(p=>p.thumbnail?.source&&norm(p.title).includes(norm(item.name)));
+     if(found)url=found.thumbnail.source;
+    }
+   }catch{}
+  }
   cinemaPosterCache.set(key,url);
  }
  if(!url||!container.isConnected)return;
- const img=document.createElement('img');img.alt='Обложка: '+item.name;img.loading='lazy';img.decoding='async';
- img.onerror=()=>img.remove();
- img.src=url;container.replaceChildren(img);
+ const img=document.createElement('img');img.alt='Постер фильма '+item.name;img.loading='lazy';img.decoding='async';
+ img.onerror=()=>{img.remove();container.textContent='✦'};
+ img.onload=()=>{if(container.isConnected)container.replaceChildren(img)};
+ img.src=url;
 }
-
-let watchActiveStatus='all';
-document.querySelectorAll('#watchFilterTabs button').forEach(btn=>btn.onclick=()=>{watchActiveStatus=btn.dataset.status;document.querySelectorAll('#watchFilterTabs button').forEach(x=>x.classList.toggle('active',x===btn));watchRender()});
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&(watchActiveStatus==='all'||(watchActiveStatus==='none'?(x.status==='none'||x.status==='no'):x.status===watchActiveStatus))&&x.name.toLocaleLowerCase('ru').includes(q));
@@ -402,15 +435,25 @@ function watchRender(){
  $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
  for(const item of filtered){
   const row=document.createElement('article');row.className='watch-item';
-  const poster=document.createElement('div');poster.className='watch-poster';poster.textContent='✦';cinemaLoadPoster(item,poster);
+  const poster=document.createElement('div');poster.className='watch-poster';poster.textContent='✦';
   const info=document.createElement('div');info.className='watch-info';
   const title=document.createElement('div');title.className='watch-title';title.textContent=item.name;
   const subtitle=document.createElement('div');subtitle.className='watch-subtitle';subtitle.textContent=item.category==='moderation'?'НА МОДЕРАЦИИ':'НАША КОЛЛЕКЦИЯ';info.append(title,subtitle);
   const actions=document.createElement('div');actions.className='watch-actions';
   const select=document.createElement('select');select.title='Статус';for(const [value,label] of Object.entries(watchStatus)){const opt=document.createElement('option');opt.value=value;opt.textContent=label;select.append(opt)}select.value=item.status;select.onchange=()=>{item.status=select.value;watchSave()};
-  const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить название';edit.onclick=()=>{const value=prompt('Название фильма',item.name);if(value?.trim()){item.name=value.trim().slice(0,120);cinemaPosterCache.delete(item.name.toLocaleLowerCase('ru'));watchSave()}};
+  const edit=document.createElement('button');edit.textContent='✎';edit.title='Изменить фильм или обложку';edit.onclick=()=>{
+ const value=prompt('Название фильма',item.name);
+ if(value===null)return;
+ if(value.trim())item.name=value.trim().slice(0,120);
+ const picture=prompt('Ссылка на постер (https://...). Оставь пустым для автоматического поиска.',item.poster||'');
+ if(picture!==null){
+  const p=picture.trim();if(p&&!/^https:\/\//i.test(p)){toast('Для обложки нужна ссылка https://');return}
+  item.poster=p.slice(0,1200);
+ }
+ cinemaPosterCache.delete(item.name.toLocaleLowerCase('ru'));watchSave()
+};
   const del=document.createElement('button');del.textContent='×';del.title='Удалить';del.onclick=()=>{if(confirm('Удалить «'+item.name+'»?')){watchItems=watchItems.filter(x=>x.id!==item.id);watchSave()}};
-  actions.append(select,edit,del);row.append(poster,info,actions);list.append(row)
+  actions.append(select,edit,del);row.append(poster,info,actions);list.append(row);cinemaQueuePoster(item,poster)
  }
  if(!filtered.length){const empty=document.createElement('div');empty.className='watch-note';empty.textContent=watchItems.length?'Ничего не найдено':'Коллекция пока пуста. Добавь первый фильм ✦';list.append(empty)}
 }
