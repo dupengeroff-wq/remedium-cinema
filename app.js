@@ -376,15 +376,22 @@ function posterEnqueue(item,holder){
  const custom=typeof item.poster==='string' && /^https:\/\//i.test(item.poster)?item.poster:null;
  const url=custom||local;
  if(!url)return;
+ // Insert the image immediately. Waiting for onload before adding a lazy
+ // image to the document can prevent the browser from ever requesting it.
  const img=document.createElement('img');
  img.alt='Постер: '+item.name;
- img.loading='lazy';
  img.decoding='async';
+ img.loading='eager';
  img.style.cssText='display:block;width:100%;height:100%;object-fit:cover;object-position:center;border-radius:inherit;';
- img.onload=()=>{if(holder.isConnected){holder.style.backgroundImage='none';holder.replaceChildren(img)}};
- img.onerror=()=>{if(holder.isConnected)holder.textContent='✦'};
- img.src=url;
+ img.onerror=()=>{
+  console.warn('Не удалось загрузить постер:',img.src);
+  if(img.parentNode)holder.textContent='✦';
+ };
+ holder.style.backgroundImage='none';
+ holder.replaceChildren(img);
+ img.src=new URL(url,location.origin+'/').href;
 }
+
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
