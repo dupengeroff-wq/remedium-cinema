@@ -366,53 +366,52 @@ const watchId=()=>globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math
 function watchSave(){try{localStorage.setItem(WATCH_KEY,JSON.stringify(watchItems))}catch{toast('Не удалось сохранить список: память браузера заполнена')}watchRender()}
 
 // Movie posters are optional and never modify stored film names, status, or collection.
+
+// Posters are resolved by our own server, without changing Russian film titles or saved items.
 const posterCache=new Map();
-const posterAliases={'интерстеллар':'Interstellar','начало':'Inception','твоё имя':'Your Name','твое имя':'Your Name','гретель и гензель':'Gretel & Hansel','платформа 1,2':'The Platform','ты умрешь через 6 часов':'You Will Die in 6 Hours','ты умрёшь через 6 часов':'You Will Die in 6 Hours'};
 const posterTasks=[];let posterBusy=0;
 const posterObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
- for(const e of entries){if(e.isIntersecting){posterObserver.unobserve(e.target);const job=e.target._posterJob;if(job){posterTasks.push(job);posterPump()}}}
-},{rootMargin:'240px 0px'}):null;
+ for(const entry of entries)if(entry.isIntersecting){
+  posterObserver.unobserve(entry.target);
+  const task=entry.target._posterJob;
+  if(task){posterTasks.push(task);posterPump()}
+ }
+},{rootMargin:'350px 0px'}):null;
 function posterEnqueue(item,holder){
  const job={item,holder};holder._posterJob=job;
- if(posterObserver)posterObserver.observe(holder);else{posterTasks.push(job);posterPump()}
+ if(posterObserver)posterObserver.observe(holder);
+ else{posterTasks.push(job);posterPump()}
 }
-function posterPump(){while(posterBusy<2&&posterTasks.length){
- const task=posterTasks.shift();if(!task.holder.isConnected)continue;
- posterBusy++;posterApply(task.item,task.holder).finally(()=>{posterBusy--;posterPump()});
-}}
-const posterNormalize=s=>String(s||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
-async function posterSearch(term,country){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
- try{
-  const response=await fetch('https://itunes.apple.com/search?'+new URLSearchParams({term,media:'movie',entity:'movie',limit:'20',country}),{signal:controller.signal});
-  if(!response.ok)return null;
-  const results=(await response.json()).results||[];
-  const normalized=posterNormalize(term);
-  const match=results.find(x=>x.artworkUrl100&&posterNormalize(x.trackName||x.collectionName)===normalized);
-  if(!match)return null;
-  return match.artworkUrl100.replace(/100x100(?:bb|-75)?/,'600x900bb').replace(/^http:/,'https:');
- }catch{return null}finally{clearTimeout(timer)}
+function posterPump(){
+ while(posterBusy<3&&posterTasks.length){
+  const task=posterTasks.shift();
+  if(!task.holder.isConnected)continue;
+  posterBusy++;
+  posterApply(task.item,task.holder).finally(()=>{posterBusy--;posterPump()});
+ }
 }
 async function posterApply(item,holder){
  const key=item.name.trim().toLocaleLowerCase('ru');
  let url=typeof item.poster==='string'&&/^https:\/\//i.test(item.poster)?item.poster:posterCache.get(key);
  if(url===undefined){
-  const alias=posterAliases[key];url=null;
-  for(const term of [...new Set([item.name,alias].filter(Boolean))]){
-   for(const country of ['ru','us']){
-    url=await posterSearch(term,country);
-    if(url)break;
-   }
-   if(url)break;
-  }
+  try{
+   const controller=new AbortController();
+   const timer=setTimeout(()=>controller.abort(),13000);
+   let response;
+   try{response=await fetch('/api/poster?'+new URLSearchParams({title:item.name}),{signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   const data=response.ok?await response.json():null;
+   url=typeof data?.url==='string'&&/^https:\/\//i.test(data.url)?data.url:null;
+  }catch{url=null}
   posterCache.set(key,url);
  }
  if(!url||!holder.isConnected)return;
- const img=document.createElement('img');img.alt='Обложка фильма «'+item.name+'»';img.loading='lazy';img.decoding='async';
+ const img=document.createElement('img');
+ img.alt='Обложка фильма «'+item.name+'»';img.loading='lazy';img.decoding='async';
  img.onload=()=>{if(holder.isConnected&&holder._posterJob?.item===item)holder.replaceChildren(img)};
- img.onerror=()=>img.remove();img.src=url;
+ img.onerror=()=>{img.remove();holder.textContent='✦'};
+ img.src=url;
 }
-
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
