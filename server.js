@@ -171,76 +171,9 @@ io.on('connection',socket=>{
   socket.on('disconnect',()=>leave(socket));
 });
 
-
-// Server-side poster lookup avoids browser CORS restrictions and keeps original Russian titles.
-const posterLookupCache=new Map();
-const posterAliases={
- 'интерстеллар':'Interstellar','начало':'Inception','твоё имя':'Your Name','твое имя':'Your Name',
- 'гретель и гензель':'Gretel & Hansel','ты умрёшь через 6 часов':'You Will Die in 6 Hours',
- 'ты умрешь через 6 часов':'You Will Die in 6 Hours','платформа 1,2':'The Platform',
- 'платформа 2':'The Platform 2'
-};
-const posterNorm=x=>String(x||'').toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]/gu,'');
-async function posterJson(url){
- const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),4500);
- try{
-  const r=await fetch(url,{signal:ctrl.signal,headers:{'User-Agent':'RemediumCinema/1.0 (movie poster lookup)','Accept':'application/json'}});
-  return r.ok?await r.json():null;
- }catch{return null}finally{clearTimeout(timer)}
-}
-async function posterTranslate(title){
- const api='https://www.wikidata.org/w/api.php?'+new URLSearchParams({
-  action:'wbsearchentities',search:title,language:'ru',uselang:'ru',type:'item',limit:'6',format:'json'
- });
- const data=await posterJson(api);
- const norm=posterNorm(title);
- const candidate=(data?.search||[]).find(x=>posterNorm(x.label)===norm&&( /фильм|сериал|аниме|film|television/i.test(x.description||'')))||
-  (data?.search||[]).find(x=>posterNorm(x.label)===norm);
- if(!candidate)return null;
- const entity=await posterJson('https://www.wikidata.org/wiki/Special:EntityData/'+encodeURIComponent(candidate.id)+'.json');
- const english=entity?.entities?.[candidate.id]?.labels?.en?.value;
- return english&&english.length<130?english:null;
-}
-async function posterFromItunes(term,country){
- const json=await posterJson('https://itunes.apple.com/search?'+new URLSearchParams({term,media:'movie',entity:'movie',limit:'30',country}));
- const items=(json?.results||[]).filter(x=>x.artworkUrl100);
- const normalized=posterNorm(term);
- const exact=items.find(x=>posterNorm(x.trackName||x.collectionName)===normalized);
- // Only use an exact match; an unrelated film is worse than a placeholder.
- const image=exact?.artworkUrl100;
- return image?image.replace(/100x100(?:bb|-75)?/,'600x900bb').replace(/^http:/,'https:'):null;
-}
-async function posterResolve(title){
- const key=title.trim().toLocaleLowerCase('ru');
- if(posterLookupCache.has(key))return posterLookupCache.get(key);
- const variants=[title,posterAliases[key]];
- if(!posterAliases[key]){
-  const translated=await posterTranslate(title);
-  if(translated)variants.push(translated);
- }
- let url=null;
- for(const term of [...new Set(variants.filter(Boolean))]){
-  for(const country of ['us','ru']){
-   url=await posterFromItunes(term,country);
-   if(url)break;
-  }
-  if(url)break;
- }
- posterLookupCache.set(key,url);
- if(posterLookupCache.size>1500)posterLookupCache.delete(posterLookupCache.keys().next().value);
- return url;
-}
-app.get('/api/poster',async(req,res)=>{
- const title=typeof req.query.title==='string'?req.query.title.trim():'';
- if(!title||title.length>120)return res.status(400).json({url:null});
- res.set('Cache-Control','public, max-age=3600');
- try{res.json({url:await posterResolve(title)})}
- catch{res.json({url:null})}
-});
-
 app.get('/health',(_,res)=>res.json({ok:true,rooms:rooms.size}));
 app.get(['/', '/index.html'],(_,res)=>res.sendFile(path.join(__dirname,'index.html')));
-for(const asset of ['app.js','cinema-ui.js','player.css']){
+for(const asset of ['app.js','cinema-ui.js','player.css','posters-atlas.png']){
   app.get('/'+asset,(_,res)=>res.sendFile(path.join(__dirname,asset)));
 }
 // Do not expose cinema-data.json or server-side files over HTTP.
