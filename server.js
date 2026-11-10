@@ -173,10 +173,19 @@ io.on('connection',socket=>{
 
 app.get('/health',(_,res)=>res.json({ok:true,rooms:rooms.size}));
 app.get(['/', '/index.html'],(_,res)=>res.sendFile(path.join(__dirname,'index.html')));
-app.get('/posters-atlas.png',(_,res)=>res.sendFile(path.join(__dirname,'posters-atlas.png')));
 for(const asset of ['app.js','cinema-ui.js','player.css']){
   app.get('/'+asset,(_,res)=>res.sendFile(path.join(__dirname,asset)));
 }
+// Serve bundled poster images from the project itself, no external APIs.
+app.get('/posters/:filename', (req,res)=>{
+ const filename=req.params.filename;
+ if(!/^[a-z0-9][a-z0-9-]*\.webp$/i.test(filename))return res.sendStatus(404);
+ res.set('Cache-Control','public, max-age=86400');
+ res.type('image/webp');
+ res.sendFile(path.join(__dirname,'posters',filename),err=>{
+  if(err&&!res.headersSent)res.sendStatus(err.status===404?404:500);
+ });
+});
 // Do not expose cinema-data.json or server-side files over HTTP.
 const PORT=Number(process.env.PORT)||3000;
 http.listen(PORT,'0.0.0.0',()=>console.log(`REMEDIUM CINEMA COSMOS listening on ${PORT}`));
