@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 const socket=io();
 const video=$('video');
-let room='',self='',selfToken='',media=null,isHost=false;
+let room='',self='',selfToken='',selfPublicId='',media=null,isHost=false;
 let ytPlayer=null,vkPlayer=null,generation=0,joining=false;
 let remoteUntil=0,lastSync=0,clock=0,playingState=false,knownDuration=0;
 let muted=false,hostName='',messages=[],soundPromptNeeded=false;
@@ -85,7 +85,7 @@ function playbackEvent(playing,g){
   if(playing){setSoundPrompt(false);playerStatus()}
   updateTimeline();sendSync();
 }
-function join(auto=false){if(!socket.connected)return toast('Подключаемся к серверу…');if(joining)return;const id=$('room').value.trim()||randomRoom(),name=$('name').value.trim().slice(0,24);if(!name)return toast('Напиши своё имя');joining=true;socket.emit('join',{room:id,name,token:localStorage.getItem(tokenKey(id))||''},res=>{joining=false;if(!res?.ok)return toast(res?.error||'Ошибка входа');const changed=room!==id;room=id;self=res.id;selfToken=res.token;isHost=!!res.isHost;localStorage.setItem('rc-room',id);localStorage.setItem('rc-name',name);localStorage.setItem(tokenKey(id),res.token);$('room').value=id;history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));$('entry').classList.add('hidden');$('invite').disabled=false;$('message').disabled=false;$('send').disabled=false;$('roomInfo').textContent='КОМНАТА · '+id;$('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();$('status').textContent='● Подключено';if(changed){media=null;messages=[];$('messages').dataset.loaded='';setSoundPrompt(false)}updateHost();if(!auto)toast('Добро пожаловать в наш космос ♡')})}
+function join(auto=false){if(!socket.connected)return toast('Подключаемся к серверу…');if(joining)return;const id=$('room').value.trim()||randomRoom(),name=$('name').value.trim().slice(0,24);if(!name)return toast('Напиши своё имя');joining=true;socket.emit('join',{room:id,name,token:localStorage.getItem(tokenKey(id))||''},res=>{joining=false;if(!res?.ok)return toast(res?.error||'Ошибка входа');const changed=room!==id;room=id;self=res.id;selfToken=res.token;selfPublicId=res.publicId;isHost=!!res.isHost;localStorage.setItem('rc-room',id);localStorage.setItem('rc-name',name);localStorage.setItem(tokenKey(id),res.token);$('room').value=id;history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(id));$('entry').classList.add('hidden');$('invite').disabled=false;$('message').disabled=false;$('send').disabled=false;$('roomInfo').textContent='КОМНАТА · '+id;$('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();$('status').textContent='● Подключено';if(changed){historyRequested=false;sharedCinemaHistory=[];renderCinemaHistory();myPollChoice=null;media=null;messages=[];$('messages').dataset.loaded='';setSoundPrompt(false)}updateHost();if(!auto)toast('Добро пожаловать в наш космос ♡')})}
 $('join').onclick=()=>join();$('name').addEventListener('keydown',e=>{if(e.key==='Enter')join()});$('editName').onclick=()=>{$('entry').classList.remove('hidden');$('name').focus();$('name').select()};
 $('invite').onclick=async()=>{if(!room)return;const url=location.origin+location.pathname+'?room='+encodeURIComponent(room);try{if(navigator.share)await navigator.share({url});else{await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}}catch{}};
 function updateHost(){document.body.classList.toggle('guest-view',!isHost);$('myBadge').classList.toggle('hidden',isHost);$('myBadge').textContent=badge;$('load').disabled=!isHost;$('url').disabled=!isHost;for(const id of ['play','back','forward','progress'])$(id).disabled=!isHost||!media||!mediaReady;$('role').textContent=isHost?'👑 ВЫ СОЗДАТЕЛЬ':'✦ ВЫ ГОСТЬ';$('hostBadge').textContent='♛ '+(hostName||'Создатель')+(isHost?' · вы':'');$('sound').disabled=!mediaReady;video.controls=true;video.style.pointerEvents='auto';$('yt').style.pointerEvents=isHost?'auto':'none';$('vk').style.pointerEvents='auto';if(!isHost&&document.activeElement?.tagName==='IFRAME')document.activeElement.blur();refreshSoundButton()}
@@ -326,13 +326,13 @@ $('sound').onclick=()=>{
 };
 $('soundPrompt').onclick=activateSound;
 function avatar(name){return String(name||'?').trim().slice(0,1).toUpperCase()}
-function isMine(msg){return !!selfToken&&msg.author===selfToken}
+function isMine(msg){return !!selfPublicId&&msg.author===selfPublicId}
 function badgeFor(msg){return msg.isHost?'👑':msg.badge||'🎀'}
 function openPicker(kind,msg=null){pickerMessage=msg;$('pickerTitle').textContent=kind==='badge'?'Твой космический знак':'Реакция на сообщение';$('pickerHint').textContent=kind==='badge'?'Нажми, чтобы заменить бантик':'Выбери эмоцию — она появится у обоих';const choices=$('pickerChoices');choices.replaceChildren();for(const emoji of(kind==='badge'?BADGES:REACTIONS)){const b=document.createElement('button');b.className='choice';b.type='button';b.textContent=emoji;b.onclick=()=>{closePicker();if(kind==='badge'){socket.emit('set-badge',emoji,res=>{if(!res?.ok)toast(res?.error||'Не удалось изменить значок')})}else if(msg?.id){socket.emit('react',{id:msg.id,emoji},res=>{if(!res?.ok)toast('Не удалось поставить реакцию')})}};choices.append(b)}$('pickerOverlay').classList.remove('hidden')}
 $('myBadge').onclick=()=>{if(!isHost)openPicker('badge')};
 function closePicker(){$('pickerOverlay').classList.add('hidden');pickerMessage=null}$('pickerClose').onclick=closePicker;$('pickerOverlay').onclick=e=>{if(e.target===$('pickerOverlay'))closePicker()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closePicker()});
 function nameElement(msg){const stack=document.createElement('div');stack.className='name-stack';const badgeEl=document.createElement(!msg.isHost&&isMine(msg)?'button':'span');badgeEl.className='badge-icon'+(!msg.isHost&&isMine(msg)?' editable':'');badgeEl.textContent=badgeFor(msg);if(badgeEl.tagName==='BUTTON'){badgeEl.type='button';badgeEl.title='Изменить значок';badgeEl.onclick=()=>openPicker('badge')}stack.append(badgeEl);const name=document.createElement('span');name.className='msgname';name.textContent=msg.name;stack.append(name);return stack}
-function renderReactions(msg,container){container.replaceChildren();for(const emoji of REACTIONS){const tokens=msg.reactions?.[emoji]||[];if(!tokens.length)continue;const b=document.createElement('button');b.type='button';b.className='reaction-pill'+(tokens.includes(selfToken)?' mine':'');b.textContent=emoji+' '+tokens.length;b.title='Изменить реакцию';b.onclick=()=>socket.emit('react',{id:msg.id,emoji});container.append(b)}}
+function renderReactions(msg,container){container.replaceChildren();for(const emoji of REACTIONS){const tokens=msg.reactions?.[emoji]||[];if(!tokens.length)continue;const b=document.createElement('button');b.type='button';b.className='reaction-pill'+(tokens.includes(selfPublicId)?' mine':'');b.textContent=emoji+' '+tokens.length;b.title='Изменить реакцию';b.onclick=()=>socket.emit('react',{id:msg.id,emoji});container.append(b)}}
 function attachLongPress(el,msg){let timer=null,x=0,y=0,opened=false;const cancel=()=>{clearTimeout(timer);timer=null};el.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;opened=false;x=e.clientX;y=e.clientY;cancel();timer=setTimeout(()=>{opened=true;openPicker('reaction',msg)},480)});el.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)cancel()});for(const ev of ['pointerup','pointercancel','pointerleave'])el.addEventListener(ev,cancel);el.addEventListener('contextmenu',e=>{e.preventDefault();cancel();if(!opened)openPicker('reaction',msg)});el.addEventListener('click',e=>{if(opened){e.preventDefault();opened=false}})}
 function appendMessage(msg){const list=$('messages');list.querySelector('.empty')?.remove();const row=document.createElement('div');row.className='msg '+(msg.isHost?'host':'guest')+(isMine(msg)?' mine':'');row.dataset.messageId=msg.id||'';const content=document.createElement('div');content.className='msg-content';const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=msg.text;attachLongPress(bubble,msg);const reactionRow=document.createElement('div');reactionRow.className='reaction-row';renderReactions(msg,reactionRow);const time=document.createElement('div');time.className='msgtime';time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});content.append(nameElement(msg),bubble,reactionRow,time);row.append(content);list.append(row);list.scrollTop=list.scrollHeight}
 function renderAllMessages(){const list=$('messages');list.replaceChildren();for(const msg of messages)appendMessage(msg);if(!messages.length){const e=document.createElement('div');e.className='empty';e.textContent='Тишина перед началом фильма ✦ Зажми сообщение, чтобы поставить реакцию.';list.append(e)}}
@@ -524,10 +524,11 @@ function renderRoulette(data){
   card.append(safeText('span',item.name));track.append(card);
  }
  result.textContent='✦ Звёзды выбирают фильм…';
+ featureEl('roulettePanel').open=true;
  const stage=featureEl('rouletteStage');
  const card=track.children[count-4];
  const target=card.offsetLeft+card.offsetWidth/2-stage.clientWidth/2;
- requestAnimationFrame(()=>requestAnimationFrame(()=>{track.style.transition='';track.classList.add('spinning');track.style.transform='translateX('+(-target)+'px'}));
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{track.style.transition='';track.classList.add('spinning');track.style.transform='translateX('+(-target)+'px)'}));
  setTimeout(()=>{if(lastRouletteId===data.id)result.textContent='✦ Выпал фильм: '+items[winner].name},5200);
 }
 featureEl('rouletteSpin').onclick=()=>{
@@ -546,8 +547,9 @@ socket.on('room-state',state=>{
  const oldPoll=currentCinemaPoll;
   currentCinemaPoll=state.poll||null;
   if(oldPoll?.created!==currentCinemaPoll?.created)myPollChoice=null;
+  if(oldPoll?.created!==currentCinemaPoll?.created||myPollChoice===null)myPollChoice=currentCinemaPoll?.myChoice??null;
   latestCinemaMedia=state.media||null;renderCinemaPoll();renderRoulette(state.roulette);
  if(!historyRequested){historyRequested=true;socket.emit('get-cinema-history')}
 });
-socket.on('disconnect',()=>{historyRequested=false});
+socket.on('disconnect',()=>{historyRequested=false;myPollChoice=null});
 renderCinemaHistory();renderCinemaPoll();

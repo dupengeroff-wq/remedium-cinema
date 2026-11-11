@@ -40,14 +40,19 @@ try{
 
 function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
 function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
-function publicPoll(p){
+function publicPoll(p,token){
  if(!p)return null;
  const finished=!!p.finished;
  const votes=finished?Object.values(p.votes||{}).reduce((counts,index)=>{if(Number.isInteger(index)&&index>=0&&index<p.options.length)counts[index]=(counts[index]||0)+1;return counts},{}):null;
- return {options:p.options,created:p.created,finished,voteCount:Object.keys(p.votes||{}).length,counts:votes};
+ return {options:p.options,created:p.created,finished,voteCount:Object.keys(p.votes||{}).length,counts:votes,myChoice:Number.isInteger(p.votes?.[token])?p.votes[token]:null};
 }
-function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages,wish:r.wish||null,letters:r.letters||[],poll:publicPoll(r.poll),roulette:r.roulette||null};}
-function broadcast(r,id){io.to(id).emit('room-state',state(r));}
+// Public identities cannot be reused as login credentials.
+function publicId(r,token){return crypto.createHmac('sha256',r.hostToken).update('public:'+token).digest('hex');}
+function publicReactions(r,reactions){return Object.fromEntries(Object.entries(reactions||{}).map(([emoji,tokens])=>[emoji,Array.isArray(tokens)?tokens.map(token=>publicId(r,token)):[]]));}
+function publicMessage(r,m){return {...m,author:publicId(r,m.author||''),reactions:publicReactions(r,m.reactions)};}
+function state(r,token){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages.map(m=>publicMessage(r,m)),poll:publicPoll(r.poll,token),roulette:r.roulette||null};}
+function broadcast(r,id){for(const [sid,u] of r.users)io.to(sid).emit('room-state',state(r,u.token));}
+function roomHistory(id){return history.filter(item=>item.room===id).slice(-100).reverse().map(({room,...item})=>item);}
 function getRoom(socket){const id=socket.data.room;const r=rooms.get(id);return r?.users.get(socket.id)?r:null;}
 function getUser(socket){return getRoom(socket)?.users.get(socket.id);}
 function leave(socket){
@@ -80,7 +85,7 @@ io.on('connection',socket=>{
     socket.data.room=id;
     socket.join(id);
     socket.emit('wish-inbox',(r.letters||[]).filter(x=>x.to===token).map(x=>({id:x.id,name:x.name,read:!!x.read,text:x.read?x.text:null,at:x.at})));
-    done({ok:true,id:socket.id,token,isHost});
+    done({ok:true,id:socket.id,token,publicId:publicId(r,token),isHost});
     broadcast(r,id);
     persist();
   });
@@ -91,9 +96,9 @@ io.on('connection',socket=>{
     const m=parseMedia(payload?.url);
     if(!m)return done({error:'Поддерживаются ссылки YouTube, VK Видео и прямые MP4/WebM'});
     r.media=m;r.time=0;r.playing=false;r.updated=Date.now();
-    history.push({id:uid(),title:clean(payload?.title,120)|| (m.type==='youtube'?'YouTube':m.type==='vk'?'VK Видео':m.type==='rutube'?'Rutube':'Видео'),url:clean(payload?.url,500),at:new Date().toISOString()});
+    history.push({room:socket.data.room,id:uid(),title:clean(payload?.title,120)|| (m.type==='youtube'?'YouTube':m.type==='vk'?'VK Видео':m.type==='rutube'?'Rutube':'Видео'),url:clean(payload?.url,500),at:new Date().toISOString()});
     history=history.slice(-500);saveHistory();
-    io.emit('cinema-history',history.slice(-100).reverse());
+    io.to(socket.data.room).emit('cinema-history',roomHistory(socket.data.room));
     broadcast(r,socket.data.room);persist();done({ok:true});
   });
   socket.on('sync',payload=>{
@@ -116,7 +121,7 @@ io.on('connection',socket=>{
     if(!text)return;
     const msg={id:uid(),name:u.name,author:u.token,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀',text,at:Date.now(),reactions:{}};
     r.messages.push(msg);if(r.messages.length>250)r.messages.shift();
-    io.to(socket.data.room).emit('chat',msg);persist();
+    io.to(socket.data.room).emit('chat',publicMessage(r,msg));persist();
   });
   socket.on('set-badge',(badge,ack)=>{
     const done=typeof ack==='function'?ack:()=>{};
@@ -140,10 +145,10 @@ io.on('connection',socket=>{
     const previous=Object.entries(m.reactions).find(([,users])=>Array.isArray(users)&&users.includes(u.token))?.[0];
     if(previous)m.reactions[previous]=m.reactions[previous].filter(x=>x!==u.token);
     if(previous!==emoji){m.reactions[emoji]=m.reactions[emoji]||[];m.reactions[emoji].push(u.token);}
-    io.to(socket.data.room).emit('reaction-update',{id:m.id,reactions:m.reactions});
+    io.to(socket.data.room).emit('reaction-update',{id:m.id,reactions:publicReactions(r,m.reactions)});
     persist();done({ok:true});
   });
-  socket.on('get-cinema-history',()=>{if(getRoom(socket))socket.emit('cinema-history',history.slice(-100).reverse())});
+  socket.on('get-cinema-history',()=>{if(getRoom(socket))socket.emit('cinema-history',roomHistory(socket.data.room))});
   const sendInbox=(r,token)=>{
     const items=(r.letters||[]).filter(x=>x.to===token).map(x=>({id:x.id,name:x.name,read:!!x.read,text:x.read?x.text:null,at:x.at}));
     for(const [sid,u] of r.users)if(u.token===token)io.to(sid).emit('wish-inbox',items);
