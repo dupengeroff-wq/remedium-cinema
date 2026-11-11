@@ -321,6 +321,10 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .roulette-card{flex-shrink:0}
 @media(max-width:1024px){.cosmos-features{grid-template-columns:minmax(0,1fr)!important}.cosmos-panel{width:100%;min-width:0}.roulette-stage{margin-inline:0}.twin-stars{min-width:0;max-width:100%;overflow:hidden}}
 @media(max-width:600px){.roulette-stage{padding-block:10px}.roulette-track{gap:8px}.roulette-card{flex-basis:100px;min-height:140px}.roulette-card img{height:115px}}
+
+/* Keep the planet perfectly round on all screen sizes; no other layout changes. */
+.planet{flex:0 0 105px!important;width:105px!important;height:105px!important;min-width:105px!important;min-height:105px!important;aspect-ratio:1 / 1!important}
+.planet-core{width:100%;height:100%;aspect-ratio:1 / 1}
 </style>
 <link rel="stylesheet" href="/player.css">
 </head>
