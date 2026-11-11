@@ -474,30 +474,79 @@ featureEl('historyExport').onclick=()=>{
  const blob=new Blob([JSON.stringify({history:sharedCinemaHistory},null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='remedium-cinema-history.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
 };
+let myPollChoice=null;
 featureEl('pollCreate').onclick=()=>{
  if(!room)return toast('Сначала войдите в комнату');
  const values=featureEl('pollOptions').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,8);
  if(values.length<2)return toast('Нужно хотя бы два фильма');
- socket.emit('poll-create',values);
+ socket.emit('poll-create',values,res=>{
+  if(!res?.ok)return toast(res?.error||'Не удалось создать голосование');
+  featureEl('pollOptions').value='';myPollChoice=null;toast('Голосование создано');
+ });
 };
+featureEl('pollFinish').onclick=()=>socket.emit('poll-finish',null,res=>{if(!res?.ok)toast(res?.error||'Не удалось завершить')});
 function renderCinemaPoll(){
  const target=featureEl('pollResults');target.replaceChildren();
+ const finish=featureEl('pollFinish');finish.classList.add('hidden');
  if(!currentCinemaPoll){target.append(safeText('div','Пока нет голосования'));return}
- const votes=Object.values(currentCinemaPoll.votes||{});
- currentCinemaPoll.options.forEach((option,i)=>{
-  const row=document.createElement('div');row.className='feature-entry';
-  row.append(safeText('span',option+' · '+votes.filter(v=>v===i).length+' голос(ов)'));
-  const button=document.createElement('button');button.type='button';button.className='btn';button.textContent='Выбрать';
-  button.onclick=()=>socket.emit('poll-vote',i);row.append(button);target.append(row);
+ const p=currentCinemaPoll;
+ target.append(safeText('div',p.finished?'✦ Голосование завершено · результаты открыты':'🔒 Голоса скрыты до завершения · проголосовало: '+(p.voteCount||0)));
+ p.options.forEach((option,i)=>{
+  const row=document.createElement('div');row.className='feature-entry poll-vote-row';
+  row.append(safeText('span',option+(p.finished?' · '+(p.counts?.[i]||0)+' голос(ов)':'')));
+  if(!p.finished){
+   const button=document.createElement('button');button.type='button';button.className='btn';button.textContent=myPollChoice===i?'✓ Мой выбор':'Выбрать';
+   button.onclick=()=>{myPollChoice=i;renderCinemaPoll()};row.append(button);
+  }
+  target.append(row);
  });
+ if(!p.finished){
+  const confirm=document.createElement('button');confirm.type='button';confirm.className='btn primary';confirm.textContent='Подтвердить голос';
+  confirm.disabled=myPollChoice===null;
+  confirm.onclick=()=>socket.emit('poll-vote',myPollChoice,res=>{if(res?.ok)toast('Твой голос принят и скрыт');else toast(res?.error||'Не удалось проголосовать')});
+  target.append(confirm);
+  if(isHost)finish.classList.remove('hidden');
+ }
 }
+let lastRouletteId=null;
+function renderRoulette(data){
+ if(!data||data.id===lastRouletteId)return;
+ lastRouletteId=data.id;
+ const track=featureEl('rouletteTrack'),result=featureEl('rouletteResult');
+ const items=Array.isArray(data.items)?data.items:[];
+ if(!items.length)return;
+ const winner=Number.isInteger(data.winner)?data.winner:0;
+ const count=28,sequence=Array.from({length:count},(_,i)=>i===count-4?items[winner]:items[(i*7+winner)%items.length]);
+ track.classList.remove('spinning');track.style.transition='none';track.style.transform='translateX(0)';track.replaceChildren();
+ for(const item of sequence){
+  const card=document.createElement('div');card.className='roulette-card';
+  if(item.poster){const img=document.createElement('img');img.loading='lazy';img.alt=item.name;img.src='/'+item.poster;img.onerror=()=>img.remove();card.append(img)}
+  card.append(safeText('span',item.name));track.append(card);
+ }
+ result.textContent='✦ Звёзды выбирают фильм…';
+ const stage=featureEl('rouletteStage');
+ const card=track.children[count-4];
+ const target=card.offsetLeft+card.offsetWidth/2-stage.clientWidth/2;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{track.style.transition='';track.classList.add('spinning');track.style.transform='translateX('+(-target)+'px'}));
+ setTimeout(()=>{if(lastRouletteId===data.id)result.textContent='✦ Выпал фильм: '+items[winner].name},5200);
+}
+featureEl('rouletteSpin').onclick=()=>{
+ if(!room)return toast('Сначала войдите в комнату');
+ const candidates=watchItems.filter(x=>x.status==='no'||x.status==='none');
+ if(!candidates.length)return toast('Нет фильмов в планах или без отметки');
+ const entries=candidates.map(x=>({name:x.name,poster:LOCAL_POSTERS[x.name.trim().toLocaleLowerCase('ru')]||null}));
+ socket.emit('roulette-spin',entries,res=>{if(!res?.ok)toast(res?.error||'Не удалось запустить рулетку')});
+};
 socket.on('room-state',state=>{
  if(!room)return;
  cinemaParticipants=state.users||[];
  const connected=cinemaParticipants.length>=2;
  featureEl('twinStars').classList.toggle('connected',connected);
  featureEl('starsLabel').textContent=connected?'Две звезды встретились ♡':'Ждём вторую звезду';
- currentCinemaPoll=state.poll||null;latestCinemaMedia=state.media||null;renderCinemaPoll();
+ const oldPoll=currentCinemaPoll;
+  currentCinemaPoll=state.poll||null;
+  if(oldPoll?.created!==currentCinemaPoll?.created)myPollChoice=null;
+  latestCinemaMedia=state.media||null;renderCinemaPoll();renderRoulette(state.roulette);
  if(!historyRequested){historyRequested=true;socket.emit('get-cinema-history')}
 });
 socket.on('disconnect',()=>{historyRequested=false});

@@ -24,7 +24,7 @@ const clean=(s,n)=>String(s??'').trim().slice(0,n);
 const persist=()=>{
   try{
     const out={};
-    for(const [id,r] of rooms){out[id]={hostToken:r.hostToken,hostName:r.hostName,media:r.media,time:r.time,playing:r.playing,updated:r.updated,messages:r.messages.slice(-250),badges:r.badges,wish:r.wish||null,letters:r.letters||[],poll:r.poll||null};}
+    for(const [id,r] of rooms){out[id]={hostToken:r.hostToken,hostName:r.hostName,media:r.media,time:r.time,playing:r.playing,updated:r.updated,messages:r.messages.slice(-250),badges:r.badges,wish:r.wish||null,letters:r.letters||[],poll:r.poll||null,roulette:r.roulette||null};}
     const temp=DATA+'.tmp';fs.writeFileSync(temp,JSON.stringify(out));fs.renameSync(temp,DATA);
   }catch(e){console.error('Save failed:',e.message);}
 };
@@ -33,14 +33,20 @@ try{
     const saved=JSON.parse(fs.readFileSync(DATA,'utf8'));
     for(const [id,r] of Object.entries(saved)){
       if(!r||typeof r!=='object')continue;
-      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},wish:r.wish||null,letters:r.letters||[],poll:r.poll||null,users:new Map()});
+      rooms.set(id,{hostToken:r.hostToken||uid(),hostName:r.hostName||'Создатель',media:r.media||null,time:Number(r.time)||0,playing:false,updated:Date.now(),messages:Array.isArray(r.messages)?r.messages.slice(-250):[],badges:r.badges&&typeof r.badges==='object'?r.badges:{},wish:r.wish||null,letters:r.letters||[],poll:r.poll||null,roulette:r.roulette||null,users:new Map()});
     }
   }
 }catch(e){console.warn('Unable to read stored rooms:',e.message);}
 
 function currentTime(r){return r.playing?r.time+(Date.now()-r.updated)/1000:r.time;}
 function userList(r){return [...r.users.values()].map(u=>({id:u.id,name:u.name,isHost:u.isHost,badge:u.isHost?'👑':r.badges[u.token]||'🎀'}));}
-function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages,wish:r.wish||null,letters:r.letters||[],poll:r.poll||null};}
+function publicPoll(p){
+ if(!p)return null;
+ const finished=!!p.finished;
+ const votes=finished?Object.values(p.votes||{}).reduce((counts,index)=>{if(Number.isInteger(index)&&index>=0&&index<p.options.length)counts[index]=(counts[index]||0)+1;return counts},{}):null;
+ return {options:p.options,created:p.created,finished,voteCount:Object.keys(p.votes||{}).length,counts:votes};
+}
+function state(r){return {users:userList(r),hostName:r.hostName,media:r.media,time:currentTime(r),playing:r.playing,messages:r.messages,wish:r.wish||null,letters:r.letters||[],poll:publicPoll(r.poll),roulette:r.roulette||null};}
 function broadcast(r,id){io.to(id).emit('room-state',state(r));}
 function getRoom(socket){const id=socket.data.room;const r=rooms.get(id);return r?.users.get(socket.id)?r:null;}
 function getUser(socket){return getRoom(socket)?.users.get(socket.id);}
@@ -62,7 +68,7 @@ io.on('connection',socket=>{
     let token=clean(payload?.token,128);
     if(!r){
       token=uid();
-      r={hostToken:token,hostName:name,media:null,time:0,playing:false,updated:Date.now(),messages:[],badges:{},wish:null,letters:[],poll:null,users:new Map()};
+      r={hostToken:token,hostName:name,media:null,time:0,playing:false,updated:Date.now(),messages:[],badges:{},wish:null,letters:[],poll:null,roulette:null,users:new Map()};
       rooms.set(id,r);
     }
     const isHost=token===r.hostToken;
@@ -157,17 +163,35 @@ io.on('connection',socket=>{
     if(!letter||letter.read)return;
     letter.read=true;sendInbox(r,u.token);socket.emit('wish-opened',{name:letter.name,text:letter.text});persist();
   });
-  socket.on('poll-create',values=>{
-    const r=getRoom(socket),u=getUser(socket);if(!r||!u||!Array.isArray(values))return;
-    const options=[...new Set(values.map(x=>clean(x,100)).filter(Boolean))].slice(0,8);
-    if(options.length<2)return;
-    r.poll={options,votes:{},created:Date.now()};broadcast(r,socket.data.room);persist();
-  });
-  socket.on('poll-vote',index=>{
-    const r=getRoom(socket),u=getUser(socket);
-    if(!r?.poll||!u||!Number.isInteger(index)||index<0||index>=r.poll.options.length)return;
-    r.poll.votes[u.token]=index;broadcast(r,socket.data.room);persist();
-  });
+   socket.on('poll-create',(values,ack)=>{
+     const done=typeof ack==='function'?ack:()=>{};
+     const r=getRoom(socket),u=getUser(socket);
+     if(!r||!u||!Array.isArray(values))return done({ok:false,error:'Нет доступа'});
+     const options=[...new Set(values.map(x=>clean(x,100)).filter(Boolean))].slice(0,8);
+     if(options.length<2)return done({ok:false,error:'Нужно хотя бы два фильма'});
+     r.poll={options,votes:{},created:Date.now(),finished:false};broadcast(r,socket.data.room);persist();done({ok:true});
+   });
+   socket.on('poll-vote',(index,ack)=>{
+     const done=typeof ack==='function'?ack:()=>{};
+     const r=getRoom(socket),u=getUser(socket);
+     if(!r?.poll||!u||r.poll.finished||!Number.isInteger(index)||index<0||index>=r.poll.options.length)return done({ok:false,error:'Голосование недоступно'});
+     r.poll.votes[u.token]=index;broadcast(r,socket.data.room);persist();done({ok:true});
+   });
+   socket.on('poll-finish',(_,ack)=>{
+     const done=typeof ack==='function'?ack:()=>{};
+     const r=getRoom(socket),u=getUser(socket);
+     if(!r?.poll||!u?.isHost)return done({ok:false,error:'Завершить может только создатель'});
+     r.poll.finished=true;broadcast(r,socket.data.room);persist();done({ok:true});
+   });
+   socket.on('roulette-spin',(entries,ack)=>{
+     const done=typeof ack==='function'?ack:()=>{};
+     const r=getRoom(socket),u=getUser(socket);
+     if(!r||!u||!Array.isArray(entries))return done({ok:false,error:'Сначала войди в комнату'});
+     const items=entries.slice(0,180).filter(x=>x&&typeof x.name==='string').map(x=>({name:clean(x.name,120),poster:typeof x.poster==='string'&&/^posters\/[a-z0-9-]+\.webp$/i.test(x.poster)?x.poster:null})).filter(x=>x.name);
+     if(!items.length)return done({ok:false,error:'В списке нет фильмов для рулетки'});
+     const winner=crypto.randomInt(items.length);
+     r.roulette={items,winner,at:Date.now(),id:uid()};broadcast(r,socket.data.room);persist();done({ok:true});
+   });
   socket.on('disconnect',()=>leave(socket));
 });
 
