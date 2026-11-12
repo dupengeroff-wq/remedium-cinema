@@ -1084,6 +1084,7 @@ function resetRoulette() {
   track.classList.remove('spinning');
   track.style.transition = 'none';
   track.style.transform = 'translateX(0)';
+  track.style.filter = '';
   track.replaceChildren(safeText('span', '✦ Готовы выбрать фильм?'));
   $('rouletteResult').textContent = '';
   renderRouletteButton();
@@ -1099,6 +1100,16 @@ function finishRoulette(spin) {
   if (activeRoulette !== spin) return;
   spin.finished = true;
   const track = $('rouletteTrack');
+  if (spin.guestReveal) {
+    spin.guestReveal = false;
+    const card = document.createElement('div');
+    card.className = 'roulette-card';
+    if (spin.winnerImage) card.append(spin.winnerImage);
+    card.append(safeText('span', spin.winner.name));
+    track.replaceChildren(card);
+    track.style.filter = '';
+    spin.cardIndex = 0;
+  }
   track.classList.remove('spinning');
   track.style.transition = 'none';
   track.style.transform = 'translateX(' + -winnerPosition(spin) + 'px)';
@@ -1215,6 +1226,37 @@ function buildRouletteCards(spin, cards, finished) {
   if (isHost) ready();
 }
 
+function buildBlurredRoulette(spin, cardCount) {
+  const track = $('rouletteTrack');
+  track.replaceChildren();
+  track.style.filter = 'blur(8px)';
+  for (let index = 0; index < cardCount; index++) {
+    const card = document.createElement('div');
+    card.className = 'roulette-card';
+    card.style.background = index % 2
+      ? 'linear-gradient(145deg, #484052, #211d2d)'
+      : 'linear-gradient(145deg, #524536, #292235)';
+    track.append(card);
+  }
+  spin.guestReveal = true;
+  const source = posterSource(spin.winner.poster);
+  if (source) {
+    const image = document.createElement('img');
+    image.alt = '';
+    image.loading = 'eager';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.onerror = () => {
+      image.remove();
+      spin.winnerImage = null;
+    };
+    spin.winnerImage = image;
+    image.src = source;
+  }
+  spin.ready = true;
+  scheduleRoulette(spin);
+}
+
 function renderRoulette(data) {
   if (!data) {
     if (activeRoulette) resetRoulette();
@@ -1238,10 +1280,11 @@ function renderRoulette(data) {
   activeRoulette = spin;
   if (!finished) {
     $('roulettePanel').open = true;
-    $('rouletteResult').textContent = isHost ? '✦ Звёзды выбирают фильм…' : '✦ Загружаем обложки…';
+    $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
   }
   renderRouletteButton();
-  buildRouletteCards(spin, finished ? [winner] : data.cards, finished);
+  if (!isHost && !finished) buildBlurredRoulette(spin, data.cards.length);
+  else buildRouletteCards(spin, finished ? [winner] : data.cards, finished);
 }
 
 $('roulettePanel').addEventListener('toggle', () => {
