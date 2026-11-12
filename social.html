@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070707">
+<title>REMEDIUM CINEMA</title>
+<link rel="stylesheet" href="/social.css">
+</head>
+<body class="social-page">
+<header class="social-top">
+  <a class="social-brand" href="/">✦ REMEDIUM CINEMA</a>
+  <nav aria-label="Навигация">
+    <a href="/">Кинозал</a>
+    <a id="globalMessages" href="/messages">Сообщения</a>
+  </nav>
+</header>
+<main id="socialMain" class="social-main" aria-live="polite"></main>
+<dialog id="socialDialog" class="social-dialog">
+  <form method="dialog"><button type="submit" class="btn dialog-close" aria-label="Закрыть">×</button></form>
+  <div id="socialDialogContent"></div>
+</dialog>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/account.js"></script>
+<script src="/social.js"></script>
+</body>
+</html>

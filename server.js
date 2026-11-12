@@ -3,21 +3,27 @@ import express from 'express';
 import {createServer} from 'node:http';
 import {Server} from 'socket.io';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
 import {isIP} from 'node:net';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {query,close as closeDatabase} from './lib/db.js';
+import {authFor,sessionActive,mountAuth} from './lib/auth.js';
+import {HttpError,apiErrors,sameOrigin,uuid} from './lib/http.js';
+import {ownRoom,getRoomRecord,admitGuest,newInvite,saveRoom} from './lib/rooms.js';
+import {mountProfiles} from './lib/profiles.js';
+import {mountMessages} from './lib/messages.js';
+import {mountAvatars} from './lib/avatars.js';
+import {createWatchTracker} from './lib/watch.js';
+
 const projectDir = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = process.env.CINEMA_DATA_DIR ? path.resolve(process.env.CINEMA_DATA_DIR) : projectDir;
-fs.mkdirSync(dataDir, {recursive: true, mode: 0o700});
-const dataFile = path.join(dataDir, 'cinema-data.json');
-const historyFile = path.join(dataDir, 'cinema-history.json');
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy',1);
 const http = createServer(app);
 const io = new Server(http, {maxHttpBufferSize: 100_000});
 const rooms = new Map();
+const tracker=createWatchTracker();
 const maxRooms = 500;
 const maxConnections = 200;
 const spinDuration = 5000;
@@ -29,52 +35,8 @@ const clean = (value, limit) => typeof value === 'string' ? value.trim().slice(0
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isRoom = value => typeof value === 'string' && /^[\w-]{3,80}$/.test(value);
 const isToken = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
-const adminLogin = process.env.CINEMA_ADMIN_LOGIN;
-const adminPassword = process.env.CINEMA_ADMIN_PASSWORD;
-const adminSecret = process.env.CINEMA_ADMIN_SECRET;
-const adminEnabled = !!adminLogin && (adminPassword?.length ?? 0) >= 12 && (adminSecret?.length ?? 0) >= 32;
-const adminDigest = value => crypto.createHmac('sha256', adminSecret).update(value).digest();
-const adminRoom = adminEnabled ? adminDigest('admin-room').toString('hex').slice(0, 32) : null;
-const adminToken = adminEnabled ? adminDigest('admin-token').toString('hex').slice(0, 32) : null;
-const failedAdminLogins = [];
-
-function authenticateAdmin(credentials) {
-  if (!adminEnabled) return 'Вход создателя ещё не настроен на сервере.';
-  const now = Date.now();
-  while (failedAdminLogins.length && failedAdminLogins[0] <= now - 60000) failedAdminLogins.shift();
-  if (failedAdminLogins.length >= 10) return 'Слишком много попыток. Попробуй через минуту.';
-  const login = typeof credentials?.login === 'string' ? credentials.login : '';
-  const password = typeof credentials?.password === 'string' ? credentials.password : '';
-  const loginMatches = crypto.timingSafeEqual(adminDigest(login), adminDigest(adminLogin));
-  const passwordMatches = crypto.timingSafeEqual(adminDigest(password), adminDigest(adminPassword));
-  if (loginMatches && passwordMatches) return null;
-  failedAdminLogins.push(now);
-  return 'Неверный логин или пароль.';
-}
-
 const channel = id => 'cinema:' + id;
 const array = value => Array.isArray(value) ? value.filter(isRecord) : [];
-
-const blockedFiles = new Set();
-function readFile(file, fallback, valid) {
-  try {
-    const value = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!valid(value)) throw new Error('invalid format');
-    return value;
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      try {
-        fs.copyFileSync(file, file + '.backup-' + Date.now(), fs.constants.COPYFILE_EXCL);
-      } catch {
-        blockedFiles.add(file);
-      }
-      console.warn('Unable to read ' + path.basename(file) + ': ' + error.message);
-    }
-    return fallback;
-  }
-}
-
-let history = array(readFile(historyFile, [], Array.isArray));
 
 function currentTime(room) {
   const elapsed = room.playing ? Math.max(0, Date.now() - room.updated) / 1000 : 0;
@@ -83,23 +45,13 @@ function currentTime(room) {
 
 function makeRoom(id, hostToken, hostName) {
   return {
-    id, hostToken, hostName, guestToken: null, invite: null, identityKey: uid(),
-    rotateHost: false, rotateGuest: false, users: new Map(),
+    id, hostToken, hostName, guestToken: null, identityKey: uid(), users: new Map(),
+    history: [], watchEpoch: 0, watchId: null, watchLast: 0,
     media: null, mediaId: null, title: '', historyRecorded: false,
     time: 0, playing: false, updated: Date.now(), lastCheckpoint: 0, syncVersion: 0,
     messages: [], badges: Object.create(null), letters: [], poll: null,
     roulette: null
   };
-}
-
-function legacyGuest(saved) {
-  const candidates = new Set([
-    ...array(saved.messages).filter(m => !m.isHost).map(m => m.author),
-    ...array(saved.letters).map(letter => letter.to),
-    ...Object.keys(saved.badges || {}),
-    ...Object.keys(saved.poll?.votes || {})
-  ].filter(token => isToken(token) && token !== saved.hostToken));
-  return candidates.size === 1 ? [...candidates][0] : null;
 }
 
 function restorePoll(poll) {
@@ -127,111 +79,88 @@ function restoreRoulette(saved) {
   return {id: saved.id, cards: [winner], winnerIndex: 0, startedAt: 0, duration: spinDuration};
 }
 
-const savedRooms = readFile(dataFile, {}, isRecord);
-for (const [id, saved] of Object.entries(savedRooms)) {
-  if (!isRoom(id) || !isRecord(saved) || !isToken(saved.hostToken)) continue;
-  const room = makeRoom(id, saved.hostToken, clean(saved.hostName, 24) || 'Создатель');
-  const legacy = saved.authVersion !== 2;
-  room.guestToken = legacy ? legacyGuest(saved) : isToken(saved.guestToken) ? saved.guestToken : null;
-  room.invite = isToken(saved.invite) ? saved.invite : null;
-  room.identityKey = isToken(saved.identityKey) ? saved.identityKey : room.identityKey;
-  room.rotateHost = legacy || saved.rotateHost === true;
-  room.rotateGuest = !!room.guestToken && (legacy || saved.rotateGuest === true);
-  room.media = isRecord(saved.media) ? saved.media : null;
-  room.mediaId = room.media ? isToken(saved.mediaId) ? saved.mediaId : uid() : null;
-  room.title = clean(saved.title, 120);
-  room.historyRecorded = saved.historyRecorded === true || (legacy && !!room.media
-    && history.some(item => item.room === id && item.url === room.media.url));
-  room.time = Number.isFinite(saved.time) ? Math.max(0, Math.min(saved.time, 43200)) : 0;
-  room.messages = array(saved.messages).slice(-250);
-  for (const [key, badge] of Object.entries(saved.badges || {})) {
-    if (isToken(key) && badges.has(badge)) room.badges[key] = badge;
+function hydrateRoom(record, nickname) {
+  const {id}=record;
+  if(rooms.has(id)) return rooms.get(id);
+  const saved=isRecord(record.state)?record.state:{};
+  const hostToken=isToken(saved.hostToken)?saved.hostToken:record.owner_id.replaceAll('-','');
+  const room=makeRoom(id,hostToken,clean(nickname||saved.hostName,40)||'Создатель');
+  room.ownerId=record.owner_id;
+  room.guestId=record.guest_id;
+  room.guestToken=record.guest_id?.replaceAll('-','') || null;
+  room.identityKey=isToken(saved.identityKey)?saved.identityKey:room.identityKey;
+  room.media=isRecord(saved.media)?saved.media:null;
+  room.mediaId=room.media?(isToken(saved.mediaId)?saved.mediaId:uid()):null;
+  room.title=clean(saved.title,120);
+  room.watchPoster=localPoster(saved.watchPoster);
+  room.historyRecorded=!!saved.historyRecorded;
+  room.time=Number.isFinite(saved.time)?Math.max(0,Math.min(saved.time,43200)):0;
+  room.messages=array(saved.messages).slice(-250);
+  for(const [key,badge] of Object.entries(saved.badges||{})){
+    if(isToken(key)&&badges.has(badge)) room.badges[key]=badge;
   }
-  room.letters = array(saved.letters).slice(-200);
-  room.poll = restorePoll(saved.poll);
-  room.roulette = restoreRoulette(saved.roulette);
-  rooms.set(id, room);
+  room.letters=array(saved.letters).slice(-200);
+  room.poll=restorePoll(saved.poll);
+  room.roulette=restoreRoulette(saved.roulette);
+  room.history=array(record.history).slice(-100);
+  rooms.set(id,room);
+  return room;
 }
 
-function savedRoomState() {
-  return Object.fromEntries([...rooms].map(([id, room]) => [id, {
-    authVersion: 2, hostToken: room.hostToken, guestToken: room.guestToken, hostName: room.hostName,
-    invite: room.invite, identityKey: room.identityKey, rotateHost: room.rotateHost, rotateGuest: room.rotateGuest,
-    media: room.media, mediaId: room.mediaId, title: room.title, historyRecorded: room.historyRecorded,
-    time: currentTime(room), messages: room.messages, badges: room.badges,
-    letters: room.letters, poll: room.poll,
-    roulette: room.roulette?.startedAt != null ? room.roulette : null
-  }]));
+function snapshotRoom(room) {
+  return {
+    authVersion:2,hostToken:room.hostToken,guestToken:room.guestToken,hostName:room.hostName,
+    identityKey:room.identityKey,media:room.media,mediaId:room.mediaId,title:room.title,
+    watchPoster:room.watchPoster,historyRecorded:room.historyRecorded,time:currentTime(room),
+    messages:room.messages,badges:room.badges,letters:room.letters,poll:room.poll,
+    roulette:room.roulette?.startedAt!=null?room.roulette:null
+  };
 }
 
+const dirtyRooms=new Set();
 let saveTimer;
-let writeQueue = Promise.resolve(true);
-const pendingFiles = new Set();
-
+let writeQueue=Promise.resolve(true);
 function flushSaves() {
   clearTimeout(saveTimer);
-  saveTimer = null;
-  if (!pendingFiles.size) return writeQueue;
-  const files = [...pendingFiles];
-  pendingFiles.clear();
-  writeQueue = writeQueue.then(async () => {
-    let saved = true;
-    for (const file of files) {
-      if (blockedFiles.has(file)) {
-        saved = false;
-        continue;
-      }
-      const tmp = file + '.' + uid() + '.tmp';
-      try {
-        const snapshot = file === dataFile ? savedRoomState() : history;
-        await fs.promises.writeFile(tmp, JSON.stringify(snapshot), {mode: 0o600, flag: 'wx'});
-        await fs.promises.rename(tmp, file);
-      } catch (error) {
-        saved = false;
-        await fs.promises.unlink(tmp).catch(() => {});
-        console.warn('Unable to save ' + path.basename(file) + ': ' + error.message);
-        pendingFiles.add(file);
+  saveTimer=null;
+  if(!dirtyRooms.size) return writeQueue;
+  const roomsToWrite=[...dirtyRooms];
+  dirtyRooms.clear();
+  writeQueue=writeQueue.then(async ()=>{
+    let ok=true;
+    for(const room of roomsToWrite){
+      try { await saveRoom(room.id,snapshotRoom(room),room.history); }
+      catch(error){
+        ok=false;
+        dirtyRooms.add(room);
+        console.warn('Unable to save room:',error.code||error.name);
       }
     }
-    if (pendingFiles.size && !saveTimer && !shuttingDown) {
-      saveTimer = setTimeout(flushSaves, 2000);
+    if(dirtyRooms.size&&!saveTimer&&!shuttingDown) {
+      saveTimer=setTimeout(flushSaves,2000);
       saveTimer.unref();
     }
-    return saved;
+    return ok;
   });
   return writeQueue;
 }
-
-function saveSoon(file = dataFile) {
-  pendingFiles.add(file);
-  if (!saveTimer) {
-    saveTimer = setTimeout(flushSaves, 400);
+function saveSoon(room) {
+  dirtyRooms.add(room);
+  if(!saveTimer){
+    saveTimer=setTimeout(flushSaves,400);
     saveTimer.unref();
   }
 }
-
-function replaceToken(room, oldToken, newToken) {
-  for (const message of room.messages) {
-    if (message.author === oldToken) message.author = newToken;
-    for (const [emoji, tokens] of Object.entries(message.reactions || {})) {
-      if (Array.isArray(tokens)) message.reactions[emoji] = tokens.map(token => token === oldToken ? newToken : token);
-    }
-  }
-  for (const letter of room.letters) {
-    if (letter.to === oldToken) letter.to = newToken;
-  }
-  if (Object.hasOwn(room.badges, oldToken)) {
-    room.badges[newToken] = room.badges[oldToken];
-    delete room.badges[oldToken];
-  }
-  if (room.poll && Object.hasOwn(room.poll.votes, oldToken)) {
-    room.poll.votes[newToken] = room.poll.votes[oldToken];
-    delete room.poll.votes[oldToken];
-  }
+function localPoster(value) {
+  return typeof value==='string'&&/^posters\/[a-z0-9-]+\.webp$/i.test(value)?value:null;
 }
 
-const member = socket => rooms.get(socket.data.room)?.users.get(socket.id);
 const roomFor = socket => rooms.get(socket.data.room);
+function member(socket) {
+  const room=roomFor(socket);
+  const user=room?.users.get(socket.id);
+  return user && user.accountId===(user.isHost?room.ownerId:room.guestId)?user:null;
+}
 
 function publicId(room, token) {
   return crypto.createHmac('sha256', room.identityKey).update(typeof token === 'string' ? token : '').digest('hex');
@@ -259,7 +188,7 @@ function userList(room) {
   const participants = new Map();
   for (const user of room.users.values()) {
     participants.set(user.token, {
-      id: publicId(room, user.token), name: user.name, isHost: user.isHost,
+      id: publicId(room, user.token), name: user.name, accountId:user.accountId, isHost: user.isHost,
       badge: user.isHost ? '👑' : room.badges[user.token] || '🎀'
     });
   }
@@ -313,21 +242,15 @@ function sendInbox(room, token) {
 }
 
 function roomHistory(room) {
-  return history.filter(item => item.room === room.id).slice(-100).reverse().map(({room, ...item}) => item);
+  return room.history.slice(-100).reverse().map(({room, ...item})=>item);
 }
-
 function recordPlayback(room) {
-  if (room.historyRecorded) return;
-  const entry = {room: room.id, id: room.mediaId, title: room.title, url: room.media.url, at: new Date().toISOString()};
-  history = [...history, entry];
-  const own = history.filter(item => item.room === room.id);
-  if (own.length > 100) {
-    const keep = new Set(own.slice(-100));
-    history = history.filter(item => item.room !== room.id || keep.has(item));
-  }
-  room.historyRecorded = true;
-  saveSoon(historyFile);
-  io.to(channel(room.id)).emit('cinema-history', {room: room.id, items: roomHistory(room)});
+  if(room.historyRecorded) return;
+  room.history.push({room:room.id,id:room.mediaId,title:room.title,url:room.media.url,at:new Date().toISOString()});
+  room.history=room.history.slice(-100);
+  room.historyRecorded=true;
+  saveSoon(room);
+  io.to(channel(room.id)).emit('cinema-history',{room:room.id,items:roomHistory(room)});
 }
 
 function defaultTitle(media) {
@@ -369,34 +292,52 @@ function makeCards(items) {
 }
 
 function leave(socket) {
-  const room = roomFor(socket);
-  if (!room) return;
+  tracker.forget(socket);
+  const room=roomFor(socket);
+  if(!room) return;
   room.users.delete(socket.id);
-  socket.data.room = null;
+  socket.data.room=null;
   socket.leave(channel(room.id));
-  if (!room.users.size && room.playing) {
-    room.time = currentTime(room);
-    room.playing = false;
-    room.updated = Date.now();
+  if(!room.users.size){
+    if(room.playing) room.time=currentTime(room);
+    room.playing=false;
+    room.updated=Date.now();
     room.syncVersion++;
-    saveSoon();
+    tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
+    saveSoon(room);
   }
   broadcast(room);
 }
 
-let shuttingDown = false;
-const recentCreations = [];
-
-io.use((_, next) => {
-  if (shuttingDown || io.sockets.sockets.size >= maxConnections) {
-    return next(new Error('Сервер занят. Попробуй чуть позже.'));
-  }
-  next();
+let shuttingDown=false;
+io.use(async (socket,next)=>{
+  try{
+    if(shuttingDown || io.sockets.sockets.size>=maxConnections) return next(new Error('Сервер занят.'));
+    if(!sameOrigin(socket.request,false)) return next(new Error('Стороннее подключение.'));
+    const auth=await authFor(socket.request);
+    if(!auth) return next(new Error('Войди в аккаунт.'));
+    socket.data.auth=auth;
+    socket.data.checkedAt=Date.now();
+    next();
+  }catch { next(new Error('Сервис временно недоступен.')); }
 });
 
 io.on('connection', socket => {
   const rate = new Map();
   let joining = false;
+  let checking;
+  socket.join('user:'+socket.data.auth.id);
+  socket.join('session:'+socket.data.auth.session_id);
+  let expiry;
+  function scheduleExpiry() {
+    const remaining=new Date(socket.data.auth.expires_at).getTime()-Date.now();
+    if(remaining<=0) socket.disconnect(true);
+    else {
+      expiry=setTimeout(scheduleExpiry,Math.min(remaining,2147483647));
+      expiry.unref();
+    }
+  }
+  scheduleExpiry();
 
   function on(event, perSecond, handle) {
     socket.on(event, async (...args) => {
@@ -416,119 +357,66 @@ io.on('connection', socket => {
       if (shuttingDown) return fail('Сервер перезапускается');
       if (++bucket.count > perSecond) return fail('Слишком много действий. Попробуй чуть позже.');
       try {
-        await handle(args[0], reply, fail);
+        const auth=socket.data.auth;
+        if (now>=new Date(auth.expires_at).getTime()) return socket.disconnect(true);
+        if (now-socket.data.checkedAt>=30000) {
+          checking ||= sessionActive(auth).finally(()=>{checking=null});
+          if (!await checking) return socket.disconnect(true);
+          socket.data.checkedAt=now;
+        }
+        if (socket.connected) await handle(args[0], reply, fail);
       } catch (error) {
-        console.warn('Cinema event ' + event + ': ' + error.message);
-        fail('Сервер не смог выполнить действие. Попробуй ещё раз.');
+        if(error instanceof HttpError) return fail(error.message);
+        console.warn('Cinema event '+event+':',error.code||error.name);
+        fail('Сервис временно недоступен. Попробуй ещё раз.');
       }
     });
   }
 
   on('join', 5, async (payload, reply, fail) => {
     if (joining) return fail('Вход уже выполняется');
-    const admin = payload?.admin != null;
-    if (admin) {
-      const error = authenticateAdmin(payload.admin);
-      if (error) return fail(error);
-    }
-    const id = admin ? adminRoom : payload?.room;
-    const name = clean(payload?.name, 24);
-    const token = isToken(payload?.token) ? payload.token : null;
-    const next = isToken(payload?.nextToken) ? payload.nextToken : null;
-    if (!isRoom(id) || !name || !next) return fail('Укажи имя и корректный код или ссылку');
-    joining = true;
+    const auth=socket.data.auth;
+    if (payload?.room && !isRoom(payload.room)) return fail('Ссылка на комнату некорректна');
+    joining=true;
     try {
-      let room = rooms.get(id);
-      let changed = false;
-      if (!room) {
-        if (!admin && (id === adminRoom || payload.create !== true || !isToken(id))) return fail('Комната не найдена. Проверь ссылку у создателя.');
-        if (rooms.size >= maxRooms) return fail('Сервер пока не может создать новую комнату');
-        const now = Date.now();
-        while (recentCreations.length && recentCreations[0] < now - 60000) recentCreations.shift();
-        if (recentCreations.length >= 20) return fail('Сейчас создаётся слишком много комнат. Попробуй чуть позже.');
-        recentCreations.push(now);
-        room = makeRoom(id, admin ? adminToken : next, name);
-        rooms.set(id, room);
-        changed = true;
+      const record=payload?.room?await getRoomRecord(payload.room):await ownRoom(auth);
+      if(!record) return fail('Комната не найдена. Попроси создателя прислать ссылку.');
+      if(rooms.size>=maxRooms && !rooms.has(record.id)) {
+        const free=[...rooms.values()].find(r=>!r.users.size&&!dirtyRooms.has(r));
+        if(free) rooms.delete(free.id);
+        else return fail('Сервер пока не может открыть ещё одну комнату.');
       }
-      const isHost = admin || token === room.hostToken || next === room.hostToken;
-      let own = isHost ? room.hostToken : room.guestToken;
-      const knownGuest = !!own && (token === own || next === own);
-      if (isHost || knownGuest) {
-        const needsRotation = isHost ? room.rotateHost : room.rotateGuest;
-        if (needsRotation) {
-          if (next === own || next === (isHost ? room.guestToken : room.hostToken)) {
-            return fail('Обнови страницу и войди ещё раз');
-          }
-          replaceToken(room, own, next);
-          if (isHost) {
-            room.hostToken = next;
-            room.rotateHost = false;
-          } else {
-            room.guestToken = next;
-            room.rotateGuest = false;
-          }
-          own = next;
-          changed = true;
-        }
-      } else {
-        if (payload.create === true || !room.invite || payload.invite !== room.invite) {
-          return fail('Нужна свежая ссылка от создателя комнаты.');
-        }
-        if ([...room.users.values()].some(user => !user.isHost)) {
-          return fail('В комнате уже есть второй участник');
-        }
-        if (room.guestToken) {
-          delete room.badges[room.guestToken];
-          if (room.poll && !room.poll.finished) delete room.poll.votes[room.guestToken];
-        }
-        room.guestToken = next;
-        room.rotateGuest = false;
-        room.invite = null;
-        own = next;
-        changed = true;
+      const room=hydrateRoom(record,record.owner_id===auth.id?auth.nickname:null);
+      const access=await admitGuest(record.id,auth.id,payload?.invite,
+        ()=>[...room.users.values()].some(user=>!user.isHost && user.accountId!==auth.id));
+      if(!socket.connected) return;
+      const isHost=access.owner_id===auth.id;
+      room.guestId=access.guest_id;
+      room.guestToken=access.guest_id?.replaceAll('-','')||null;
+      for(const guest of room.users.values()) {
+        if(!guest.isHost && guest.accountId!==room.guestId) leave(guest.socket);
       }
-      if ([...room.users.values()].filter(user => user.token === own && user.socket !== socket).length >= 3) {
-        return fail('Закрой лишние вкладки этой комнаты');
-      }
-      if (isHost && room.hostName !== name) {
-        room.hostName = name;
-        changed = true;
-      }
-      let durable = true;
-      if (changed) {
-        saveSoon();
-        durable = await flushSaves();
-      }
-      if (socket.connected === false) return;
-      if (own !== (isHost ? room.hostToken : room.guestToken)) return fail('Ссылка изменилась. Войди снова.');
-      if ([...room.users.values()].filter(user => user.token === own && user.socket !== socket).length >= 3) {
-        return fail('Закрой лишние вкладки этой комнаты');
-      }
-      if (socket.data.room !== id) leave(socket);
-      socket.data.room = id;
-      socket.join(channel(id));
-      room.users.set(socket.id, {socket, name, token: own, isHost});
-      reply({
-        ok: true, id: publicId(room, own), token: own, isHost, durable,
-        state: {...sharedState(room, true), poll: publicPoll(room.poll, own)},
-        inbox: inbox(room, own), history: roomHistory(room)
-      });
+      if(isHost) room.hostName=auth.nickname;
+      const token=isHost?room.hostToken:room.guestToken;
+      if(socket.data.room!==room.id) leave(socket);
+      socket.data.room=room.id;
+      socket.join(channel(room.id));
+      room.users.set(socket.id,{socket,name:auth.nickname,token,isHost,accountId:auth.id});
+      reply({ok:true,id:publicId(room,token),isHost,
+        state:{...sharedState(room,true),poll:publicPoll(room.poll,token)},inbox:inbox(room,token),history:roomHistory(room)});
       broadcast(room);
-    } finally {
-      joining = false;
-    }
+    } finally { joining=false; }
   });
 
   on('invite', 4, async (_, reply, fail) => {
-    const room = roomFor(socket);
-    if (!member(socket)?.isHost) return fail('Пригласить может создатель комнаты');
-    const invite = uid();
-    room.invite = invite;
-    saveSoon();
-    await flushSaves();
-    if (room.invite !== invite) return fail('Приглашение уже обновилось');
-    reply({ok: true, invite});
+    const room=roomFor(socket);
+    if(!room || !member(socket)?.isHost) return fail('Пригласить может создатель комнаты');
+    reply({ok:true,...await newInvite(socket.data.auth)});
+  });
+
+  on('watch-heartbeat', 4, async payload=>{
+    const room=roomFor(socket);
+    if(member(socket)) await tracker.report(socket,room,payload);
   });
 
   on('media', 4, (payload, reply, fail) => {
@@ -536,7 +424,9 @@ io.on('connection', socket => {
     if (!member(socket)?.isHost) return fail('Менять фильм может только создатель');
     const media = parseMedia(payload?.url);
     if (!media) return fail('Поддерживаются YouTube, VK Видео и прямые HTTPS-ссылки MP4/WebM');
+    tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
     room.media = media;
+    room.watchPoster=localPoster(payload?.poster);
     room.mediaId = uid();
     room.title = clean(payload?.title, 120) || defaultTitle(media);
     room.historyRecorded = false;
@@ -545,7 +435,7 @@ io.on('connection', socket => {
     room.updated = Date.now();
     room.syncVersion++;
     broadcast(room);
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -557,6 +447,8 @@ io.on('connection', socket => {
         || typeof payload.playing !== 'boolean') return;
     const seek = payload.seek === true;
     const changed = room.playing !== payload.playing;
+    if (changed || seek) tracker.invalidate(room);
+    if (payload.ended===true && !payload.playing) tracker.finish(room,true).catch(error=>console.warn('Watch close:',error.code||error.name));
     room.time = time;
     room.playing = payload.playing;
     room.updated = Date.now();
@@ -564,11 +456,11 @@ io.on('connection', socket => {
     socket.to(channel(room.id)).emit('sync', playbackState(room, seek));
     if (room.playing && !room.historyRecorded) {
       recordPlayback(room);
-      saveSoon();
+      saveSoon(room);
     }
     if (changed || seek || Date.now() - room.lastCheckpoint > 15000) {
       room.lastCheckpoint = Date.now();
-      saveSoon();
+      saveSoon(room);
     }
   });
 
@@ -576,14 +468,14 @@ io.on('connection', socket => {
     if (member(socket)) socket.emit('sync', playbackState(roomFor(socket)));
   });
 
-  on('chat', 8, (payload, reply, fail) => {
+  on('chat', 8, async (payload, reply, fail) => {
     const room = roomFor(socket);
     const user = member(socket);
     if (!user || payload?.room !== room.id) return fail('Сначала войди в комнату');
     const text = clean(payload.text, 1000);
     if (!text || !isToken(payload.id)) return fail('Сообщение не отправлено');
     const prior = room.messages.find(message => message.author === user.token && message.clientId === payload.id);
-    if (prior) return reply({ok: true});
+    if (prior) return await flushSaves()?reply({ok:true}):fail('Чат не сохранился. Повтори отправку.');
     const message = {
       id: uid(), clientId: payload.id, name: user.name, author: user.token,
       isHost: user.isHost, badge: user.isHost ? '👑' : room.badges[user.token] || '🎀',
@@ -591,9 +483,11 @@ io.on('connection', socket => {
     };
     room.messages.push(message);
     if (room.messages.length > 250) room.messages.shift();
+    saveSoon(room);
+    const stored=await flushSaves();
     io.to(channel(room.id)).emit('chat', {room: room.id, ...publicMessage(room, message)});
-    saveSoon();
-    reply({ok: true});
+    if(stored) reply({ok:true});
+    else fail('Чат не сохранился. Повтори отправку.');
   });
 
   on('set-badge', 6, (badge, reply, fail) => {
@@ -605,7 +499,7 @@ io.on('connection', socket => {
       if (message.author === user.token) message.badge = badge;
     }
     broadcast(room, true);
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -626,7 +520,7 @@ io.on('connection', socket => {
     io.to(channel(room.id)).emit('reaction-update', {
       room: room.id, id: message.id, reactions: publicReactions(room, updated)
     });
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -640,7 +534,7 @@ io.on('connection', socket => {
     room.letters.push({id: uid(), to, name: user.name, text, read: false, at: Date.now()});
     if (room.letters.length > 200) room.letters.shift();
     sendInbox(room, to);
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -653,7 +547,7 @@ io.on('connection', socket => {
     if (!letter.read) {
       letter.read = true;
       sendInbox(room, user.token);
-      saveSoon();
+      saveSoon(room);
     }
     reply({ok: true, name: letter.name, text: letter.text});
   });
@@ -666,7 +560,7 @@ io.on('connection', socket => {
     if (options.length < 2) return fail('Нужно хотя бы два разных фильма');
     room.poll = {id: uid(), options, votes: Object.create(null), finished: false};
     broadcast(room);
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -681,17 +575,18 @@ io.on('connection', socket => {
     }
     poll.votes[user.token] = index;
     broadcast(room);
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
   on('poll-finish', 4, (payload, reply, fail) => {
-    const poll = roomFor(socket)?.poll;
+    const room=roomFor(socket);
+    const poll = room?.poll;
     if (!member(socket)?.isHost) return fail('Завершить может только создатель');
     if (!poll || poll.id !== payload?.id) return fail('Голосование уже изменилось');
     poll.finished = true;
     broadcast(roomFor(socket));
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
@@ -709,11 +604,14 @@ io.on('connection', socket => {
     if (!items.length) return fail('В списке нет фильмов для рулетки');
     room.roulette = {id: uid(), cards: makeCards(items), winnerIndex, startedAt: Date.now(), duration: spinDuration};
     io.to(channel(room.id)).emit('roulette', {room: room.id, spin: room.roulette});
-    saveSoon();
+    saveSoon(room);
     reply({ok: true});
   });
 
-  socket.on('disconnect', () => leave(socket));
+  socket.on('disconnect', () => {
+    clearTimeout(expiry);
+    leave(socket);
+  });
 });
 
 app.use((_, res, next) => {
@@ -721,12 +619,33 @@ app.use((_, res, next) => {
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
-app.get('/health', (_, res) => res.json({ok: true}));
+app.use('/api',(req,res,next)=>{
+  res.set('Cache-Control','no-store');
+  if(!['GET','HEAD','OPTIONS'].includes(req.method)&&!sameOrigin(req)) {
+    return res.status(403).json({error:'Открой сайт и повтори действие.'});
+  }
+  next();
+});
+app.use('/api',express.json({limit:'24kb'}));
+mountAuth(app,session=>io.in('session:'+session).disconnectSockets(true));
+mountProfiles(app,io);
+mountMessages(app,io);
+mountAvatars(app);
+app.use(apiErrors);
+app.get('/health',(_,res)=>res.json({ok:true}));
+app.get('/ready',async (_,res)=>{
+  try { await query('SELECT 1'); res.json({ok:true}); }
+  catch { res.status(503).json({ok:false}); }
+});
+app.get(['/profile','/profile/:id','/friends','/messages','/messages/:id'],(_,res)=>{
+  res.set('Cache-Control','no-cache');
+  res.sendFile(path.join(projectDir,'social.html'));
+});
 app.get(['/', '/index.html'], (_, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(projectDir, 'index.html'));
 });
-for (const asset of ['app.js', 'cinema-ui.js', 'player.css']) {
+for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js']) {
   app.get('/' + asset, (_, res) => {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(projectDir, asset));
@@ -746,9 +665,12 @@ http.listen(port, '0.0.0.0', () => console.log('REMEDIUM CINEMA COSMOS listening
 async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
-  saveSoon();
+  for(const room of rooms.values()) {
+    await tracker.finish(room).catch(()=>{});
+    dirtyRooms.add(room);
+  }
   await flushSaves();
-  io.close(() => process.exit(0));
+  io.close(async ()=>{ await closeDatabase(); process.exit(0); });
 }
 process.once('SIGTERM', shutdown);
 process.once('SIGINT', shutdown);

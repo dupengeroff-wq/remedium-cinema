@@ -1,8 +1,8 @@
 const $=id=>document.getElementById(id);
-const socket=io();
+const socket=io({autoConnect:false});
 const video=$('video');
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
-let joinAttempt = null, session = null, inviting = false, retryTarget = null;
+let inviting = false;
 let serverOffset = 0;
 let media = null, mediaId = null, syncVersion = -1;
 let ytPlayer = null, vkPlayer = null, generation = 0;
@@ -15,7 +15,6 @@ const playerScripts = new Map();
 let badge = '🎀', pickerMessage = null;
 const BADGES = ['🎀', '🐈', '🦊', '💖', '🐒'];
 const REACTIONS = ['🔥', '🥹', '😍', '🤤', '❤️'];
-const tokenKey = id => 'rc-token-' + id;
 const params = new URLSearchParams(location.search);
 const sessionStorageFallback = new Map();
 
@@ -35,23 +34,11 @@ function storageSet(key, value) {
   }
 }
 
-function storageRemove(key) {
-  try {
-    localStorage.removeItem(key);
-    sessionStorageFallback.delete(key);
-  } catch {
-    sessionStorageFallback.set(key, null);
-  }
-}
-
-const validKey = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
 function randomKey() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-$('room').value = params.get('room') || storageGet('rc-room') || '';
-$('name').value = storageGet('rc-name') || '';
 video.muted = false;
 video.volume = 1;
 function toast(text) {
@@ -137,7 +124,7 @@ function playerReady(g) {
   if (!isHost && inRoom && socket.connected) socket.emit('request-sync');
 }
 
-function playbackEvent(playing, g) {
+function playbackEvent(playing, g, ended=false) {
   if (g !== generation || !mediaReady) return;
   pendingAction = null;
   playingState = playing;
@@ -145,167 +132,85 @@ function playbackEvent(playing, g) {
     setSoundPrompt(false);
     playerStatus();
   }
-  emitPlayback(getTime(), playing);
+  emitPlayback(getTime(), playing, false, ended);
+  if (!playing) reportWatch(false);
   updateTimeline();
 }
 
-function selectedRoom() {
-  const value = $('room').value.trim();
-  if (!value) return {id: randomKey(), invite: '', create: true};
-  if (/^https?:\/\//i.test(value)) {
-    try {
-      const url = new URL(value);
-      if (url.origin !== location.origin) return null;
-      return {id: url.searchParams.get('room'), invite: url.searchParams.get('invite') || '', create: false};
-    } catch {
-      return null;
-    }
-  }
-  return {id: value, invite: params.get('room') === value ? params.get('invite') || '' : '', create: false};
-}
+let viewer=null;
+let roomTarget={room:params.get('room')||undefined,invite:params.get('invite')||undefined};
+let joinFlight=0;
 
-function renderJoinButton() {
-  const pending = !!joinAttempt;
-  const connecting = pending && !socket.connected;
-  $('join').disabled = pending;
-  $('adminJoin').disabled = pending;
-  $('name').disabled = pending;
-  $('room').disabled = pending;
-  $('join').textContent = connecting ? 'Подключаемся…' : pending ? 'Входим…' : 'Начать путешествие →';
-}
-
-function finishJoin(attempt, error) {
-  if (joinAttempt !== attempt) return;
-  clearTimeout(attempt.timer);
-  joinAttempt = null;
-  renderJoinButton();
-  updateHost();
-  if (error) {
-    $('entry').classList.remove('hidden');
-    toast(error);
-  }
-}
-
-function beginJoin(target, name, automatic = false) {
-  if (joinAttempt) return;
-  const key = tokenKey(target.id);
-  const pendingKey = key + '-pending';
-  let token = storageGet(key) || '';
-  const savedPending = storageGet(pendingKey) || '';
-  const nextToken = validKey(savedPending) && savedPending !== token ? savedPending : randomKey();
-  if (!validKey(token)) token = '';
-  storageSet(pendingKey, nextToken);
-  const attempt = {target, name, token, nextToken, pendingKey, automatic, sends: 0, flight: 0};
-  joinAttempt = attempt;
-  attempt.timer = setTimeout(() => finishJoin(attempt, 'Связь с комнатой не установилась. Попробуй снова.'), 24000);
-  renderJoinButton();
-  sendJoin();
-}
-
-function sendJoin() {
-  const attempt = joinAttempt;
-  if (!attempt || attempt.flight || !socket.connected) return;
-  const sentAt = Date.now();
-  const flight = ++attempt.sends;
-  attempt.flight = flight;
-  socket.timeout(7000).emit('join', {
-    room: attempt.target.id,
-    admin: attempt.target.admin,
-    name: attempt.name,
-    create: attempt.target.create,
-    invite: attempt.target.invite,
-    token: attempt.token,
-    nextToken: attempt.nextToken
-  }, (error, response) => {
-    if (joinAttempt !== attempt || attempt.flight !== flight) return;
-    attempt.flight = 0;
-    if (error) {
-      if (!socket.connected) {
-        renderJoinButton();
-        return;
-      }
-      if (attempt.sends < 2) {
-        setTimeout(sendJoin, 350);
-        return;
-      }
-      finishJoin(attempt, 'Сервер не подтвердил вход. Попробуй снова.');
+function enterRoom() {
+  if(!viewer || !socket.connected || inRoom || joinFlight) return;
+  const flight=Date.now()||1;
+  joinFlight=flight;
+  const sent=Date.now();
+  $('entryStatus').textContent='Открываем кинозал…';
+  socket.timeout(12000).emit('join',roomTarget,(error,response)=>{
+    if(joinFlight!==flight) return;
+    joinFlight=0;
+    if(error || !response?.ok){
+      $('entry').classList.remove('hidden');
+      const status=$('entryStatus');
+      status.textContent=response?.error||'Связь с комнатой не установилась.';
+      status.append(document.createTextNode(' '),
+        RC.button(roomTarget.room?'Открыть мой кинозал':'Повторить',()=>{
+          roomTarget={};
+          enterRoom();
+        }));
       return;
     }
-    if (!response?.ok || (attempt.target.admin ? !response.isHost || !validKey(response.state?.room) : response.state?.room !== attempt.target.id)) {
-      finishJoin(attempt, response?.error || 'Не удалось войти в комнату');
-      return;
+    const id=response.state?.room;
+    if(typeof id!=='string') return;
+    if(room!==id) resetRoomView();
+    room=id;
+    selfPublicId=response.id;
+    isHost=!!response.isHost;
+    inRoom=true;
+    roomTarget=isHost?{}:{room:id};
+    if(Number.isFinite(response.state.serverTime)){
+      serverOffset=response.state.serverTime-(sent+Date.now())/2;
     }
-    const id = response.state.room;
-    const changed = room !== id;
-    const nextRoom = {id, invite: '', create: false};
-    if (changed) resetRoomView();
-    room = id;
-    selfPublicId = response.id;
-    isHost = !!response.isHost;
-    inRoom = true;
-    session = {target: nextRoom, name: attempt.name};
-    retryTarget = null;
-    if (Number.isFinite(response.state.serverTime)) {
-      serverOffset = response.state.serverTime - (sentAt + Date.now()) / 2;
-    }
-    if (response.durable !== false) {
-      storageSet(tokenKey(id), response.token);
-      storageRemove(attempt.pendingKey);
-    }
-    storageSet('rc-room', id);
-    storageSet('rc-name', attempt.name);
-    $('room').value = id;
-    history.replaceState(null, '', location.pathname + '?room=' + encodeURIComponent(id));
+    history.replaceState(null,'',location.pathname+(isHost?'':'?room='+encodeURIComponent(id)));
     $('entry').classList.add('hidden');
-    $('roomInfo').textContent = 'КОМНАТА · ' + id;
-    $('screenRoom').textContent = '✦ ROOM ' + id.slice(0, 6).toUpperCase();
-    $('status').textContent = '● Подключено';
-    sharedCinemaHistory = response.history || [];
-    wishMessages = response.inbox || [];
+    $('roomInfo').textContent='КОМНАТА · '+id;
+    $('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();
+    $('status').textContent='● Подключено';
+    sharedCinemaHistory=response.history||[];
+    wishMessages=response.inbox||[];
     renderCinemaHistory();
     renderWishInbox();
-    applyRoomState(response.state, true);
-    finishJoin(attempt);
-    if (response.durable === false) toast('Комната открыта. Сервер пока не смог сохранить доступ.');
-    else if (!attempt.automatic) toast('Добро пожаловать в наш космос ♡');
+    applyRoomState(response.state,true);
   });
 }
 
-function join() {
-  const name = $('name').value.trim().slice(0, 24);
-  if (!name) return toast('Напиши своё имя');
-  const value = $('room').value.trim();
-  const target = retryTarget?.value === value ? retryTarget.target : selectedRoom();
-  if (!target || !/^[a-zA-Z0-9_-]{3,80}$/.test(target.id || '')) {
-    return toast('Укажи код комнаты или вставь ссылку приглашения');
-  }
-  retryTarget = {value, target};
-  beginJoin(target, name);
-}
-
-$('adminJoin').onclick = () => {
-  const login = $('adminLogin').value.trim();
-  const password = $('adminPassword').value;
-  if (!login || !password) return toast('Введи логин и пароль создателя');
-  const name = $('name').value.trim().slice(0, 24) || 'Создатель';
-  $('adminPassword').value = '';
-  beginJoin({id: '', invite: '', create: false, admin: {login, password}}, name);
-};
-$('adminPassword').addEventListener('keydown', event => {
-  if (event.key === 'Enter' && !joinAttempt) $('adminJoin').onclick();
-});
-
-$('join').onclick = join;
-for (const id of ['name', 'room']) {
-  $(id).addEventListener('keydown', event => {
-    if (event.key === 'Enter') join();
-  });
-}
-$('editName').onclick = () => {
+function showAccountForm() {
+  viewer=null;
   $('entry').classList.remove('hidden');
-  $('name').focus();
-  $('name').select();
-};
+  $('accountLinks').classList.add('hidden');
+  $('entryStatus').textContent='';
+  RC.mount($('accountEntry'),openAccount);
+}
+function openAccount(user) {
+  viewer=user;
+  $('accountEntry').replaceChildren();
+  $('accountLinks').classList.remove('hidden');
+  $('entryStatus').textContent='Подключаемся…';
+  if(socket.connected) enterRoom();
+  else socket.connect();
+}
+async function initAccount() {
+  try {
+    const {user}=await RC.api('/api/auth/me');
+    if(user) openAccount(user);
+    else showAccountForm();
+  } catch (error) {
+    $('entryStatus').textContent=error.message;
+    $('entryStatus').append(RC.button('Повторить',initAccount));
+  }
+}
+$('editName').onclick=()=>{location.href='/profile?edit=1'};
 
 async function request(event, data) {
   if (!inRoom || !socket.connected) return {ok: false, error: 'Соединение с комнатой восстанавливается'};
@@ -371,7 +276,8 @@ function updateHost() {
 $('load').onclick = async () => {
   const url = $('url').value.trim();
   if (!url) return toast('Вставь ссылку на видео');
-  const response = await request('media', {url, title: $('movieTitle').value.trim()});
+  const title=$('movieTitle').value.trim();
+  const response=await request('media',{url,title,poster:LOCAL_POSTERS[title.toLocaleLowerCase('ru')]});
   if (!response.ok) toast(response.error || 'Не удалось загрузить видео');
 };
 
@@ -414,7 +320,7 @@ function showMedia(m){
         playerVars:{playsinline:1,controls:1,disablekb:0,fs:1,rel:0,origin:location.origin},
         events:{
           onReady:()=>playerReady(g),
-          onStateChange:e=>{if(e.data===1)playbackEvent(true,g);else if(e.data===0||e.data===2)playbackEvent(false,g)},
+          onStateChange:e=>{if(e.data===1)playbackEvent(true,g);else if(e.data===0||e.data===2)playbackEvent(false,g,e.data===0)},
           onAutoplayBlocked:()=>{if(g===generation)setSoundPrompt(true)},
           onError:e=>{
             if(g!==generation)return;
@@ -450,7 +356,7 @@ function showMedia(m){
       for(const event of ['started','resumed'])vkPlayer.on(event,data=>{
         observe(data);if(!mediaReady)playerReady(g);playbackEvent(true,g);
       });
-      for(const event of ['paused','ended'])vkPlayer.on(event,data=>{observe(data);playbackEvent(false,g)});
+      for(const event of ['paused','ended'])vkPlayer.on(event,data=>{observe(data);playbackEvent(false,g,event==='ended')});
       vkPlayer.on('volumechange',data=>{
         if(g!==generation||typeof data?.muted!=='boolean')return;
         muted=data.muted;refreshSoundButton();
@@ -510,9 +416,9 @@ function getPlaying(){
   }catch{}
   return playingState;
 }
-function emitPlayback(time, playing, seek = false) {
+function emitPlayback(time, playing, seek = false, ended = false) {
   if (!inRoom || !socket.connected || !isHost || !mediaId) return;
-  socket.emit('sync', {mediaId, time: finiteTime(time), playing, seek});
+  socket.emit('sync', {mediaId, time: finiteTime(time), playing, seek, ended});
   lastSync = Date.now();
 }
 
@@ -633,9 +539,10 @@ $('back').onclick=()=>seekTo(getTime()-10);
 $('forward').onclick=()=>seekTo(getTime()+10);
 $('progress').onchange=e=>seekTo(Number(e.target.value));
 for(const event of ['playing','pause','ended'])video.addEventListener(event,()=>{
-  if(media?.type==='video'&&mediaReady)playbackEvent(!video.paused&&!video.ended,generation);
+  if(media?.type==='video'&&mediaReady)playbackEvent(!video.paused&&!video.ended,generation,event==='ended');
 });
 video.addEventListener('seeked',()=>sendSync(true));
+for(const event of ['seeking','waiting','stalled'])video.addEventListener(event,()=>reportWatch(false));
 $('sound').onclick=()=>{
   if(!mediaReady)return;
   muted=!muted;applyVolume();
@@ -752,31 +659,44 @@ socket.on('room-state', state => applyRoomState(state));
 socket.on('sync', snapshot => {
   if (!isHost) applySync(snapshot);
 });
-socket.on('connect', () => {
-  $('status').textContent = '● Подключено';
-  if (joinAttempt) {
-    renderJoinButton();
-    sendJoin();
-  } else if (session && !inRoom) {
-    beginJoin(session.target, session.name, true);
-  } else if (!inRoom) {
-    $('entry').classList.remove('hidden');
-  }
-});
-socket.on('disconnect', () => {
-  inRoom = false;
-  if (joinAttempt) joinAttempt.flight = 0;
-  $('status').textContent = '● Переподключение…';
-  renderJoinButton();
+socket.on('connect',()=>enterRoom());
+socket.on('disconnect',reason=>{
+  inRoom=false;
+  joinFlight=0;
+  $('status').textContent='● Переподключение…';
   updateHost();
   renderCinemaPoll();
+  if(reason==='io server disconnect' && viewer) initAccount();
 });
-socket.on('connect_error', () => {
-  $('status').textContent = '● Ожидаем соединения…';
-  renderJoinButton();
+socket.on('connect_error',async ()=>{
+  $('entryStatus').textContent='Связь с сервером пока недоступна.';
+  if(viewer) {
+    try { if(!(await RC.api('/api/auth/me')).user) { socket.disconnect(); showAccountForm(); } } catch {}
+  }
 });
+
+let lastWatchReport;
+function reportWatch(check=true) {
+  if(!inRoom || !socket.connected || !mediaId) { lastWatchReport=null; return; }
+  let position=null;
+  if(check && !document.hidden && mediaReady && !pendingAction &&
+     (!pendingSeek || Date.now()>=pendingSeek.until)){
+    try {
+      if(media.type==='video' && !video.paused && !video.ended && !video.seeking && video.readyState>=3 && video.playbackRate===1) position=video.currentTime;
+      if(media.type==='youtube' && ytPlayer.getPlayerState()===1 && ytPlayer.getPlaybackRate()===1) position=ytPlayer.getCurrentTime();
+      if(media.type==='vk' && vkPlayer.getState()==='playing') position=vkPlayer.getCurrentTime();
+    } catch {}
+  }
+  const playing=Number.isFinite(position);
+  if(playing || lastWatchReport?.playing || lastWatchReport?.mediaId!==mediaId) {
+    socket.emit('watch-heartbeat',{mediaId,playing,position});
+  }
+  lastWatchReport={mediaId,playing};
+}
+setInterval(reportWatch,2500);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden || !inRoom || !socket.connected) return;
+  if(document.hidden) { reportWatch(false); return; }
+  if (!inRoom || !socket.connected) return;
   if (isHost) sendSync();
   else socket.emit('request-sync');
 });
@@ -1326,3 +1246,5 @@ socket.on('roulette', payload => {
 renderWishInbox();
 renderCinemaHistory();
 renderCinemaPoll();
+
+initAccount();
