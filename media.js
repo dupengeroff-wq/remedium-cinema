@@ -1,8 +1,9 @@
 // Parse supported video links without dropping VK embed access hashes.
 export function parseMedia(input){
+  if(typeof input!=='string'||input.length>4000)return null;
   let url;
-  try{url=new URL(String(input??'').trim().slice(0,4000))}catch{return null}
-  if(!['https:','http:'].includes(url.protocol))return null;
+  try{url=new URL(input.trim())}catch{return null}
+  if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return null;
   const host=url.hostname.toLowerCase().replace(/^www\./,'');
   if(['youtu.be','youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)){
     let id=host==='youtu.be'?url.pathname.split('/')[1]:url.searchParams.get('v');
@@ -24,6 +25,6 @@ export function parseMedia(input){
     if(hash)embed.searchParams.set('hash',hash);
     return {type:'vk',embed:embed.href,url:url.href};
   }
-  if(/\.(mp4|webm|ogg)$/i.test(url.pathname))return {type:'video',url:url.href};
+  if(url.protocol==='https:'&&/\.(mp4|webm|ogg)$/i.test(url.pathname))return {type:'video',url:url.href};
   return null;
 }

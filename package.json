@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check media.js && node --check app.js && node --check cinema-ui.js",
-    "test": "node --test tests/media.test.js"
+    "test": "npm run check"
   },
   "engines": {
     "node": ">=18"
