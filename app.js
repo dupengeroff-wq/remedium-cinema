@@ -1,13 +1,14 @@
 const $=id=>document.getElementById(id);
 const socket=io({autoConnect:false});
 const video=$('video');
+const cinemaMenu=$('cinemaMenu');
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
 let inviting = false;
 let serverOffset = 0;
 let media = null, mediaId = null, syncVersion = -1;
 let ytPlayer = null, vkPlayer = null, generation = 0;
 let lastSync = 0, clock = 0, playingState = false, knownDuration = 0;
-let muted = false, hostName = '', messages = [];
+let muted = false, messages = [];
 let mediaReady = false, mediaTimer = null, playbackTimer = null;
 let pendingSync = null, pendingAction = null, pendingSeek = null;
 let chatAttempt = null, sendingChat = false;
@@ -176,7 +177,8 @@ function enterRoom() {
     $('entry').classList.add('hidden');
     $('roomInfo').textContent='КОМНАТА · '+id;
     $('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();
-    $('status').textContent='● Подключено';
+    $('status').textContent='Подключено';
+    $('status').classList.add('is-online');
     sharedCinemaHistory=response.history||[];
     wishMessages=response.inbox||[];
     renderCinemaHistory();
@@ -188,14 +190,15 @@ function enterRoom() {
 function showAccountForm() {
   viewer=null;
   $('entry').classList.remove('hidden');
-  $('accountLinks').classList.add('hidden');
+  cinemaMenu.open=false;
+  cinemaMenu.classList.add('hidden');
   $('entryStatus').textContent='';
   RC.mount($('accountEntry'),openAccount);
 }
 function openAccount(user) {
   viewer=user;
   $('accountEntry').replaceChildren();
-  $('accountLinks').classList.remove('hidden');
+  cinemaMenu.classList.remove('hidden');
   $('entryStatus').textContent='Подключаемся…';
   if(socket.connected) enterRoom();
   else socket.connect();
@@ -210,7 +213,6 @@ async function initAccount() {
     $('entryStatus').append(RC.button('Повторить',initAccount));
   }
 }
-$('editName').onclick=()=>{location.href='/profile?edit=1'};
 
 async function request(event, data) {
   if (!inRoom || !socket.connected) return {ok: false, error: 'Соединение с комнатой восстанавливается'};
@@ -262,8 +264,9 @@ function updateHost() {
   for (const id of ['play', 'back', 'forward', 'progress']) {
     $(id).disabled = !canControl || !media || !mediaReady;
   }
-  $('role').textContent = isHost ? '👑 ВЫ СОЗДАТЕЛЬ' : '✦ ВЫ ГОСТЬ';
-  $('hostBadge').textContent = '♛ ' + (hostName || 'Создатель') + (isHost ? ' · вы' : '');
+  $('role').hidden = !inRoom || !viewer;
+  $('roleName').textContent = viewer ? 'Вы: ' + viewer.nickname : '';
+  $('roleCrown').hidden = !isHost;
   $('sound').disabled = !mediaReady;
   $('message').disabled = !inRoom;
   $('send').disabled = !inRoom || sendingChat;
@@ -629,7 +632,6 @@ function applyRoomState(state, joinedNow = false) {
   const users = state.users || [];
   const me = users.find(user => user.id === selfPublicId);
   isHost = !!me?.isHost;
-  hostName = state.hostName || 'Создатель';
   badge = me?.badge || '🎀';
   $('online').textContent = users.length + ' онлайн';
   $('twinStars').classList.toggle('connected', users.length >= 2);
@@ -663,7 +665,8 @@ socket.on('connect',()=>enterRoom());
 socket.on('disconnect',reason=>{
   inRoom=false;
   joinFlight=0;
-  $('status').textContent='● Переподключение…';
+  $('status').textContent='Переподключение…';
+  $('status').classList.remove('is-online');
   updateHost();
   renderCinemaPoll();
   if(reason==='io server disconnect' && viewer) initAccount();
@@ -1021,6 +1024,7 @@ function resetRoulette() {
   track.style.filter = '';
   track.replaceChildren(safeText('span', '✦ Готовы выбрать фильм?'));
   $('rouletteResult').textContent = '';
+  $('cinemaMenuUpdate').hidden = true;
   renderRouletteButton();
 }
 
@@ -1052,27 +1056,36 @@ function finishRoulette(spin) {
   renderRouletteButton();
 }
 
+function animateRoulette(spin) {
+  if (!$('rouletteStage').clientWidth || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const elapsed = Math.max(0, serverNow() - spin.startedAt);
+  if (elapsed >= spin.duration) return;
+  const track = $('rouletteTrack');
+  const position = winnerPosition(spin);
+  const target = 'translateX(' + -position + 'px)';
+  spin.animation?.cancel();
+  if (typeof track.animate === 'function') {
+    spin.animation = track.animate([{transform: 'translateX(0)'}, {transform: target}], {
+      duration: spin.duration, easing: spinEase, fill: 'both'
+    });
+    spin.animation.currentTime = elapsed;
+  } else {
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(' + (-position * elapsed / spin.duration) + 'px)';
+    track.offsetWidth;
+    track.style.transition = 'transform ' + (spin.duration - elapsed) + 'ms ' + spinEase;
+    track.style.transform = target;
+  }
+}
+
 function scheduleRoulette(spin) {
   if (activeRoulette !== spin || !spin.ready || spin.startedAt === null || spin.scheduled) return;
   spin.scheduled = true;
   spin.startTimer = setTimeout(() => {
     if (activeRoulette !== spin) return;
-    const track = $('rouletteTrack');
-    const target = 'translateX(' + -winnerPosition(spin) + 'px)';
-    $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      if (typeof track.animate === 'function') {
-        spin.animation = track.animate([{transform: 'translateX(0)'}, {transform: target}], {
-          duration: spin.duration, easing: spinEase, fill: 'both'
-        });
-      } else {
-        track.offsetWidth;
-        track.style.transition = 'transform ' + (spin.duration) + 'ms ' + spinEase;
-        track.style.transform = target;
-      }
-    }
-    spin.finishTimer = setTimeout(() => finishRoulette(spin), spin.duration);
-  }, 0);
+    animateRoulette(spin);
+    spin.finishTimer = setTimeout(() => finishRoulette(spin), Math.max(0, spin.startedAt + spin.duration - serverNow()));
+  }, Math.max(0, spin.startedAt - serverNow()));
 }
 
 function posterSource(poster) {
@@ -1215,15 +1228,25 @@ function renderRoulette(data) {
   if (!finished) {
     $('roulettePanel').open = true;
     $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
+    if (!cinemaMenu.open) $('cinemaMenuUpdate').hidden = false;
   }
   renderRouletteButton();
   if (!isHost && !finished) buildBlurredRoulette(spin, data.cards.length);
   else buildRouletteCards(spin, finished ? [winner] : data.cards, finished);
 }
 
-$('roulettePanel').addEventListener('toggle', () => {
-  if (activeRoulette?.finished && $('roulettePanel').open) finishRoulette(activeRoulette);
+function refreshRouletteView() {
+  if (!cinemaMenu.open || !$('roulettePanel').open || !activeRoulette) return;
+  if (activeRoulette.finished) finishRoulette(activeRoulette);
+  else if (activeRoulette.scheduled && activeRoulette.startedAt <= serverNow()) animateRoulette(activeRoulette);
+}
+
+cinemaMenu.addEventListener('toggle', () => {
+  if (!cinemaMenu.open) return;
+  $('cinemaMenuUpdate').hidden = true;
+  refreshRouletteView();
 });
+$('roulettePanel').addEventListener('toggle', refreshRouletteView);
 
 $('rouletteSpin').onclick = async () => {
   if (!inRoom) return toast('Сначала войди в комнату');

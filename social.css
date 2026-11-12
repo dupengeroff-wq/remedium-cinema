@@ -9,8 +9,45 @@
 .form-status{font-size:13px;line-height:1.5;color:#ccc;margin:0}
 .form-status:empty,#entryStatus:empty{display:none}
 .recovery-list{background:#151515;border:1px solid #ffffff22;border-radius:10px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
-.cinema-links{display:flex;flex-wrap:wrap;justify-content:end;gap:5px}
-.cinema-links .btn{text-decoration:none;padding:6px 9px;min-height:32px;display:inline-flex;align-items:center}
+.cinema-header .brand{
+  display:flex;align-items:baseline;gap:.45em;width:100%;
+  font-size:clamp(14px,4vw,20px);white-space:nowrap
+}
+.room-identity:not([hidden]){
+  display:inline-flex;align-items:baseline;justify-content:flex-end;gap:6px;
+  max-width:62%;min-width:0;text-align:right;overflow-wrap:anywhere
+}
+#roleCrown{font-size:1.3em;color:#f3f3f3}
+.connection-state{display:inline-flex;align-items:center;gap:7px;color:#aaa}
+.connection-state::before{
+  content:"";flex:none;width:.55em;height:.55em;border-radius:50%;background:currentColor
+}
+.connection-state.is-online{color:#a2edb6}
+.connection-state.is-online::before{background:#57e584;box-shadow:0 0 9px #57e584a6}
+.profile-details .connection-state{font-size:13px}
+.cinema-menu{
+  margin-top:14px;min-width:0;background:#111111ba;
+  border:1px solid #ffffff34;border-radius:16px;color:#f4f4f4
+}
+.cinema-menu > summary{
+  display:flex;align-items:center;gap:9px;min-height:48px;
+  padding:10px 15px;list-style:none;cursor:pointer;font-size:14px;font-weight:680;
+  border-radius:15px;
+  touch-action:manipulation
+}
+.cinema-menu > summary::-webkit-details-marker{display:none}
+.cinema-menu > summary:hover{background:#ffffff09}
+.cinema-menu[open] > summary{border-radius:15px 15px 0 0;border-bottom:1px solid #ffffff20}
+.cinema-menu :is(summary,a,button):focus-visible{outline:2px solid #eee;outline-offset:2px}
+.cinema-menu .menu-chevron{margin-inline-start:auto;font-size:18px;line-height:1}
+.cinema-menu[open] .menu-chevron{transform:rotate(180deg)}
+#cinemaMenuUpdate:not([hidden]){width:6px;height:6px;border-radius:50%;background:#eee}
+.cinema-menu-panel{min-width:0;padding:12px}
+.cinema-menu-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.cinema-menu-nav .btn{display:grid;place-items:center;min-height:44px;text-align:center;text-decoration:none}
+.cinema-menu .cosmos-features{margin-top:10px;gap:9px}
+.cinema-menu .watchlist{margin-top:9px}
+.cinema-menu .feature-actions .btn{min-width:0;min-height:44px}
 body.social-page{
   margin:0;min-height:100dvh;background:#070707;color:#f4f4f4;font:16px/1.5 system-ui,-apple-system,sans-serif;
   background-image:radial-gradient(ellipse at 52% 0%,#242424 0%,transparent 55%),radial-gradient(circle at 18% 18%,#9d9d9d 1px,transparent 2px),radial-gradient(circle at 71% 63%,#7e7e7e 1px,transparent 2px);
@@ -22,6 +59,7 @@ body.social-page{
 .social-brand{text-decoration:none;font-size:14px;font-weight:800;letter-spacing:.12em}
 .social-top nav{display:flex;flex-wrap:wrap;gap:12px;font-size:14px}
 .social-top nav a{text-decoration:none;color:#ddd}
+.social-top nav a.social-back{display:inline-flex;align-items:center;min-height:44px;padding-inline:8px}
 .social-main{max-width:1080px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));min-width:0}
 .social-panel,.social-dialog{background:#101010ee;border:1px solid #ffffff29;border-radius:18px;padding:clamp(14px,3vw,24px);box-shadow:0 12px 45px #0007;min-width:0}
 .social-panel + .social-panel{margin-top:14px}
@@ -83,13 +121,12 @@ body.social-page{
 .direct-compose{display:flex;align-items:flex-end;gap:8px;margin-top:8px;padding-bottom:env(safe-area-inset-bottom)}
 .direct-compose textarea{resize:none;min-height:44px;max-height:120px}
 .direct-compose .btn{flex:0 0 auto}
-.mobile-back{display:none!important}
+.avatar-tools:not([hidden]){display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 @media(max-width:700px){
   .social-main{padding-top:12px}
   .dialogs-layout{display:block}
   .dialogs-layout.open .dialog-list{display:none}
   .dialogs-layout:not(.open) .direct-room{display:none}
-  .mobile-back{display:inline-flex!important}
   .direct-room{height:calc(var(--chat-viewport,100dvh) - 96px)}
   .person-row{flex-wrap:wrap}
   .person-row .row-actions{width:100%}

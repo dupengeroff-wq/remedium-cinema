@@ -11,6 +11,21 @@
   let friendRefresh;
   let profileId;
 
+  const navigation=document.getElementById('socialNav');
+  if(segment[0]==='messages'){
+    const previous=document.referrer?new URL(document.referrer):null;
+    const previousPage=previous?.pathname;
+    const canReturn=previous?.origin===location.origin && (
+      previousPage==='/' || previousPage==='/index.html' ||
+      /^\/(profile|friends)(\/|$)/.test(previousPage) ||
+      (segment[1] && previousPage==='/messages')
+    );
+    const back=canReturn?previousPage+previous.search:(segment[1]?'/messages':'/');
+    navigation.append(link('← Назад',back,'social-back'));
+  }else{
+    navigation.append(link('Кинозал','/',''),link('Сообщения','/messages',''));
+  }
+
   const empty=text=>el('p',text,'social-note');
   function panel(title,cls='') {
     const node=el('section',null,('social-panel '+cls).trim());
@@ -139,7 +154,16 @@
     const info=el('div',null,'profile-details');
     info.append(el('h1',person.nickname),el('p','@'+person.login+(person.role==='creator'?' · Создатель':''),'muted'));
     if(person.registeredAt) info.append(el('p','В кинотеатре с '+date(person.registeredAt),'muted'));
-    if(Object.hasOwn(person,'online')) info.append(el('p',person.online?'● В сети':'Не в сети','muted'));
+    if(Object.hasOwn(person,'online')){
+      const connected=person.online || (data.self && socket?.connected);
+      const presence=el('p',connected?'В сети':'Не в сети','connection-state');
+      presence.classList.toggle('is-online',Boolean(connected));
+      if(data.self && !connected) socket?.once('connect',()=>{
+        presence.textContent='В сети';
+        presence.classList.add('is-online');
+      });
+      info.append(presence);
+    }
     if(person.bio) info.append(el('p',person.bio));
     hero.append(avatar(person,true),info);
     header.append(hero);
@@ -208,6 +232,72 @@
     };
     return node;
   }
+
+  async function avatarImage(file) {
+    if(file.size>25*1024*1024) throw new Error('Выбери фото размером до 25 МБ.');
+    if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)){
+      throw new Error('Выбери фото в формате JPEG, PNG, WebP или HEIC.');
+    }
+    const url=URL.createObjectURL(file);
+    try{
+      const image=new Image();
+      image.src=url;
+      try { await image.decode(); }
+      catch { throw new Error('Не удалось открыть фото. Попробуй сохранить его как JPEG и выбери снова.'); }
+      const side=Math.min(image.naturalWidth,image.naturalHeight);
+      const canvas=el('canvas');
+      canvas.width=canvas.height=512;
+      const context=canvas.getContext('2d');
+      if(!side || !context) throw new Error('Не удалось подготовить фото.');
+      context.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,0,0,512,512);
+      const result=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.9));
+      if(!result) throw new Error('Не удалось подготовить фото.');
+      return result;
+    }finally{
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function avatarSettings(data,redraw) {
+    const box=el('div',null,'settings-section');
+    const controls=el('div',null,'avatar-tools');
+    controls.hidden=true;
+    const photo=el('input',null,'field');
+    photo.type='file';
+    photo.accept='image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+    photo.setAttribute('aria-label','Фото профиля');
+    const status=el('p','Проверяем подключение хранилища…','form-status');
+    status.setAttribute('role','status');
+    const upload=button('Загрузить фото',async ()=>{
+      const file=photo.files[0];
+      if(!file) return;
+      photo.disabled=upload.disabled=true;
+      status.textContent='Загружаем фото…';
+      try{
+        const body=await avatarImage(file);
+        await api('/api/profile/avatar',{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body});
+        await redraw();
+      }catch(error){
+        status.textContent=error.message;
+      }finally{
+        photo.disabled=upload.disabled=false;
+      }
+    },true);
+    upload.disabled=true;
+    photo.onchange=()=>{
+      upload.disabled=!photo.files.length;
+      status.textContent='';
+    };
+    controls.append(photo,upload);
+    if(data.person.avatar) controls.append(action('Удалить фото',()=>api('/api/profile/avatar',{method:'DELETE'}),redraw));
+    box.append(el('h3','Фото профиля'),controls,status);
+    api('/api/profile/avatar').then(({configured})=>{
+      controls.hidden=!configured;
+      status.textContent=configured?'':'Для загрузки фото нужно подключить хранилище в настройках сайта.';
+    }).catch(error=>{status.textContent=error.message});
+    return box;
+  }
+
   function settings(data) {
     const root=el('div');
     const redraw=async()=>{modal.close();await renderProfile()};
@@ -215,19 +305,7 @@
       field('Ник','nickname',{required:true,maxLength:40,value:data.person.nickname}).group,
       field('Описание','bio',{multiline:true,maxLength:240,value:data.person.bio}).group
     ],body=>api('/api/profile',{method:'PATCH',body}),redraw));
-    const photo=el('input',null,'field');
-    photo.type='file';
-    photo.accept='image/jpeg,image/png,image/webp';
-    photo.setAttribute('aria-label','Фото профиля');
-    const photoBox=el('div',null,'settings-section');
-    photoBox.append(el('h3','Фото профиля'),photo,action('Загрузить фото',async ()=>{
-      const image=photo.files[0];
-      if(!image) throw new Error('Выбери фото.');
-      if(image.size>5*1024*1024) throw new Error('Максимальный размер фото — 5 МБ.');
-      return api('/api/profile/avatar',{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body:image});
-    },redraw));
-    if(data.person.avatar)photoBox.append(action('Удалить фото',()=>api('/api/profile/avatar',{method:'DELETE'}),redraw));
-    root.append(photoBox);
+    root.append(avatarSettings(data,redraw));
     const toggles={watchTime:'Время просмотра',films:'Количество фильмов',sessions:'Количество сеансов',
       shared:'Совместная статистика',registration:'Дата регистрации',history:'История просмотров',
       friends:'Список друзей',presence:'Статус присутствия',hideStats:'Скрыть всю статистику'};
@@ -416,7 +494,7 @@
       if(initial){
         const title=el('div',null,'grow');
         title.append(profileLink(data.person),el('div','@'+data.person.login,'muted'));
-        head.append(link('←','/messages','btn mobile-back'),avatar(data.person),title,
+        head.append(avatar(data.person),title,
           action('Скрыть',()=>api('/api/dialogs/'+id,{method:'DELETE'}),()=>{location.href='/messages'}));
         initial=false;
         more=data.more;
