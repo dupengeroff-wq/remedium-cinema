@@ -168,6 +168,7 @@ function renderJoinButton() {
   const pending = !!joinAttempt;
   const connecting = pending && !socket.connected;
   $('join').disabled = pending;
+  $('adminJoin').disabled = pending;
   $('name').disabled = pending;
   $('room').disabled = pending;
   $('join').textContent = connecting ? 'Подключаемся…' : pending ? 'Входим…' : 'Начать путешествие →';
@@ -209,6 +210,7 @@ function sendJoin() {
   attempt.flight = flight;
   socket.timeout(7000).emit('join', {
     room: attempt.target.id,
+    admin: attempt.target.admin,
     name: attempt.name,
     create: attempt.target.create,
     invite: attempt.target.invite,
@@ -229,11 +231,11 @@ function sendJoin() {
       finishJoin(attempt, 'Сервер не подтвердил вход. Попробуй снова.');
       return;
     }
-    if (!response?.ok || response.state?.room !== attempt.target.id) {
+    if (!response?.ok || (attempt.target.admin ? !response.isHost || !validKey(response.state?.room) : response.state?.room !== attempt.target.id)) {
       finishJoin(attempt, response?.error || 'Не удалось войти в комнату');
       return;
     }
-    const id = attempt.target.id;
+    const id = response.state.room;
     const changed = room !== id;
     const nextRoom = {id, invite: '', create: false};
     if (changed) resetRoomView();
@@ -280,6 +282,18 @@ function join() {
   retryTarget = {value, target};
   beginJoin(target, name);
 }
+
+$('adminJoin').onclick = () => {
+  const login = $('adminLogin').value.trim();
+  const password = $('adminPassword').value;
+  if (!login || !password) return toast('Введи логин и пароль создателя');
+  const name = $('name').value.trim().slice(0, 24) || 'Создатель';
+  $('adminPassword').value = '';
+  beginJoin({id: '', invite: '', create: false, admin: {login, password}}, name);
+};
+$('adminPassword').addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !joinAttempt) $('adminJoin').onclick();
+});
 
 $('join').onclick = join;
 for (const id of ['name', 'room']) {

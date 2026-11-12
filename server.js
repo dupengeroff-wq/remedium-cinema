@@ -29,6 +29,29 @@ const clean = (value, limit) => typeof value === 'string' ? value.trim().slice(0
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isRoom = value => typeof value === 'string' && /^[\w-]{3,80}$/.test(value);
 const isToken = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
+const adminLogin = process.env.CINEMA_ADMIN_LOGIN;
+const adminPassword = process.env.CINEMA_ADMIN_PASSWORD;
+const adminSecret = process.env.CINEMA_ADMIN_SECRET;
+const adminEnabled = !!adminLogin && (adminPassword?.length ?? 0) >= 12 && (adminSecret?.length ?? 0) >= 32;
+const adminDigest = value => crypto.createHmac('sha256', adminSecret).update(value).digest();
+const adminRoom = adminEnabled ? adminDigest('admin-room').toString('hex').slice(0, 32) : null;
+const adminToken = adminEnabled ? adminDigest('admin-token').toString('hex').slice(0, 32) : null;
+const failedAdminLogins = [];
+
+function authenticateAdmin(credentials) {
+  if (!adminEnabled) return 'Вход создателя ещё не настроен на сервере.';
+  const now = Date.now();
+  while (failedAdminLogins.length && failedAdminLogins[0] <= now - 60000) failedAdminLogins.shift();
+  if (failedAdminLogins.length >= 10) return 'Слишком много попыток. Попробуй через минуту.';
+  const login = typeof credentials?.login === 'string' ? credentials.login : '';
+  const password = typeof credentials?.password === 'string' ? credentials.password : '';
+  const loginMatches = crypto.timingSafeEqual(adminDigest(login), adminDigest(adminLogin));
+  const passwordMatches = crypto.timingSafeEqual(adminDigest(password), adminDigest(adminPassword));
+  if (loginMatches && passwordMatches) return null;
+  failedAdminLogins.push(now);
+  return 'Неверный логин или пароль.';
+}
+
 const channel = id => 'cinema:' + id;
 const array = value => Array.isArray(value) ? value.filter(isRecord) : [];
 
@@ -403,7 +426,12 @@ io.on('connection', socket => {
 
   on('join', 5, async (payload, reply, fail) => {
     if (joining) return fail('Вход уже выполняется');
-    const id = payload?.room;
+    const admin = payload?.admin != null;
+    if (admin) {
+      const error = authenticateAdmin(payload.admin);
+      if (error) return fail(error);
+    }
+    const id = admin ? adminRoom : payload?.room;
     const name = clean(payload?.name, 24);
     const token = isToken(payload?.token) ? payload.token : null;
     const next = isToken(payload?.nextToken) ? payload.nextToken : null;
@@ -413,17 +441,17 @@ io.on('connection', socket => {
       let room = rooms.get(id);
       let changed = false;
       if (!room) {
-        if (payload.create !== true || !isToken(id)) return fail('Комната не найдена. Проверь ссылку у создателя.');
+        if (!admin && (id === adminRoom || payload.create !== true || !isToken(id))) return fail('Комната не найдена. Проверь ссылку у создателя.');
         if (rooms.size >= maxRooms) return fail('Сервер пока не может создать новую комнату');
         const now = Date.now();
         while (recentCreations.length && recentCreations[0] < now - 60000) recentCreations.shift();
         if (recentCreations.length >= 20) return fail('Сейчас создаётся слишком много комнат. Попробуй чуть позже.');
         recentCreations.push(now);
-        room = makeRoom(id, next, name);
+        room = makeRoom(id, admin ? adminToken : next, name);
         rooms.set(id, room);
         changed = true;
       }
-      let isHost = token === room.hostToken || next === room.hostToken;
+      const isHost = admin || token === room.hostToken || next === room.hostToken;
       let own = isHost ? room.hostToken : room.guestToken;
       const knownGuest = !!own && (token === own || next === own);
       if (isHost || knownGuest) {
