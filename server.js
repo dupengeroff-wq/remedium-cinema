@@ -21,8 +21,6 @@ const rooms = new Map();
 const maxRooms = 500;
 const maxConnections = 200;
 const spinDuration = 5000;
-const spinLead = 900;
-const posterWait = 5500;
 const winnerIndex = 24;
 const badges = new Set(['🎀', '🐈', '🦊', '💖', '🐒']);
 const reactions = new Set(['🔥', '🥹', '😍', '🤤', '❤️']);
@@ -67,7 +65,7 @@ function makeRoom(id, hostToken, hostName) {
     media: null, mediaId: null, title: '', historyRecorded: false,
     time: 0, playing: false, updated: Date.now(), lastCheckpoint: 0, syncVersion: 0,
     messages: [], badges: Object.create(null), letters: [], poll: null,
-    roulette: null, preparation: null
+    roulette: null
   };
 }
 
@@ -347,31 +345,12 @@ function makeCards(items) {
   return cards;
 }
 
-function startRoulette(room) {
-  if (!room.preparation) return;
-  clearTimeout(room.preparation.timer);
-  room.preparation = null;
-  room.roulette.startedAt = Date.now() + spinLead;
-  io.to(channel(room.id)).emit('roulette', {room: room.id, spin: room.roulette});
-  saveSoon();
-}
-
 function leave(socket) {
   const room = roomFor(socket);
   if (!room) return;
   room.users.delete(socket.id);
   socket.data.room = null;
   socket.leave(channel(room.id));
-  if (room.preparation) {
-    room.preparation.pending.delete(socket.id);
-    if (!room.users.size) {
-      clearTimeout(room.preparation.timer);
-      room.preparation = null;
-      room.roulette = null;
-    } else if (!room.preparation.pending.size) {
-      startRoulette(room);
-    }
-  }
   if (!room.users.size && room.playing) {
     room.time = currentTime(room);
     room.playing = false;
@@ -691,8 +670,8 @@ io.on('connection', socket => {
   on('roulette-spin', 3, (entries, reply, fail) => {
     const room = roomFor(socket);
     if (!member(socket) || !Array.isArray(entries)) return fail('Сначала войди в комнату');
-    if (room.preparation || (room.roulette?.startedAt != null
-        && Date.now() < room.roulette.startedAt + room.roulette.duration)) {
+    if (room.roulette?.startedAt != null
+        && Date.now() < room.roulette.startedAt + room.roulette.duration) {
       return fail('Рулетка уже крутится');
     }
     const items = entries.slice(0, 180)
@@ -700,18 +679,10 @@ io.on('connection', socket => {
       .map(item => ({name: clean(item.name, 120), poster: posterUrl(item.poster)}))
       .filter(item => item.name);
     if (!items.length) return fail('В списке нет фильмов для рулетки');
-    room.roulette = {id: uid(), cards: makeCards(items), winnerIndex, startedAt: null, duration: spinDuration};
-    room.preparation = {pending: new Set(room.users.keys()), timer: setTimeout(() => startRoulette(room), posterWait)};
-    room.preparation.timer.unref();
+    room.roulette = {id: uid(), cards: makeCards(items), winnerIndex, startedAt: Date.now(), duration: spinDuration};
     io.to(channel(room.id)).emit('roulette', {room: room.id, spin: room.roulette});
+    saveSoon();
     reply({ok: true});
-  });
-
-  on('roulette-ready', 6, payload => {
-    const room = roomFor(socket);
-    if (!member(socket) || !room.preparation || room.roulette.id !== payload?.id) return;
-    room.preparation.pending.delete(socket.id);
-    if (!room.preparation.pending.size) startRoulette(room);
   });
 
   socket.on('disconnect', () => leave(socket));

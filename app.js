@@ -1103,7 +1103,7 @@ function finishRoulette(spin) {
   track.style.transition = 'none';
   track.style.transform = 'translateX(' + -winnerPosition(spin) + 'px)';
   spin.animation?.cancel();
-  $('rouletteResult').textContent = '✦ Выпал фильм: ' + spin.winner.name;
+  $('rouletteResult').textContent = '✦ Выпал фильм: ' + spin.winner.name + (spin.coversUnavailable ? ' · обложки не загрузились' : '');
   renderRouletteButton();
 }
 
@@ -1112,8 +1112,6 @@ function scheduleRoulette(spin) {
   spin.scheduled = true;
   spin.startTimer = setTimeout(() => {
     if (activeRoulette !== spin) return;
-    const elapsed = Math.max(0, serverNow() - spin.startedAt);
-    if (elapsed >= spin.duration) return finishRoulette(spin);
     const track = $('rouletteTrack');
     const target = 'translateX(' + -winnerPosition(spin) + 'px)';
     $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
@@ -1122,15 +1120,14 @@ function scheduleRoulette(spin) {
         spin.animation = track.animate([{transform: 'translateX(0)'}, {transform: target}], {
           duration: spin.duration, easing: spinEase, fill: 'both'
         });
-        spin.animation.currentTime = elapsed;
       } else {
         track.offsetWidth;
-        track.style.transition = 'transform ' + (spin.duration - elapsed) + 'ms ' + spinEase;
+        track.style.transition = 'transform ' + (spin.duration) + 'ms ' + spinEase;
         track.style.transform = target;
       }
     }
-    spin.finishTimer = setTimeout(() => finishRoulette(spin), spin.duration - elapsed);
-  }, Math.max(0, spin.startedAt - serverNow()));
+    spin.finishTimer = setTimeout(() => finishRoulette(spin), spin.duration);
+  }, 0);
 }
 
 function posterSource(poster) {
@@ -1186,38 +1183,36 @@ function buildRouletteCards(spin, cards, finished) {
   }
 
   function ready() {
-    if (activeRoulette !== spin || spin.ready) return;
+    if (activeRoulette !== spin || spin.ready || spin.finished) return;
     clearTimeout(spin.loadTimer);
-    for (const image of pending) image.remove();
-    pending.clear();
     spin.ready = true;
-    if (spin.startedAt === null) {
-      if (inRoom && socket.connected) socket.emit('roulette-ready', {id: spin.id});
-    } else {
-      scheduleRoulette(spin);
-    }
+    scheduleRoulette(spin);
   }
 
-  function settled(image, loaded) {
-    if (!pending.delete(image)) return;
-    if (!loaded) image.remove();
-    if (!pending.size) ready();
+  function unavailable() {
+    if (activeRoulette !== spin || spin.ready || spin.finished) return;
+    clearTimeout(spin.loadTimer);
+    spin.coversUnavailable = true;
+    spin.cardIndex = 0;
+    buildRouletteCards(spin, [spin.winner], true);
   }
 
   if (!images.length) return ready();
-  spin.loadTimer = setTimeout(ready, 5000);
+  if (!isHost) spin.loadTimer = setTimeout(unavailable, 20000);
   for (const {image, source} of images) {
-    image.onerror = () => settled(image, false);
-    image.onload = async () => {
-      try {
-        if (typeof image.decode === 'function') await image.decode();
-        settled(image, true);
-      } catch {
-        settled(image, false);
-      }
+    image.onerror = () => {
+      image.remove();
+      if (!isHost) unavailable();
     };
+    if (!isHost) {
+      image.onload = () => {
+        pending.delete(image);
+        if (!pending.size) ready();
+      };
+    }
     image.src = source;
   }
+  if (isHost) ready();
 }
 
 function renderRoulette(data) {
@@ -1243,7 +1238,7 @@ function renderRoulette(data) {
   activeRoulette = spin;
   if (!finished) {
     $('roulettePanel').open = true;
-    $('rouletteResult').textContent = '✦ Загружаем обложки…';
+    $('rouletteResult').textContent = isHost ? '✦ Звёзды выбирают фильм…' : '✦ Загружаем обложки…';
   }
   renderRouletteButton();
   buildRouletteCards(spin, finished ? [winner] : data.cards, finished);
