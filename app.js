@@ -2,7 +2,6 @@ const $=id=>document.getElementById(id);
 const socket=io({autoConnect:false});
 const video=$('video');
 const cinemaMenu=$('cinemaMenu');
-const menuToggle=$('cinemaMenuToggle');
 CinemaNav.watchUnread(socket);
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
 let inviting = false;
@@ -45,8 +44,11 @@ function randomKey() {
 video.muted = false;
 video.volume = 1;
 function toast(text) {
-  $('toast').textContent = text;
-  $('toast').style.display = 'block';
+  const message = $('toast');
+  const container = document.querySelector('.cinema-tool[open]') || document.body;
+  if (message.parentElement !== container) container.append(message);
+  message.textContent = text;
+  message.style.display = 'block';
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => $('toast').style.display = 'none', 3200);
 }
@@ -144,36 +146,44 @@ let viewer=null;
 let roomTarget={room:params.get('room')||undefined,invite:params.get('invite')||undefined};
 let joinFlight=0;
 
-function closeCinemaPanel(panel,restoreFocus=false) {
-  if(!panel) return;
-  panel.hidden=true;
-  cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','false');
-  if(restoreFocus) menuToggle.focus();
-}
-
-function openCinemaPanel(panel,moveFocus=true) {
-  for(const other of document.querySelectorAll('.cinema-tools [data-cinema-panel]:not([hidden])')) {
-    if(other!==panel) closeCinemaPanel(other);
+function openCinemaPanel(panel) {
+  if (panel.open) return;
+  CinemaNav.setOpen(false, true);
+  if (panel.id === 'wishCompose') {
+    if (!inRoom) return toast('Сначала войди в комнату');
+    $('wishText').value = '';
+    $('wishStatus').textContent = '';
   }
-  panel.hidden=false;
+  document.querySelector('.cinema-tool[open]')?.close();
+  panel.showModal();
+  panel.querySelector('.cinema-tool-body').scrollTop = 0;
   cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','true');
-  if(panel.id==='watchlist') watchRender();
-  if(panel.id==='roulettePanel') refreshRouletteView();
-  if(moveFocus) {
-    panel.querySelector('h2').focus({preventScroll:true});
-    panel.scrollIntoView({block:'nearest'});
-  }
+  if (panel.id === 'watchlist') watchRender();
+  if (panel.id === 'roulettePanel') refreshRouletteView();
 }
 
-cinemaMenu.addEventListener('click',event=>{
-  const entry=event.target.closest('[data-open-panel]');
-  if(!entry) return;
+cinemaMenu.addEventListener('click', event => {
+  const entry = event.target.closest('[data-open-panel]');
+  if (!entry) return;
   event.preventDefault();
-  CinemaNav.setOpen(false);
   openCinemaPanel($(entry.dataset.openPanel));
 });
-for(const close of document.querySelectorAll('[data-close-panel]')) {
-  close.onclick=()=>closeCinemaPanel(close.closest('[data-cinema-panel]'),true);
+
+for (const panel of document.querySelectorAll('.cinema-tool')) {
+  for (const button of panel.querySelectorAll('[data-close-panel]')) {
+    button.onclick = () => panel.close();
+  }
+  panel.addEventListener('click', event => {
+    if (event.target !== panel) return;
+    const {left, right, top, bottom} = panel.getBoundingClientRect();
+    if (event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom) panel.close();
+  });
+  panel.addEventListener('close', () => {
+    if (panel.open) return;
+    cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','false');
+    const message = $('toast');
+    if (message.parentElement === panel) document.body.append(message);
+  });
 }
 
 function enterRoom() {
@@ -224,6 +234,7 @@ function enterRoom() {
 }
 
 function showAccountForm() {
+  document.querySelector('.cinema-tool[open]')?.close();
   viewer=null;
   $('entry').classList.remove('hidden');
   CinemaNav.show(false);
@@ -813,7 +824,7 @@ function posterEnqueue(item,holder){
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  $('watchCount').textContent='· '+watchItems.length;
- if ($('watchlist').hidden) return;
+ if (!$('watchlist').open) return;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
  const done=watchItems.filter(x=>x.status==='done').length;
  $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
@@ -853,7 +864,7 @@ function watchNormalize(items, preserveIds = true) {
  }));
 }
 function watchParseLegacy(html){const results=[];for(const [variable,category] of [['initial','main'],['moderation','moderation']]){const section=html.match(new RegExp('const\\s+'+variable+'\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*\\.map'));if(!section)continue;const regex=/\[\s*("(?:\\.|[^"\\])*"|\x27(?:\\.|[^\x27\\])*\x27)\s*,\s*["\x27](done|no|progress|none)["\x27]\s*\]/g;for(const m of section[1].matchAll(regex)){let name;try{name=m[1][0]==='"'?JSON.parse(m[1]):m[1].slice(1,-1)}catch{continue}results.push({name,status:m[2],category})}}return results}
-$('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed, false);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();openCinemaPanel($('watchlist'),false);toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
+$('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed, false);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
 $('watchExport').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,items:watchItems},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='remedium-cinema-watchlist.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)};
 watchRender();
 
@@ -877,19 +888,11 @@ function showWish(data) {
   const element = document.createElement('div');
   element.className = 'wish-visual';
   element.append(safeText('div', data.name + ' ✧ ' + data.text));
-  document.body.append(element);
+  const container = $('wishInbox').open ? $('wishInbox') : document.body;
+  container.append(element);
   setTimeout(() => element.remove(), 5100);
 }
 
-$('wishOpen').onclick = () => {
-  CinemaNav.setOpen(false,true);
-  if (!inRoom) return toast('Сначала войди в комнату');
-  const wish=$('wishText');
-  wish.value='';
-  $('wishStatus').textContent='';
-  $('wishCompose').showModal();
-  wish.focus();
-};
 $('wishForm').onsubmit=async event=>{
   event.preventDefault();
   const wish=$('wishText').value.trim();
@@ -899,24 +902,18 @@ $('wishForm').onsubmit=async event=>{
   try {
     const result=await request('wish',wish);
     if(result.ok) {
-      $('wishCompose').close();
+      if ($('wishText').value.trim() === wish) $('wishCompose').close();
       toast('Послание отправлено ✧');
     } else $('wishStatus').textContent=result.error||'Не удалось отправить послание';
   } finally { submit.disabled=false; }
 };
-$('wishCancel').onclick=()=>$('wishCompose').close();
 
 function openLinkedPanel() {
   if(!inRoom) return;
-  const target=location.hash.slice(1);
-  if(target==='send-wish') {
-    history.replaceState(null,'',location.pathname+location.search);
-    $('wishOpen').click();
-    return;
-  }
-  const panel=$(target);
-  if(panel?.hasAttribute('data-cinema-panel')) {
-    history.replaceState(null,'',location.pathname+location.search);
+  const target = location.hash.slice(1);
+  const panel = $(target === 'send-wish' ? 'wishCompose' : target);
+  if (panel?.classList.contains('cinema-tool')) {
+    history.replaceState(null, '', location.pathname + location.search);
     openCinemaPanel(panel);
   }
 }
@@ -1292,7 +1289,7 @@ function renderRoulette(data) {
   activeRoulette = spin;
   if (!finished) {
     $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
-    $('cinemaMenuUpdate').hidden = !$('roulettePanel').hidden;
+    $('cinemaMenuUpdate').hidden = $('roulettePanel').open;
   }
   renderRouletteButton();
   if (!isHost && !finished) buildBlurredRoulette(spin, data.cards.length);
@@ -1300,7 +1297,7 @@ function renderRoulette(data) {
 }
 
 function refreshRouletteView() {
-  if ($('roulettePanel').hidden || !activeRoulette) return;
+  if (!$('roulettePanel').open || !activeRoulette) return;
   $('cinemaMenuUpdate').hidden = true;
   if (activeRoulette.finished) finishRoulette(activeRoulette);
   else if (activeRoulette.scheduled && activeRoulette.startedAt <= serverNow()) animateRoulette(activeRoulette);

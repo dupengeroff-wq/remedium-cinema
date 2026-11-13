@@ -25,7 +25,6 @@
 .connection-state.is-online{color:#a2edb6}
 .connection-state.is-online::before{background:#57e584;box-shadow:0 0 9px #57e584a6}
 .profile-details .connection-state{font-size:13px}
-.cinema-page [data-cinema-panel][hidden],
 .cinema-menu[hidden],.cinema-menu-toggle[hidden],.cinema-menu-scrim[hidden]{display:none!important}
 .cinema-page .cinema-header{
   height:calc(64px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);
@@ -75,15 +74,56 @@
 .cinema-nav-count{margin-left:auto;color:#aaa;font-size:11px}
 .cinema-nav-row .unread{margin-left:auto}
 .cinema-page .layout{grid-template-columns:minmax(0,1fr)}
-.cinema-tools .cinema-tool{margin:14px 0 0;scroll-margin-block:14px}
-.cinema-tool-head{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;
-  margin-bottom:8px
+html:has(.cinema-tool[open]){overflow:hidden}
+.cinema-tool,.social-dialog:has(.profile-settings){
+  background:linear-gradient(145deg,#1b1b1bb8,#080808a6 72%);
+  color:#f3f3f3;
+  border:1px solid #ffffff50;
+  border-radius:18px;
+  box-shadow:0 22px 64px #0009,inset 0 1px #ffffff24;
 }
-.cinema-tool-head h2{margin:0;font-size:16px;line-height:1.35}
-.cinema-tools .watchlist .cinema-tool-head{padding:10px 14px 0}
-.cinema-tools #watchlist{background:linear-gradient(135deg,#25252514,#09090910)!important}
-.cinema-tools #watchlist .watch-item{background:linear-gradient(120deg,#ffffff0a,#ffffff02)!important}
+.cinema-tool{
+  position:fixed;
+  inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  margin:auto;
+  width:min(var(--tool-width,560px),calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  max-width:none;
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding:0;
+  overflow:hidden;
+}
+.cinema-tool[open]{display:flex;flex-direction:column}
+.cinema-tool-wide{--tool-width:820px}
+.cinema-tool::backdrop{
+  background:#030303c9;
+  -webkit-backdrop-filter:blur(18px) saturate(.35);
+  backdrop-filter:blur(18px) saturate(.35);
+}
+.cinema-tool-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex:none;min-width:0;padding:10px 16px;border-bottom:1px solid #ffffff20;
+}
+.cinema-tool-head h2{margin:0;font-size:17px;line-height:1.35}
+.cinema-tool-head h2:focus{outline:none}
+.cinema-tool-body{
+  min-height:0;padding:14px 16px 16px;overflow:auto;overscroll-behavior:contain;
+}
+.cinema-tool .feature-note:first-child{margin-top:0}
+.cinema-tool .feature-entry > span{min-width:0;overflow-wrap:anywhere}
+.cinema-tool #pollOptions{
+  display:block;width:100%;min-height:84px;margin:12px 0;
+  resize:vertical;font-size:16px;
+}
+#watchlist.cinema-tool{
+  margin:auto;
+  background:linear-gradient(145deg,#1b1b1bb8,#080808a6 72%)!important;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+}
+#watchlist.cinema-tool .watch-items{max-height:none!important;overflow:visible}
+#watchlist.cinema-tool .watch-item{background:linear-gradient(120deg,#ffffff0a,#ffffff02)!important}
+#watchlist.cinema-tool :is(.watch-tools,.watch-add) input{font-size:16px}
+.cinema-tool .toast{position:static;transform:none;flex:none;margin:0 16px 12px}
+.cinema-tool .wish-visual{position:absolute;width:max-content;max-width:calc(100% - 24px);overflow-wrap:anywhere}
 .cinema-page #cinemaChat:not([hidden]){
   display:flex;isolation:isolate;position:relative;overflow:hidden;scroll-margin-block:12px;
   height:clamp(260px,42dvh,480px);margin-top:14px;
@@ -129,14 +169,8 @@
   display:grid;place-items:center;width:44px;min-height:44px;padding:0;
   background:#ffffff0e!important;color:#fff!important;border-color:#ffffff30!important;box-shadow:none!important
 }
-.cinema-wish-dialog{
-  width:min(440px,calc(100% - 28px));padding:20px;color:#f2f2f2;
-  background:#191919e8;border:1px solid #ffffff33;border-radius:16px;
-  box-shadow:0 16px 48px #0008
-}
-.cinema-wish-dialog::backdrop{background:#0008}
+.cinema-wish-dialog{--tool-width:460px}
 .cinema-wish-dialog form{display:grid;gap:10px}
-.cinema-wish-dialog h2{margin:0;font-size:18px}
 .cinema-wish-dialog label{color:#ccc;font-size:13px}
 .cinema-wish-dialog textarea{resize:vertical;font-size:16px}
 .wish-actions{display:flex;justify-content:flex-end;gap:8px}
@@ -304,4 +338,94 @@ body.social-page{
   .profile-actions .btn{padding-inline:6px}
   .profile-actions .social-icon{width:16px;height:16px}
   .cinema-page #cinemaChat .chathead{padding-inline:10px}
+}
+
+
+/* Profile settings share the transparent surfaces of the profile page. */
+.social-dialog:has(.profile-settings){
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+  max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding:20px;
+  scrollbar-width:thin;
+  scrollbar-color:#ffffff40 transparent;
+  overscroll-behavior:contain;
+}
+.social-dialog:has(.profile-settings)::backdrop{
+  background:#0006;
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+}
+.social-dialog:has(.profile-settings) > form{
+  position:absolute;top:12px;right:12px;margin:0;
+}
+.social-dialog:has(.profile-settings) .dialog-close{
+  float:none;margin:0;width:44px;min-width:44px;min-height:44px;padding:0;
+  border-radius:12px;background:#ffffff08;
+}
+.social-dialog:has(.profile-settings) #socialDialogContent > h2{
+  padding-right:50px;margin-bottom:22px;font-size:19px;line-height:1.35;
+}
+.profile-settings{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.profile-settings > .settings-section,
+.profile-settings > .settings-form{
+  margin:0;padding:18px 0 0;border-top:1px solid #ffffff22;min-width:0;
+}
+.profile-settings > .settings-section:first-child,
+.profile-settings > .settings-form:nth-child(2){
+  padding-top:0;border-top:0;
+}
+.profile-settings .settings-form{gap:12px}
+.profile-settings h3{font-size:15px;font-weight:650;margin:0 0 8px}
+.profile-settings .field{
+  background:#ffffff05;border-color:#ffffff30;border-radius:12px;
+  box-shadow:inset 0 1px 2px #0002;
+}
+.profile-settings textarea.field{min-height:78px;resize:vertical}
+.profile-settings > .btn,.profile-settings .settings-form > .btn{
+  width:100%;min-height:44px;padding:10px 13px;line-height:1.4;
+  border-radius:12px;white-space:normal;text-wrap:balance;
+}
+.profile-settings .btn.primary{
+  background:linear-gradient(170deg,#f4f4f4de,#c5c5c5ce 65%,#edededd6);
+  box-shadow:inset 0 1px 2px #fffa;
+}
+.profile-settings > .btn{
+  background:#ffffff07;border-color:#ffffff30;
+}
+.profile-settings > .btn:last-child{
+  margin-top:4px;background:#ffffff03;border-color:#ffffff46;
+}
+.profile-settings .avatar-tools{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;
+}
+.profile-settings .avatar-tools .btn{
+  min-height:44px;padding:9px 8px;font-size:13px;line-height:1.4;white-space:normal;
+}
+.profile-settings .avatar-tools .avatar-name{
+  grid-column:1/-1;overflow-wrap:anywhere;
+}
+.profile-settings .avatar-name:empty{display:none}
+.profile-settings .privacy-row{
+  gap:16px;min-height:40px;font-size:13px;line-height:1.45;
+}
+.profile-settings .privacy-row input{
+  appearance:none;-webkit-appearance:none;flex:0 0 38px;
+  position:relative;width:38px;height:23px;margin:0;
+  border:1px solid #ffffff40;border-radius:20px;background:#ffffff0a;
+  cursor:pointer;transition:background .15s ease;
+}
+.profile-settings .privacy-row input::before{
+  content:"";position:absolute;left:3px;top:3px;width:15px;height:15px;
+  border-radius:50%;background:#aaa;transition:transform .15s ease,background .15s ease;
+}
+.profile-settings .privacy-row input:checked{background:#ffffff30;border-color:#ffffff80}
+.profile-settings .privacy-row input:checked::before{transform:translateX(15px);background:#fff}
+.profile-settings .privacy-row input:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@media(max-width:380px){
+  .social-dialog:has(.profile-settings){padding:16px}
+  .social-dialog:has(.profile-settings) #socialDialogContent > h2{font-size:17px}
+}
+@media(prefers-reduced-motion:reduce){
+  .profile-settings .privacy-row input,.profile-settings .privacy-row input::before{transition:none}
 }

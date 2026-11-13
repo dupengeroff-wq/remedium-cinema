@@ -345,7 +345,7 @@
   }
 
   function settings(data) {
-    const root=el('div');
+    const root=el('div',null,'profile-settings');
     const redraw=async()=>{await renderProfile();modal.close()};
     root.append(avatarSettings(data,redraw));
     root.append(form('Сохранить профиль',[

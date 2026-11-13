@@ -50,9 +50,11 @@
     if(row.tagName==='A') row.href=entry.href||(onCinema?'':'/')+'#'+entry.panel;
     else row.type='button';
     if(entry.id||entry.panel) row.id=entry.id||'nav-'+entry.panel;
-    if(entry.panel && onCinema && row.tagName==='A') {
-      row.dataset.openPanel=entry.panel;
-      row.setAttribute('aria-controls',entry.panel);
+    if(entry.panel && onCinema) {
+      const panelId=entry.panel==='send-wish'?'wishCompose':entry.panel;
+      row.dataset.openPanel=panelId;
+      row.setAttribute('aria-controls',panelId);
+      row.setAttribute('aria-haspopup','dialog');
       row.setAttribute('aria-expanded','false');
     }
     row.title=entry.label;
