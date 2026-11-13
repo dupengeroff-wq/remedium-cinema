@@ -3,9 +3,7 @@ const socket=io({autoConnect:false});
 const video=$('video');
 const cinemaMenu=$('cinemaMenu');
 const menuToggle=$('cinemaMenuToggle');
-const menuScrim=$('cinemaMenuScrim');
-const cinemaContent=$('cinemaContent');
-const desktopMenu=matchMedia('(min-width: 1025px)');
+CinemaNav.watchUnread(socket);
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
 let inviting = false;
 let serverOffset = 0;
@@ -146,47 +144,19 @@ let viewer=null;
 let roomTarget={room:params.get('room')||undefined,invite:params.get('invite')||undefined};
 let joinFlight=0;
 
-function setCinemaMenu(open,restoreFocus=false) {
-  const overlay=open && !desktopMenu.matches;
-  cinemaMenu.classList.toggle('is-open',open);
-  document.body.classList.toggle('cinema-menu-open',open);
-  cinemaMenu.inert=!open && !desktopMenu.matches;
-  menuToggle.setAttribute('aria-expanded',String(open));
-  menuToggle.setAttribute('aria-label',open?'Закрыть меню':'Меню кинозала');
-  menuScrim.hidden=!overlay;
-  cinemaContent.inert=overlay;
-  if(overlay) {
-    cinemaMenu.setAttribute('role','dialog');
-    cinemaMenu.setAttribute('aria-modal','true');
-    $('cinemaMenuClose').focus({preventScroll:true});
-  } else {
-    cinemaMenu.removeAttribute('role');
-    cinemaMenu.removeAttribute('aria-modal');
-    if(restoreFocus) menuToggle.focus({preventScroll:true});
-  }
-}
-
 function closeCinemaPanel(panel,restoreFocus=false) {
   if(!panel) return;
   panel.hidden=true;
   cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','false');
-  if(panel.id==='cinemaChat') document.body.classList.remove('cinema-chat-open');
   if(restoreFocus) menuToggle.focus();
 }
 
 function openCinemaPanel(panel,moveFocus=true) {
-  const isChat=panel.id==='cinemaChat';
-  if(!isChat) {
-    for(const other of document.querySelectorAll('.cinema-tools [data-cinema-panel]:not([hidden])')) {
-      if(other!==panel) closeCinemaPanel(other);
-    }
+  for(const other of document.querySelectorAll('.cinema-tools [data-cinema-panel]:not([hidden])')) {
+    if(other!==panel) closeCinemaPanel(other);
   }
   panel.hidden=false;
   cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','true');
-  if(isChat) {
-    document.body.classList.add('cinema-chat-open');
-    $('messages').scrollTop=$('messages').scrollHeight;
-  }
   if(panel.id==='watchlist') watchRender();
   if(panel.id==='roulettePanel') refreshRouletteView();
   if(moveFocus) {
@@ -195,27 +165,11 @@ function openCinemaPanel(panel,moveFocus=true) {
   }
 }
 
-menuToggle.onclick=()=>setCinemaMenu(!cinemaMenu.classList.contains('is-open'),true);
-menuScrim.onclick=$('cinemaMenuClose').onclick=()=>setCinemaMenu(false,true);
-desktopMenu.addEventListener('change',()=>setCinemaMenu(cinemaMenu.classList.contains('is-open')));
-document.addEventListener('keydown',event=>{
-  if(event.key!=='Escape'||!cinemaMenu.classList.contains('is-open')) return;
-  setCinemaMenu(false,true);
-});
-cinemaMenu.addEventListener('keydown',event=>{
-  if(event.key!=='Tab'||menuScrim.hidden) return;
-  const controls=cinemaMenu.querySelectorAll('a[href],button:not([disabled])');
-  const first=controls[0],last=controls[controls.length-1];
-  if((event.shiftKey&&document.activeElement===first)||(!event.shiftKey&&document.activeElement===last)) {
-    event.preventDefault();
-    (event.shiftKey?last:first).focus();
-  }
-});
 cinemaMenu.addEventListener('click',event=>{
   const entry=event.target.closest('[data-open-panel]');
   if(!entry) return;
   event.preventDefault();
-  setCinemaMenu(false);
+  CinemaNav.setOpen(false);
   openCinemaPanel($(entry.dataset.openPanel));
 });
 for(const close of document.querySelectorAll('[data-close-panel]')) {
@@ -253,7 +207,8 @@ function enterRoom() {
     if(Number.isFinite(response.state.serverTime)){
       serverOffset=response.state.serverTime-(sent+Date.now())/2;
     }
-    history.replaceState(null,'',location.pathname+(isHost?'':'?room='+encodeURIComponent(id)));
+    CinemaNav.setRoom(isHost?null:id);
+    history.replaceState(null,'',location.pathname+(isHost?'':'?room='+encodeURIComponent(id))+location.hash);
     $('entry').classList.add('hidden');
     $('roomInfo').textContent='КОМНАТА · '+id;
     $('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();
@@ -264,24 +219,23 @@ function enterRoom() {
     renderCinemaHistory();
     renderWishInbox();
     applyRoomState(response.state,true);
+    if(location.hash) openLinkedPanel();
   });
 }
 
 function showAccountForm() {
   viewer=null;
   $('entry').classList.remove('hidden');
-  setCinemaMenu(false);
-  cinemaMenu.hidden=menuToggle.hidden=true;
-  document.body.classList.remove('cinema-account');
+  CinemaNav.show(false);
+  CinemaNav.clearUnread();
+  CinemaNav.setRoom(null);
   $('entryStatus').textContent='';
   RC.mount($('accountEntry'),openAccount);
 }
 function openAccount(user) {
   viewer=user;
   $('accountEntry').replaceChildren();
-  cinemaMenu.hidden=menuToggle.hidden=false;
-  document.body.classList.add('cinema-account');
-  setCinemaMenu(false);
+  CinemaNav.show(true);
   $('entryStatus').textContent='Подключаемся…';
   if(socket.connected) enterRoom();
   else socket.connect();
@@ -927,20 +881,51 @@ function showWish(data) {
   setTimeout(() => element.remove(), 5100);
 }
 
-$('wishOpen').onclick = async () => {
-  setCinemaMenu(false,true);
+$('wishOpen').onclick = () => {
+  CinemaNav.setOpen(false,true);
   if (!inRoom) return toast('Сначала войди в комнату');
-  const wish = prompt('Напиши тайное послание ♡ — его увидит только получатель после открытия');
-  if (!wish?.trim()) return;
-  const result = await request('wish', wish.trim().slice(0, 140));
-  toast(result.ok ? 'Послание отправлено ✧' : result.error || 'Не удалось отправить послание');
+  const wish=$('wishText');
+  wish.value='';
+  $('wishStatus').textContent='';
+  $('wishCompose').showModal();
+  wish.focus();
 };
+$('wishForm').onsubmit=async event=>{
+  event.preventDefault();
+  const wish=$('wishText').value.trim();
+  const submit=$('wishSubmit');
+  if(!wish || submit.disabled) return;
+  submit.disabled=true;
+  try {
+    const result=await request('wish',wish);
+    if(result.ok) {
+      $('wishCompose').close();
+      toast('Послание отправлено ✧');
+    } else $('wishStatus').textContent=result.error||'Не удалось отправить послание';
+  } finally { submit.disabled=false; }
+};
+$('wishCancel').onclick=()=>$('wishCompose').close();
+
+function openLinkedPanel() {
+  if(!inRoom) return;
+  const target=location.hash.slice(1);
+  if(target==='send-wish') {
+    history.replaceState(null,'',location.pathname+location.search);
+    $('wishOpen').click();
+    return;
+  }
+  const panel=$(target);
+  if(panel?.hasAttribute('data-cinema-panel')) {
+    history.replaceState(null,'',location.pathname+location.search);
+    openCinemaPanel(panel);
+  }
+}
+window.addEventListener('hashchange',openLinkedPanel);
 
 function renderWishInbox() {
   const unread = wishMessages.filter(item => !item.read).length;
   const badge = $('wishBadge');
-  badge.hidden = !unread;
-  badge.textContent = '+' + unread;
+  CinemaNav.setUnreadBadge(badge,unread);
   const list = $('wishLetters');
   list.replaceChildren();
   if (!wishMessages.length) {

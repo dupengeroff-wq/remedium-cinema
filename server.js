@@ -645,7 +645,7 @@ app.get(['/', '/index.html'], (_, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(projectDir, 'index.html'));
 });
-for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js','cinema-moon.webp']) {
+for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js','navigation.js','cinema-moon.webp']) {
   app.get('/' + asset, (_, res) => {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(projectDir, asset));

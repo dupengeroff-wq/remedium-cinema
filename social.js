@@ -8,6 +8,7 @@
   let viewer;
   let socket;
   let directRefresh;
+  let refreshDialogList;
   let friendRefresh;
   let profileId;
 
@@ -22,8 +23,6 @@
     );
     const back=canReturn?previousPage+previous.search:(segment[1]?'/messages':'/');
     navigation.append(link('← Назад',back,'social-back'));
-  }else{
-    navigation.append(link('Кинозал','/',''),link('Сообщения','/messages',''));
   }
 
   const empty=text=>el('p',text,'social-note');
@@ -65,6 +64,8 @@
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
+      CinemaNav.show(false);
+      CinemaNav.clearUnread();
       const form=panel('Войди в REMEDIUM CINEMA','social-auth');
       main.replaceChildren(form);
       RC.mount(form,start);
@@ -221,10 +222,12 @@
     if(data.canSeeFriends) buttons.lastElementChild.prepend(icon('people'));
     header.append(buttons);
     if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
-    const personal=el('section',null,data.personalHidden?'compact':'profile-section');
-    personal.append(el('h2',data.personalHidden?'Личная статистика скрыта':'Личная статистика'));
-    if(!data.personalHidden) personal.append(stats(data.personal));
-    card.append(header,personal);
+    card.append(header);
+    if(!data.personalHidden && Object.keys(data.personal).length) {
+      const personal=el('section',null,'profile-section');
+      personal.append(el('h2','Личная статистика'),stats(data.personal));
+      card.append(personal);
+    }
     if(data.shared!==null){
       const shared=el('section',null,'profile-section');
       shared.append(el('h2','Совместная статистика'));
@@ -236,9 +239,9 @@
       }
       card.append(shared);
     }
-    const history=el('section',null,data.historyHidden?'compact':'profile-section');
-    history.append(el('h2',data.historyHidden?'История просмотров скрыта':'История просмотров'));
-    if(!data.historyHidden){
+    if(!data.historyHidden && data.history!==null){
+      const history=el('section',null,'profile-section');
+      history.append(el('h2','История просмотров'));
       history.append(historyList(data.history));
       let offset=data.history.length;
       if(offset===50){
@@ -250,8 +253,8 @@
         });
         history.append(more);
       }
+      card.append(history);
     }
-    card.append(history);
     main.replaceChildren(card);
     if(options.get('edit')==='1'&&data.self&&!modal.open) settings(data);
   }
@@ -460,8 +463,11 @@
     }
     layout.append(left,right);
     main.replaceChildren(layout);
+    let dialogListRequest=0;
     async function dialogs() {
+      const request=++dialogListRequest;
       const {dialogs}=await api('/api/dialogs?q='+encodeURIComponent(search.value));
+      if(request!==dialogListRequest) return;
       list.replaceChildren();
       if(!dialogs.length) list.append(empty('Диалогов пока нет. Открой профиль друга, чтобы написать.'));
       for(const item of dialogs){
@@ -471,10 +477,15 @@
         desc.append(el('strong',item.person.nickname),el('div',item.preview||'Открыть диалог','muted'));
         if(item.at) desc.append(el('time',date(item.at),'muted'));
         row.append(avatar(item.person),desc);
-        if(item.unread) row.append(el('span',item.unread,'unread'));
+        if(item.unread) {
+          const badge=el('span',null,'unread');
+          CinemaNav.setUnreadBadge(badge,item.unread);
+          row.append(badge);
+        }
         list.append(row);
       }
     }
+    refreshDialogList=()=>dialogs().catch(error=>failure(error,list));
     let searchTimer;
     search.oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>dialogs().catch(error=>failure(error,list)),220)};
     await dialogs();
@@ -498,15 +509,19 @@
     status.setAttribute('role','status');
     right.append(head,stream,composer,status);
     const stored=new Map();
-    let canSend=false,readByOther='0',more=false,initial=true,marking=false,sending=false,pendingId;
+    let canSend=false,readByOther='0',more=false,initial=true,marking=false,sending=false,pendingId,markedThrough=0n;
     const order=(a,b)=>BigInt(a.id)<BigInt(b.id)?-1:BigInt(a.id)>BigInt(b.id)?1:0;
     const nearBottom=()=>stream.scrollHeight-stream.scrollTop-stream.clientHeight<75;
     async function markRead(){
       const last=[...stored.values()].sort(order).at(-1);
-      if(!last || marking || document.hidden || !nearBottom())return;
+      if(!last || BigInt(last.id)<=markedThrough || marking || document.hidden || !nearBottom())return;
       marking=true;
-      try { await api('/api/dialogs/'+id+'/read',{method:'POST',body:{through:last.id}}); }
+      try {
+        await api('/api/dialogs/'+id+'/read',{method:'POST',body:{through:last.id}});
+        markedThrough=BigInt(last.id);
+      }
       finally{marking=false}
+      if([...stored.keys()].some(messageId=>BigInt(messageId)>markedThrough)) await markRead();
     }
     function paint(scroll='keep'){
       const position=stream.scrollTop, priorHeight=stream.scrollHeight;
@@ -596,9 +611,12 @@
   async function start(user) {
     viewer=user;
     socket?.disconnect();
-    socket=io();
+    socket=io({autoConnect:false});
+    CinemaNav.show(true);
+    CinemaNav.watchUnread(socket);
     socket.on('direct-update',event=>{directRefresh?.(event).catch(error=>failure(error))});
     socket.on('direct-read',event=>{directRefresh?.(event).catch(error=>failure(error))});
+    socket.on('direct-unread',()=>refreshDialogList?.());
     socket.on('friends-update',()=>friendRefresh?.());
     socket.on('connect',()=>{if(directRefresh)directRefresh().catch(error=>failure(error))});
     socket.on('disconnect',async reason=>{
@@ -606,6 +624,7 @@
         try { if(!(await api('/api/auth/me')).user) failure({status:401}); }catch {}
       }
     });
+    socket.connect();
     try {
       if(segment[0]==='friends') await renderFriends();
       else if(segment[0]==='messages') await renderMessages();
