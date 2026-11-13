@@ -2,6 +2,10 @@ const $=id=>document.getElementById(id);
 const socket=io({autoConnect:false});
 const video=$('video');
 const cinemaMenu=$('cinemaMenu');
+const menuToggle=$('cinemaMenuToggle');
+const menuScrim=$('cinemaMenuScrim');
+const cinemaContent=$('cinemaContent');
+const desktopMenu=matchMedia('(min-width: 1025px)');
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
 let inviting = false;
 let serverOffset = 0;
@@ -142,6 +146,82 @@ let viewer=null;
 let roomTarget={room:params.get('room')||undefined,invite:params.get('invite')||undefined};
 let joinFlight=0;
 
+function setCinemaMenu(open,restoreFocus=false) {
+  const overlay=open && !desktopMenu.matches;
+  cinemaMenu.classList.toggle('is-open',open);
+  document.body.classList.toggle('cinema-menu-open',open);
+  cinemaMenu.inert=!open && !desktopMenu.matches;
+  menuToggle.setAttribute('aria-expanded',String(open));
+  menuToggle.setAttribute('aria-label',open?'Закрыть меню':'Меню кинозала');
+  menuScrim.hidden=!overlay;
+  cinemaContent.inert=overlay;
+  if(overlay) {
+    cinemaMenu.setAttribute('role','dialog');
+    cinemaMenu.setAttribute('aria-modal','true');
+    $('cinemaMenuClose').focus({preventScroll:true});
+  } else {
+    cinemaMenu.removeAttribute('role');
+    cinemaMenu.removeAttribute('aria-modal');
+    if(restoreFocus) menuToggle.focus({preventScroll:true});
+  }
+}
+
+function closeCinemaPanel(panel,restoreFocus=false) {
+  if(!panel) return;
+  panel.hidden=true;
+  cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','false');
+  if(panel.id==='cinemaChat') document.body.classList.remove('cinema-chat-open');
+  if(restoreFocus) menuToggle.focus();
+}
+
+function openCinemaPanel(panel,moveFocus=true) {
+  const isChat=panel.id==='cinemaChat';
+  if(!isChat) {
+    for(const other of document.querySelectorAll('.cinema-tools [data-cinema-panel]:not([hidden])')) {
+      if(other!==panel) closeCinemaPanel(other);
+    }
+  }
+  panel.hidden=false;
+  cinemaMenu.querySelector('[data-open-panel="'+panel.id+'"]')?.setAttribute('aria-expanded','true');
+  if(isChat) {
+    document.body.classList.add('cinema-chat-open');
+    $('messages').scrollTop=$('messages').scrollHeight;
+  }
+  if(panel.id==='watchlist') watchRender();
+  if(panel.id==='roulettePanel') refreshRouletteView();
+  if(moveFocus) {
+    panel.querySelector('h2').focus({preventScroll:true});
+    panel.scrollIntoView({block:'nearest'});
+  }
+}
+
+menuToggle.onclick=()=>setCinemaMenu(!cinemaMenu.classList.contains('is-open'),true);
+menuScrim.onclick=$('cinemaMenuClose').onclick=()=>setCinemaMenu(false,true);
+desktopMenu.addEventListener('change',()=>setCinemaMenu(cinemaMenu.classList.contains('is-open')));
+document.addEventListener('keydown',event=>{
+  if(event.key!=='Escape'||!cinemaMenu.classList.contains('is-open')) return;
+  setCinemaMenu(false,true);
+});
+cinemaMenu.addEventListener('keydown',event=>{
+  if(event.key!=='Tab'||menuScrim.hidden) return;
+  const controls=cinemaMenu.querySelectorAll('a[href],button:not([disabled])');
+  const first=controls[0],last=controls[controls.length-1];
+  if((event.shiftKey&&document.activeElement===first)||(!event.shiftKey&&document.activeElement===last)) {
+    event.preventDefault();
+    (event.shiftKey?last:first).focus();
+  }
+});
+cinemaMenu.addEventListener('click',event=>{
+  const entry=event.target.closest('[data-open-panel]');
+  if(!entry) return;
+  event.preventDefault();
+  setCinemaMenu(false);
+  openCinemaPanel($(entry.dataset.openPanel));
+});
+for(const close of document.querySelectorAll('[data-close-panel]')) {
+  close.onclick=()=>closeCinemaPanel(close.closest('[data-cinema-panel]'),true);
+}
+
 function enterRoom() {
   if(!viewer || !socket.connected || inRoom || joinFlight) return;
   const flight=Date.now()||1;
@@ -190,15 +270,18 @@ function enterRoom() {
 function showAccountForm() {
   viewer=null;
   $('entry').classList.remove('hidden');
-  cinemaMenu.open=false;
-  cinemaMenu.classList.add('hidden');
+  setCinemaMenu(false);
+  cinemaMenu.hidden=menuToggle.hidden=true;
+  document.body.classList.remove('cinema-account');
   $('entryStatus').textContent='';
   RC.mount($('accountEntry'),openAccount);
 }
 function openAccount(user) {
   viewer=user;
   $('accountEntry').replaceChildren();
-  cinemaMenu.classList.remove('hidden');
+  cinemaMenu.hidden=menuToggle.hidden=false;
+  document.body.classList.add('cinema-account');
+  setCinemaMenu(false);
   $('entryStatus').textContent='Подключаемся…';
   if(socket.connected) enterRoom();
   else socket.connect();
@@ -634,6 +717,7 @@ function applyRoomState(state, joinedNow = false) {
   isHost = !!me?.isHost;
   badge = me?.badge || '🎀';
   $('online').textContent = users.length + ' онлайн';
+  $('online').classList.toggle('is-online',users.length>0);
   $('twinStars').classList.toggle('connected', users.length >= 2);
   $('starsLabel').textContent = users.length >= 2 ? 'Две звезды встретились ♡' : 'Ждём вторую звезду';
   const changed = mediaId !== state.mediaId;
@@ -667,6 +751,8 @@ socket.on('disconnect',reason=>{
   joinFlight=0;
   $('status').textContent='Переподключение…';
   $('status').classList.remove('is-online');
+  $('online').textContent='0 онлайн';
+  $('online').classList.remove('is-online');
   updateHost();
   renderCinemaPoll();
   if(reason==='io server disconnect' && viewer) initAccount();
@@ -773,7 +859,7 @@ function posterEnqueue(item,holder){
 function watchRender(){
  const list=$('watchItems'),q=$('watchSearch').value.trim().toLocaleLowerCase('ru'),cat=$('watchCategory').value;
  $('watchCount').textContent='· '+watchItems.length;
- if (!$('watchlist').open) return;
+ if ($('watchlist').hidden) return;
  list.replaceChildren();const filtered=watchItems.filter(x=>(cat==='all'||x.category===cat)&&x.name.toLocaleLowerCase('ru').includes(q));
  const done=watchItems.filter(x=>x.status==='done').length;
  $('watchStats').innerHTML='<span class="stat-pill">✦ '+watchItems.length+' в коллекции</span><span class="stat-pill">✓ '+done+' просмотрено</span><span class="stat-pill">◷ '+watchItems.filter(x=>x.status==='progress').length+' смотрим</span>';
@@ -801,7 +887,6 @@ function watchRender(){
  if(!filtered.length){const empty=document.createElement('div');empty.className='watch-note';empty.textContent=watchItems.length?'Ничего не найдено':'Коллекция пока пуста. Добавь первый фильм ✦';list.append(empty)}
 }
 $('watchForm').onsubmit=e=>{e.preventDefault();const name=$('watchName').value.trim();if(!name)return;watchItems.push({id:watchId(),name,status:'none',category:$('watchNewCategory').value});$('watchName').value='';watchSave()};
-$('watchlist').addEventListener('toggle', watchRender);
 $('watchSearch').oninput=watchRender;$('watchCategory').onchange=watchRender;
 $('watchImport').onclick=()=>$('watchFile').click();
 function watchNormalize(items, preserveIds = true) {
@@ -814,7 +899,7 @@ function watchNormalize(items, preserveIds = true) {
  }));
 }
 function watchParseLegacy(html){const results=[];for(const [variable,category] of [['initial','main'],['moderation','moderation']]){const section=html.match(new RegExp('const\\s+'+variable+'\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*\\.map'));if(!section)continue;const regex=/\[\s*("(?:\\.|[^"\\])*"|\x27(?:\\.|[^\x27\\])*\x27)\s*,\s*["\x27](done|no|progress|none)["\x27]\s*\]/g;for(const m of section[1].matchAll(regex)){let name;try{name=m[1][0]==='"'?JSON.parse(m[1]):m[1].slice(1,-1)}catch{continue}results.push({name,status:m[2],category})}}return results}
-$('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed, false);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();$('watchlist').open=true;toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
+$('watchFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>5e6)throw Error('Файл слишком большой');const text=await file.text();let parsed;if(/\.html?$/i.test(file.name)||/^\s*<!doctype html/i.test(text)){parsed=watchParseLegacy(text)}else{const data=JSON.parse(text);parsed=Array.isArray(data)?data:data.items}if(!Array.isArray(parsed)||!parsed.length)throw Error('Не удалось найти фильмы в файле');const entries=watchNormalize(parsed, false);if(!entries.length)throw Error('Нет подходящих записей');if(confirm('Импортировать '+entries.length+' записей? Нажми ОК, чтобы добавить к текущему списку.')){watchItems.push(...entries);watchSave();openCinemaPanel($('watchlist'),false);toast('Импортировано: '+entries.length)}}catch(err){alert('Ошибка импорта: '+err.message)}finally{e.target.value=''}};
 $('watchExport').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,items:watchItems},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='remedium-cinema-watchlist.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)};
 watchRender();
 
@@ -843,6 +928,7 @@ function showWish(data) {
 }
 
 $('wishOpen').onclick = async () => {
+  setCinemaMenu(false,true);
   if (!inRoom) return toast('Сначала войди в комнату');
   const wish = prompt('Напиши тайное послание ♡ — его увидит только получатель после открытия');
   if (!wish?.trim()) return;
@@ -884,12 +970,6 @@ function renderWishInbox() {
     list.append(row);
   }
 }
-
-$('wishInboxOpen').onclick = () => {
-  if (!inRoom) return toast('Сначала войди в комнату');
-  const box = $('wishInbox');
-  box.hidden = !box.hidden;
-};
 
 socket.on('wish-inbox', payload => {
   if (!inRoom || payload.room !== room) return;
@@ -1226,9 +1306,8 @@ function renderRoulette(data) {
   };
   activeRoulette = spin;
   if (!finished) {
-    $('roulettePanel').open = true;
     $('rouletteResult').textContent = '✦ Звёзды выбирают фильм…';
-    if (!cinemaMenu.open) $('cinemaMenuUpdate').hidden = false;
+    $('cinemaMenuUpdate').hidden = !$('roulettePanel').hidden;
   }
   renderRouletteButton();
   if (!isHost && !finished) buildBlurredRoulette(spin, data.cards.length);
@@ -1236,17 +1315,13 @@ function renderRoulette(data) {
 }
 
 function refreshRouletteView() {
-  if (!cinemaMenu.open || !$('roulettePanel').open || !activeRoulette) return;
+  if ($('roulettePanel').hidden || !activeRoulette) return;
+  $('cinemaMenuUpdate').hidden = true;
   if (activeRoulette.finished) finishRoulette(activeRoulette);
   else if (activeRoulette.scheduled && activeRoulette.startedAt <= serverNow()) animateRoulette(activeRoulette);
 }
 
-cinemaMenu.addEventListener('toggle', () => {
-  if (!cinemaMenu.open) return;
-  $('cinemaMenuUpdate').hidden = true;
-  refreshRouletteView();
-});
-$('roulettePanel').addEventListener('toggle', refreshRouletteView);
+window.addEventListener('resize',refreshRouletteView,{passive:true});
 
 $('rouletteSpin').onclick = async () => {
   if (!inRoom) return toast('Сначала войди в комнату');

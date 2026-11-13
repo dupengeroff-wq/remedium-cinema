@@ -27,6 +27,31 @@
   }
 
   const empty=text=>el('p',text,'social-note');
+  const iconPaths={
+    clock:'M12 7v5l3 2 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
+    film:'M4 8h16v12H4zM4 8l-1-4 16-2 1 6M8 3l2 4m3-4 2 4',
+    calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
+    people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
+    edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
+    message:'M20 11a7 7 0 0 1-7 7H5l1-3.5A7 7 0 1 1 20 11ZM9 11h6',
+    send:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4'
+  };
+  function icon(name) {
+    const ns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(ns,'svg');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('class','social-icon');
+    svg.setAttribute('aria-hidden','true');
+    const path=document.createElementNS(ns,'path');
+    path.setAttribute('d',iconPaths[name]);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','currentColor');
+    path.setAttribute('stroke-width','1.65');
+    path.setAttribute('stroke-linecap','round');
+    path.setAttribute('stroke-linejoin','round');
+    svg.append(path);
+    return svg;
+  }
   function panel(title,cls='') {
     const node=el('section',null,('social-panel '+cls).trim());
     if(title) node.append(el('h2',title));
@@ -34,6 +59,7 @@
   }
   function showModal(title,content) {
     detail.replaceChildren(el('h2',title),content);
+    modal.scrollTop=0;
     if(!modal.open) modal.showModal();
   }
   function failure(error,node=main) {
@@ -86,13 +112,16 @@
 
   const statLabels={seconds:'Время просмотра',films:'Фильмы',sessions:'Сеансы',days:'Дни просмотра',
     last:'Последний просмотр',shared_count:'Совместные сеансы',first:'Первый просмотр'};
+  const statIcons={seconds:'clock',films:'film',sessions:'film',days:'calendar',last:'clock',shared_count:'people',first:'calendar'};
   function stats(values) {
     const grid=el('div',null,'stat-grid');
     for(const [key,value] of Object.entries(values)){
       if(!statLabels[key])continue;
       const card=el('div',null,'stat');
       const formatted=key==='seconds'?duration(value):['first','last'].includes(key)?date(value):String(value);
-      card.append(el('strong',formatted),el('span',statLabels[key]));
+      const info=el('div',null,'grow');
+      info.append(el('strong',formatted),el('span',statLabels[key]));
+      card.append(icon(statIcons[key]),info);
       grid.append(card);
     }
     return grid;
@@ -149,11 +178,18 @@
     const data=await api('/api/profiles/'+id+query);
     const {person}=data;
     document.title=person.nickname+' · REMEDIUM CINEMA';
-    const header=panel();
+    const card=panel(null,'profile-card');
+    const header=el('section');
     const hero=el('div',null,'profile-hero');
     const info=el('div',null,'profile-details');
-    info.append(el('h1',person.nickname),el('p','@'+person.login+(person.role==='creator'?' · Создатель':''),'muted'));
-    if(person.registeredAt) info.append(el('p','В кинотеатре с '+date(person.registeredAt),'muted'));
+    const name=el('h1',person.nickname);
+    if(person.role==='creator'){
+      const crown=el('span','♛','profile-crown');
+      crown.setAttribute('aria-label','Создатель');
+      name.append(crown);
+    }
+    info.append(name,el('p','@'+person.login,'muted'));
+    if(person.registeredAt) info.append(el('p','С '+new Date(person.registeredAt).toLocaleDateString('ru-RU',{dateStyle:'long'}),'muted'));
     if(Object.hasOwn(person,'online')){
       const connected=person.online || (data.self && socket?.connected);
       const presence=el('p',connected?'В сети':'Не в сети','connection-state');
@@ -180,22 +216,28 @@
         list.append(...(friends.length?friends.map(p=>personRow(p)):[empty('Пока нет друзей.')]));
         showModal('Друзья',list);
       }));
+    const primary=buttons.firstElementChild;
+    primary.replaceChildren(icon(data.self?'edit':'message'),el('span',primary.textContent));
+    if(data.canSeeFriends) buttons.lastElementChild.prepend(icon('people'));
     header.append(buttons);
-    if(data.preview) header.append(link('Вернуться в свой профиль','/profile'));
-    const personal=data.personalHidden?panel('Личная статистика скрыта','compact'):panel('Личная статистика');
+    if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
+    const personal=el('section',null,data.personalHidden?'compact':'profile-section');
+    personal.append(el('h2',data.personalHidden?'Личная статистика скрыта':'Личная статистика'));
     if(!data.personalHidden) personal.append(stats(data.personal));
-    main.replaceChildren(header,personal);
+    card.append(header,personal);
     if(data.shared!==null){
-      const shared=panel('Совместная статистика');
+      const shared=el('section',null,'profile-section');
+      shared.append(el('h2','Совместная статистика'));
       if(!data.shared.length) shared.append(empty('Пока нет совместных просмотров.'));
       for(const item of data.shared) {
         const partner=data.self?item.person.id:data.previewFriend||person.id;
         const row=personRow(item.person,[action('Совместные сеансы',()=>api('/api/shared/'+partner),value=>showModal('Совместные сеансы',historyList(value.history)))]);
         shared.append(row,stats(item));
       }
-      main.append(shared);
+      card.append(shared);
     }
-    const history=data.historyHidden?panel('История просмотров скрыта','compact'):panel('История просмотров');
+    const history=el('section',null,data.historyHidden?'compact':'profile-section');
+    history.append(el('h2',data.historyHidden?'История просмотров скрыта':'История просмотров'));
     if(!data.historyHidden){
       history.append(historyList(data.history));
       let offset=data.history.length;
@@ -209,7 +251,8 @@
         history.append(more);
       }
     }
-    main.append(history);
+    card.append(history);
+    main.replaceChildren(card);
     if(options.get('edit')==='1'&&data.self&&!modal.open) settings(data);
   }
 
@@ -261,12 +304,14 @@
   function avatarSettings(data,redraw) {
     const box=el('div',null,'settings-section');
     const controls=el('div',null,'avatar-tools');
-    controls.hidden=true;
-    const photo=el('input',null,'field');
+    const picker=el('label',data.person.avatar?'Выбрать новое фото':'Добавить фото','btn avatar-picker');
+    const photo=el('input',null,'avatar-file');
     photo.type='file';
     photo.accept='image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
     photo.setAttribute('aria-label','Фото профиля');
-    const status=el('p','Проверяем подключение хранилища…','form-status');
+    picker.append(photo);
+    const filename=el('span',null,'avatar-name');
+    const status=el('p',null,'form-status');
     status.setAttribute('role','status');
     const upload=button('Загрузить фото',async ()=>{
       const file=photo.files[0];
@@ -280,32 +325,30 @@
       }catch(error){
         status.textContent=error.message;
       }finally{
-        photo.disabled=upload.disabled=false;
+        photo.disabled=false;
+        upload.disabled=!photo.files.length;
       }
     },true);
     upload.disabled=true;
     photo.onchange=()=>{
       upload.disabled=!photo.files.length;
+      filename.textContent=photo.files[0]?.name||'';
       status.textContent='';
     };
-    controls.append(photo,upload);
+    controls.append(picker,upload,filename);
     if(data.person.avatar) controls.append(action('Удалить фото',()=>api('/api/profile/avatar',{method:'DELETE'}),redraw));
     box.append(el('h3','Фото профиля'),controls,status);
-    api('/api/profile/avatar').then(({configured})=>{
-      controls.hidden=!configured;
-      status.textContent=configured?'':'Для загрузки фото нужно подключить хранилище в настройках сайта.';
-    }).catch(error=>{status.textContent=error.message});
     return box;
   }
 
   function settings(data) {
     const root=el('div');
-    const redraw=async()=>{modal.close();await renderProfile()};
+    const redraw=async()=>{await renderProfile();modal.close()};
+    root.append(avatarSettings(data,redraw));
     root.append(form('Сохранить профиль',[
       field('Ник','nickname',{required:true,maxLength:40,value:data.person.nickname}).group,
       field('Описание','bio',{multiline:true,maxLength:240,value:data.person.bio}).group
     ],body=>api('/api/profile',{method:'PATCH',body}),redraw));
-    root.append(avatarSettings(data,redraw));
     const toggles={watchTime:'Время просмотра',films:'Количество фильмов',sessions:'Количество сеансов',
       shared:'Совместная статистика',registration:'Дата регистрации',history:'История просмотров',
       friends:'Список друзей',presence:'Статус присутствия',hideStats:'Скрыть всю статистику'};
@@ -398,7 +441,7 @@
 
   async function renderMessages() {
     const id=segment[1];
-    const layout=el('div',null,'dialogs-layout'+(id?' open':''));
+    const layout=el('div',null,'social-panel dialogs-layout'+(id?' open':''));
     const left=panel('Сообщения','dialog-list');
     const search=el('input',null,'field');
     search.placeholder='Поиск по диалогам';
@@ -423,6 +466,7 @@
       if(!dialogs.length) list.append(empty('Диалогов пока нет. Открой профиль друга, чтобы написать.'));
       for(const item of dialogs){
         const row=link('', '/messages/'+item.id,'dialog-row');
+        if(item.id===id) row.setAttribute('aria-current','page');
         const desc=el('div',null,'grow');
         desc.append(el('strong',item.person.nickname),el('div',item.preview||'Открыть диалог','muted'));
         if(item.at) desc.append(el('time',date(item.at),'muted'));
@@ -443,10 +487,12 @@
     const input=el('textarea',null,'field');
     input.rows=1;
     input.maxLength=2000;
-    input.placeholder='Сообщение';
+    input.placeholder='Написать сообщение…';
     input.setAttribute('aria-label','Сообщение');
-    const submit=el('button','Отправить','btn primary');
+    const submit=el('button',null,'btn direct-send');
     submit.type='submit';
+    submit.setAttribute('aria-label','Отправить');
+    submit.append(icon('send'));
     composer.append(input,submit);
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
@@ -508,7 +554,7 @@
       readByOther=data.readByOther;
       input.disabled=!canSend;
       submit.disabled=!canSend||sending;
-      input.placeholder=canSend?'Сообщение':'Отправка доступна друзьям';
+      input.placeholder=canSend?'Написать сообщение…':'Отправка доступна друзьям';
       paint(stick?'bottom':'keep');
       await markRead();
     }
