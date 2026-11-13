@@ -8,8 +8,8 @@
   const desktop=matchMedia('(min-width: 1025px)');
   const onCinema=document.body.classList.contains('cinema-page');
   const entries=[
-    {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
     {label:'Мой профиль',href:'/profile',icon:'profile'},
+    {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
     {label:'Сообщения',href:'/messages',icon:'messages',id:'cinemaMessagesLink'},
     {label:'Отправить послание',panel:'send-wish',icon:'write',id:'wishOpen'},
     {label:'Послания',panel:'wishInbox',icon:'inbox'},

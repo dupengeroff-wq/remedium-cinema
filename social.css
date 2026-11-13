@@ -95,9 +95,22 @@
   width:min(77%,390px);aspect-ratio:1;top:12%;right:-24%;border-radius:50%;
   background:
     radial-gradient(circle at 12% 7%,#ffffff14,transparent 37%),
-    linear-gradient(144deg,#0002 0,#0008 21%,#000e 49%,#000 74%),
-    url('/cinema-moon.webp') center/cover #242424;
-  box-shadow:inset 1px 1px 6px #ffffff85,0 0 28px #b9b9b924;opacity:.62
+    linear-gradient(144deg,#0001 0,#0005 21%,#000b 49%,#000f 78%),
+    url('/cinema-moon.webp?v=2') center/cover #242424;
+  box-shadow:inset 1px 1px 6px #ffffff85,0 0 28px #b9b9b924;opacity:.62;
+  animation:cinema-moon-drift 42s ease-in-out infinite alternate;
+  transform-origin:50% 50%
+}
+/* Moon photograph: FullMoon2010 by Gregory H. Revera.
+   Source: https://commons.wikimedia.org/wiki/File:FullMoon2010.jpg
+   License: https://creativecommons.org/licenses/by-sa/3.0/
+   Adaptation: square crop, 2048px WebP. The adapted image is CC BY-SA 3.0. */
+@keyframes cinema-moon-drift{
+  from{transform:translate3d(0,0,0) rotate(-3deg)}
+  to{transform:translate3d(-8px,-9px,0) rotate(3deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .cinema-page #cinemaChat::before,.direct-room::before{animation:none}
 }
 .cinema-page #cinemaChat :is(.chathead,.chatinput){
   background:#0b0b0b42!important;-webkit-backdrop-filter:blur(8px)!important;
