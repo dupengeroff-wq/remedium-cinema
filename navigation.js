@@ -9,8 +9,9 @@
   const onCinema=document.body.classList.contains('cinema-page');
   const entries=[
     {label:'Мой профиль',href:'/profile',icon:'profile'},
-    {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
+    {label:'Друзья',href:'/friends',icon:'friends'},
     {label:'Сообщения',href:'/messages',icon:'messages',id:'cinemaMessagesLink'},
+    {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
     {label:'Отправить послание',panel:'send-wish',icon:'write',id:'wishOpen'},
     {label:'Послания',panel:'wishInbox',icon:'inbox'},
     {label:'Голосование за фильм',panel:'pollPanel',icon:'vote'},
@@ -20,6 +21,7 @@
   const icons={
     home:'M3 10.5 12 3l9 7.5 M5 9.5V21h14V9.5 M10 21v-6h4v6',
     profile:'M15.2 8a3.2 3.2 0 1 1-6.4 0 3.2 3.2 0 0 1 6.4 0ZM5 20v-1.5a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V20',
+    friends:'M14 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM4 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M17 5a3 3 0 0 1 0 6m3 4a4 4 0 0 1 2 4v1',
     messages:'M19 14a2 2 0 0 1-2 2H9l-4 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2ZM21 9v8a3 3 0 0 1-3 3h-5',
     write:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4',
     inbox:'M6 5h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Zm-2 2 8 6 8-6',
@@ -127,7 +129,7 @@
   const route=location.pathname;
   for(const row of list.querySelectorAll('a[href]')) {
     if(row.dataset.openPanel || row.hash) continue;
-    if((row.id==='cinemaHomeLink' && onCinema) || (row.pathname==='/profile' && route==='/profile') ||
+    if((row.id==='cinemaHomeLink' && onCinema) || row.pathname===route ||
       (row.pathname==='/messages' && /^\/messages(?:\/|$)/.test(route))) row.setAttribute('aria-current','page');
   }
 
