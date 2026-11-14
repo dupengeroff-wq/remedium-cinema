@@ -10,13 +10,13 @@ let serverOffset = 0;
 let media = null, mediaId = null, syncVersion = -1;
 let ytPlayer = null, vkPlayer = null, generation = 0;
 let lastSync = 0, clock = 0, playingState = false, knownDuration = 0;
-let muted = false, messages = [], chatId = null;
+let muted = false, messages = [];
 let mediaReady = false, mediaTimer = null, playbackTimer = null;
 let pendingSync = null, pendingAction = null, pendingSeek = null;
 let guestPlayback = null, autoplayMuted = false, playbackPrompt = '';
 let vkPauseTime = null, vkRestoring = false;
 let vkRecommendationsDismissed = false;
-let chatAttempt = null, sendingChat = null;
+let chatAttempt = null, sendingChat = false;
 const playerScripts = new Map();
 let badge = '🎀', pickerMessage = null;
 const BADGES = ['🎀', '🐈', '🦊', '💖', '🐒'];
@@ -377,9 +377,7 @@ $('shareMovie').onclick = async () => {
           const sent = shareAsHost ? 'Приглашение отправлено.' : 'Ссылка на видео отправлена.';
           toast(sent);
           if (!movieInvite.open || version !== invitePickerVersion) return;
-          const openDialog = RC.link('Открыть диалог', '/messages/' + dialog.id, 'btn message-dialog-link');
-          openDialog.prepend(CinemaNav.messageIcon());
-          movieInviteStatus.replaceChildren(sent + ' ', openDialog);
+          movieInviteStatus.replaceChildren(sent + ' ', RC.link('Открыть диалог', '/messages/' + dialog.id));
           movieInviteFriends.replaceChildren();
         } catch (error) {
           if (!movieInvite.open || version !== invitePickerVersion) return;
@@ -420,7 +418,7 @@ function updateHost() {
   $('sound').disabled = !mediaReady || !inRoom;
   $('full').disabled = !media;
   $('message').disabled = !inRoom;
-  $('send').disabled = !inRoom || !!sendingChat;
+  $('send').disabled = !inRoom || sendingChat;
   video.controls = true;
   refreshSoundButton();
   updateVkRecovery();
@@ -814,6 +812,7 @@ $('sound').onclick=()=>{
   else { muted = true; applyVolume(); }
 };
 $('soundPrompt').onclick=resumeLocalPlayback;
+function avatar(name){return String(name||'?').trim().slice(0,1).toUpperCase()}
 function isMine(msg){return !!selfPublicId&&msg.author===selfPublicId}
 function badgeFor(msg){return msg.isHost?'👑':msg.badge||'🎀'}
 function openPicker(kind,msg=null){pickerMessage=msg;$('pickerTitle').textContent=kind==='badge'?'Твой космический знак':'Реакция на сообщение';$('pickerHint').textContent=kind==='badge'?'Нажми, чтобы заменить бантик':'Выбери эмоцию — она появится у обоих';const choices=$('pickerChoices');choices.replaceChildren();for(const emoji of(kind==='badge'?BADGES:REACTIONS)){const b=document.createElement('button');b.className='choice';b.type='button';b.textContent=emoji;b.onclick=()=>{closePicker();if(kind==='badge'){request('set-badge',emoji).then(res=>{if(!res.ok)toast(res.error||'Не удалось изменить значок')})}else if(msg?.id){request('react',{id:msg.id,emoji}).then(res=>{if(!res.ok)toast(res.error||'Не удалось поставить реакцию')})}};choices.append(b)}$('pickerOverlay').classList.remove('hidden')}
@@ -823,38 +822,25 @@ function nameElement(msg){const stack=document.createElement('div');stack.classN
 function renderReactions(msg,container){container.replaceChildren();for(const emoji of REACTIONS){const tokens=msg.reactions?.[emoji]||[];if(!tokens.length)continue;const b=document.createElement('button');b.type='button';b.className='reaction-pill'+(tokens.includes(selfPublicId)?' mine':'');b.textContent=emoji+' '+tokens.length;b.title='Изменить реакцию';b.onclick=()=>request('react',{id:msg.id,emoji}).then(res=>{if(!res.ok)toast(res.error||'Не удалось поставить реакцию')});container.append(b)}}
 function attachLongPress(el,msg){let timer=null,x=0,y=0,opened=false;const cancel=()=>{clearTimeout(timer);timer=null};el.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;opened=false;x=e.clientX;y=e.clientY;cancel();timer=setTimeout(()=>{opened=true;openPicker('reaction',msg)},480)});el.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)cancel()});for(const ev of ['pointerup','pointercancel','pointerleave'])el.addEventListener(ev,cancel);el.addEventListener('contextmenu',e=>{e.preventDefault();cancel();if(!opened)openPicker('reaction',msg)});el.addEventListener('click',e=>{if(opened){e.preventDefault();opened=false}})}
 function appendMessage(msg){const list=$('messages');list.querySelector('.empty')?.remove();const row=document.createElement('div');row.className='msg '+(msg.isHost?'host':'guest')+(isMine(msg)?' mine':'');row.dataset.messageId=msg.id||'';const content=document.createElement('div');content.className='msg-content';const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=msg.text;attachLongPress(bubble,msg);const reactionRow=document.createElement('div');reactionRow.className='reaction-row';renderReactions(msg,reactionRow);const time=document.createElement('div');time.className='msgtime';time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});content.append(nameElement(msg),bubble,reactionRow,time);row.append(content);list.append(row);list.scrollTop=list.scrollHeight}
-function renderAllMessages(){
-  const list=$('messages');
-  list.replaceChildren();
-  for(const msg of messages)appendMessage(msg);
-  if(!messages.length)list.append(RC.el('div','Чат очищается при выходе из комнаты или смене видео.','empty'));
-}
-
-function resetChat(nextId=null) {
-  chatId=nextId;
-  messages=[];
-  chatAttempt=sendingChat=null;
-  $('message').value='';
-  if(pickerMessage)closePicker();
-  renderAllMessages();
-}
-
+function renderAllMessages(){const list=$('messages');list.replaceChildren();for(const msg of messages)appendMessage(msg);if(!messages.length){const e=document.createElement('div');e.className='empty';e.textContent='Тишина перед началом фильма ✦ Зажми сообщение, чтобы поставить реакцию.';list.append(e)}}
+function floatMessage(msg){const row=document.createElement('div');row.className='floatmsg';const av=document.createElement('div');av.className='avatar';av.textContent=avatar(msg.name);const b=document.createElement('div');b.className='floatbubble';const who=document.createElement('b');who.textContent=badgeFor(msg)+' '+msg.name+': ';const text=document.createElement('span');text.textContent=msg.text;b.append(who,text);row.append(b);$('floating').append(row);while($('floating').children.length>4)$('floating').firstElementChild.remove();setTimeout(()=>row.remove(),8500)}
 $('chatForm').onsubmit = async event => {
   event.preventDefault();
   const input = $('message');
   const text = input.value.trim();
   if (!text || sendingChat) return;
-  if (!inRoom || !socket.connected || !chatId) return toast('Дождись подключения чата');
-  if (!chatAttempt || chatAttempt.chatId !== chatId || chatAttempt.text !== text) {
-    chatAttempt = {room, chatId, text, id: randomKey()};
+  if (!inRoom || !socket.connected) return toast('Дождись восстановления связи с комнатой');
+  const id = room;
+  if (!chatAttempt || chatAttempt.room !== id || chatAttempt.text !== text) {
+    chatAttempt = {room: id, text, id: randomKey()};
   }
   const attempt = chatAttempt;
-  sendingChat = attempt;
+  sendingChat = true;
   updateHost();
   const result = await request('chat', attempt);
-  if(sendingChat!==attempt)return;
-  sendingChat = null;
+  sendingChat = false;
   updateHost();
+  if (room !== id) return;
   if (result.ok) {
     if (input.value.trim() === text) input.value = '';
     if (chatAttempt === attempt) chatAttempt = null;
@@ -864,17 +850,18 @@ $('chatForm').onsubmit = async event => {
 };
 
 socket.on('chat', message => {
-  if (!inRoom || message.room !== room || message.chatId !== chatId || messages.some(item => item.id === message.id)) return;
+  if (!inRoom || message.room !== room || messages.some(item => item.id === message.id)) return;
   messages.push(message);
   appendMessage(message);
   if (messages.length > 250) {
     messages.shift();
     $('messages').firstElementChild?.remove();
   }
+  floatMessage(message);
 });
 
 socket.on('reaction-update', update => {
-  if (!inRoom || update.room !== room || update.chatId !== chatId) return;
+  if (!inRoom || update.room !== room) return;
   const message = messages.find(item => item.id === update.id);
   if (!message) return;
   message.reactions = update.reactions;
@@ -888,7 +875,11 @@ function resetRoomView() {
   syncVersion = -1;
   showMedia(null);
   $('url').value = '';
-  resetChat();
+  $('message').value = '';
+  $('floating').replaceChildren();
+  messages = [];
+  chatAttempt = null;
+  renderAllMessages();
   currentCinemaPoll = null;
   pollDraft = null;
   renderCinemaPoll();
@@ -897,7 +888,6 @@ function resetRoomView() {
 
 function applyRoomState(state, joinedNow = false) {
   if (!inRoom || state?.room !== room) return;
-  if(chatId!==state.chatId)resetChat(state.chatId);
   const users = state.users || [];
   const me = users.find(user => user.id === selfPublicId);
   isHost = !!me?.isHost;
@@ -933,7 +923,6 @@ socket.on('sync', snapshot => {
 socket.on('connect',()=>enterRoom());
 socket.on('disconnect',reason=>{
   inRoom=false;
-  resetChat();
   clearPlaybackAttempt();
   joinFlight=0;
   $('status').textContent='Переподключение…';
@@ -943,10 +932,6 @@ socket.on('disconnect',reason=>{
   updateHost();
   renderCinemaPoll();
   if(reason==='io server disconnect' && viewer) initAccount();
-});
-window.addEventListener('pagehide',()=>socket.disconnect());
-window.addEventListener('pageshow',event=>{
-  if(event.persisted && viewer)socket.connect();
 });
 socket.on('connect_error',async ()=>{
   $('entryStatus').textContent='Связь с сервером пока недоступна.';
