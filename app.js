@@ -12,6 +12,7 @@ let lastSync = 0, clock = 0, playingState = false, knownDuration = 0;
 let muted = false, messages = [];
 let mediaReady = false, mediaTimer = null, playbackTimer = null;
 let pendingSync = null, pendingAction = null, pendingSeek = null;
+let guestPlayback = null, autoplayMuted = false, playbackPrompt = '';
 let chatAttempt = null, sendingChat = false;
 const playerScripts = new Map();
 let badge = '🎀', pickerMessage = null;
@@ -56,28 +57,46 @@ function playerStatus(text='') {
   $('playerStatus').textContent=text;
   $('playerStatus').classList.toggle('hidden',!text);
 }
-function setSoundPrompt(show) {
-  $('soundPrompt').classList.toggle('hidden',!show||!media);
+function setPlaybackPrompt(mode = '', hint = 'Нажми ▶ внутри плеера') {
+  playbackPrompt = mode;
+  const button = $('soundPrompt');
+  button.classList.toggle('hidden', mode !== 'start' && mode !== 'sound');
+  button.textContent = mode === 'sound' ? 'Включить звук' : isHost ? '▶ Запустить видео' : '▶ Присоединиться к просмотру';
+  const nativeHint = $('nativePlaybackHint');
+  nativeHint.textContent = mode === 'native' ? hint : '';
+  nativeHint.classList.toggle('hidden', mode !== 'native');
+  $('playerShell').classList.toggle('embed-local-controls', mode === 'native');
+  const frame = $('playerShell').querySelector('.embed iframe');
+  if (frame) frame.tabIndex = mode === 'native' || isHost ? 0 : -1;
 }
-function refreshSoundButton(){window.CinemaUI.setMuted(muted)}
+function waitingForPlaybackTap() {
+  return playbackPrompt === 'start' || playbackPrompt === 'native';
+}
+function refreshSoundButton(){window.CinemaUI.setMuted(muted || autoplayMuted)}
 function applyVolume(){
-  video.muted=muted;video.volume=1;
+  const silent = muted || autoplayMuted;
+  video.muted=silent;video.volume=1;
   try {
     if(mediaReady&&media?.type==='youtube'&&ytPlayer){
-      if(muted)ytPlayer.mute();else{ytPlayer.unMute();ytPlayer.setVolume(100)}
+      if(silent)ytPlayer.mute();else{ytPlayer.unMute();ytPlayer.setVolume(100)}
     }
     if(mediaReady&&media?.type==='vk'&&vkPlayer){
-      if(muted)vkPlayer.mute();else{vkPlayer.unmute();vkPlayer.setVolume(1)}
+      if(silent)vkPlayer.mute();else{vkPlayer.unmute();vkPlayer.setVolume(1)}
     }
   }catch(e){console.warn('Volume:',e)}
   refreshSoundButton();
 }
-function activateSound(){
-  if(!mediaReady)return;
-  muted=false;applyVolume();
-  // This call runs directly in the click gesture, including for a guest whose
-  // browser rejected autoplay. It does not change the room's playback state.
-  if(playingState)commandPlayback(true);else setSoundPrompt(false);
+function resumeLocalPlayback(){
+  if (!mediaReady || !inRoom) return;
+  const shouldPlay = isHost ? waitingForPlaybackTap() || getPlaying() : guestPlayback?.playing;
+  autoplayMuted = false;
+  muted = false;
+  setPlaybackPrompt();
+  applyVolume();
+  if (!shouldPlay) return;
+  if (!isHost) syncPlayerPosition(guestPlayback);
+  // Playback must be requested directly in the tap handler.
+  commandPlayback(true, true);
 }
 function loadPlayerScript(id,src,available){
   if(available())return Promise.resolve();
@@ -95,19 +114,13 @@ function loadPlayerScript(id,src,available){
   });
   playerScripts.set(id,promise);return promise;
 }
-function allowLocalVk(allowed) {
-  $('playerShell').classList.toggle('vk-local-controls', allowed);
-  const frame = $('vk').querySelector('iframe');
-  if (frame) frame.tabIndex = allowed || isHost ? 0 : -1;
-}
-
 function armPlayerTimeout(g) {
   clearTimeout(mediaTimer);
   mediaTimer = setTimeout(() => {
     if (g !== generation || mediaReady) return;
-    if (media?.type === 'vk') {
-      allowLocalVk(true);
-      playerStatus('VK не ответил. Попробуй запустить видео внутри плеера. Синхронизация пока недоступна.');
+    if (media?.type === 'vk' || media?.type === 'youtube') {
+      playerStatus();
+      setPlaybackPrompt('native', 'Нажми ▶ внутри плеера. Синхронизация пока недоступна.');
     } else {
       playerStatus('Видео не загрузилось. Проверь ссылку и доступ к видеосервису.');
     }
@@ -115,11 +128,11 @@ function armPlayerTimeout(g) {
 }
 
 function playerReady(g) {
-  if (g !== generation) return;
+  if (g !== generation || mediaReady) return;
   mediaReady = true;
   clearTimeout(mediaTimer);
   playerStatus();
-  allowLocalVk(false);
+  setPlaybackPrompt();
   knownDuration = getDuration();
   applyVolume();
   updateHost();
@@ -131,10 +144,15 @@ function playerReady(g) {
 
 function playbackEvent(playing, g, ended=false) {
   if (g !== generation || !mediaReady) return;
-  pendingAction = null;
+  if (!isHost && playing && guestPlayback?.playing === false) {
+    if (pendingAction?.playing !== false) commandPlayback(false);
+    return;
+  }
+  if (pendingAction?.playing === playing) clearPlaybackAttempt();
   playingState = playing;
   if (playing) {
-    setSoundPrompt(false);
+    if (!isHost && waitingForPlaybackTap() && guestPlayback?.playing) syncPlayerPosition(guestPlayback);
+    setPlaybackPrompt(autoplayMuted ? 'sound' : '');
     playerStatus();
   }
   emitPlayback(getTime(), playing, false, ended);
@@ -213,6 +231,7 @@ function enterRoom() {
     selfPublicId=response.id;
     isHost=!!response.isHost;
     inRoom=true;
+    syncVersion=-1;
     roomTarget=isHost?{}:{room:id};
     if(Number.isFinite(response.state.serverTime)){
       serverOffset=response.state.serverTime-(sent+Date.now())/2;
@@ -334,9 +353,9 @@ $('load').onclick = async () => {
 
 function showMedia(m){
   const g=++generation;
-  mediaReady=false;pendingSync=null;pendingAction=null;pendingSeek=null;
-  allowLocalVk(false);
-  clearTimeout(mediaTimer);clearTimeout(playbackTimer);
+  mediaReady=false;pendingSync=null;pendingSeek=null;guestPlayback=null;autoplayMuted=false;
+  clearTimeout(mediaTimer);
+  clearPlaybackAttempt();
   video.onloadedmetadata=null;video.oncanplay=null;video.onerror=null;
   try{video.pause()}catch{}
   try{ytPlayer?.destroy()}catch{}
@@ -346,7 +365,7 @@ function showMedia(m){
   $('yt').style.display='none';$('vk').style.display='none';
   $('yt').replaceChildren();$('vk').replaceChildren();
   knownDuration=0;clock=0;playingState=false;
-  refreshSoundButton();setSoundPrompt(false);
+  refreshSoundButton();setPlaybackPrompt();
   $('placeholder').classList.toggle('hidden',!!m);
   updateHost();updateTimeline();playerStatus(m?'Загружаем видео…':'');
   if(!m)return;
@@ -357,7 +376,8 @@ function showMedia(m){
     video.oncanplay=()=>{if(!mediaReady)playerReady(g)};
     video.onerror=()=>{
       if(g!==generation)return;
-      clearTimeout(mediaTimer);mediaReady=false;updateHost();
+      clearTimeout(mediaTimer);clearPlaybackAttempt();mediaReady=false;playingState=false;
+      setPlaybackPrompt();updateHost();updateTimeline();
       playerStatus('Не удалось открыть видео. Нужна доступная прямая ссылка MP4/WebM.');
     };
     return;
@@ -372,27 +392,33 @@ function showMedia(m){
         events:{
           onReady:()=>playerReady(g),
           onStateChange:e=>{if(e.data===1)playbackEvent(true,g);else if(e.data===0||e.data===2)playbackEvent(false,g,e.data===0)},
-          onAutoplayBlocked:()=>{if(g===generation)setSoundPrompt(true)},
+          onAutoplayBlocked:()=>{if(g===generation) reportAutoplayBlocked()},
           onError:e=>{
             if(g!==generation)return;
-            clearTimeout(mediaTimer);mediaReady=false;playingState=false;pendingAction=null;updateHost();updateTimeline();
+            clearTimeout(mediaTimer);clearPlaybackAttempt();mediaReady=false;playingState=false;
+            setPlaybackPrompt();updateHost();updateTimeline();
             playerStatus([101,150].includes(e.data)?'Автор запретил встраивание этого видео. Выбери другую ссылку.':'YouTube не смог открыть видео. Проверь ссылку и доступность ролика.');
           }
         }
       });
     }).catch(e=>{
       if(g!==generation)return;
-      console.warn(e);clearTimeout(mediaTimer);playerStatus('Не удалось загрузить YouTube API. Проверь соединение и блокировщики.');
+      console.warn(e);clearTimeout(mediaTimer);
+      playerStatus('Не удалось загрузить YouTube API. Проверь соединение и блокировщики.');
     });
     return;
   }
   if(m.type==='vk'){
     const frame=document.createElement('iframe');
-    const embed=new URL(m.embed);embed.searchParams.set('js_api','1');
+    const embed=new URL(m.embed);
+    if (new URL(m.url).hostname.replace(/^(www|m)\./, '') === 'vkvideo.ru') {
+      embed.hostname = 'vkvideo.ru';
+    }
+    embed.searchParams.set('js_api','1');
     frame.src=embed.href;frame.title='VK Видео';frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
     frame.allowFullscreen=true;frame.referrerPolicy='strict-origin-when-cross-origin';frame.tabIndex=isHost?0:-1;
     $('vk').append(frame);$('vk').style.display='block';
-    loadPlayerScript('vkapi','https://vk.com/js/api/videoplayer.js',()=>!!window.VK?.VideoPlayer).then(()=>{
+    loadPlayerScript('vkapi','https://vkvideo.ru/js/api/videoplayer.js',()=>!!window.VK?.VideoPlayer).then(()=>{
       if(g!==generation)return;
       vkPlayer=VK.VideoPlayer(frame);
       // Event names are part of the public API. Do not look up lower-case
@@ -409,12 +435,16 @@ function showMedia(m){
       });
       for(const event of ['paused','ended'])vkPlayer.on(event,data=>{observe(data);playbackEvent(false,g,event==='ended')});
       vkPlayer.on('volumechange',data=>{
-        if(g!==generation||typeof data?.muted!=='boolean')return;
+        if(g!==generation||autoplayMuted||typeof data?.muted!=='boolean')return;
         muted=data.muted;refreshSoundButton();
+      });
+      vkPlayer.on('autoplaySoundProhibited',()=>{
+        if (g === generation && !autoplayMuted && !muted) reportAutoplayBlocked();
       });
       vkPlayer.on('error',()=>{
         if(g!==generation)return;
-        clearTimeout(mediaTimer);mediaReady=false;playingState=false;pendingAction=null;updateHost();updateTimeline();
+        clearTimeout(mediaTimer);clearPlaybackAttempt();mediaReady=false;playingState=false;
+        setPlaybackPrompt();updateHost();updateTimeline();
         playerStatus('VK не может воспроизвести ролик. Проверь доступ к нему и разрешение на встраивание.');
       });
       // The SDK can be attached after the iframe has already initialized.
@@ -423,8 +453,8 @@ function showMedia(m){
     }).catch(e=>{
       if(g!==generation)return;
       console.warn(e);clearTimeout(mediaTimer);
-      allowLocalVk(true);
-      playerStatus('Связь с VK недоступна. Для запуска нажми кнопку внутри видео.');
+      playerStatus();
+      setPlaybackPrompt('native','Нажми ▶ внутри VK Видео. Синхронизация пока недоступна.');
     });
   }
 }
@@ -481,20 +511,55 @@ function sendSync(seek = false) {
   updateTimeline();
 }
 
-function commandPlayback(playing) {
-  const currentGeneration = generation;
-  const action = {playing};
-  pendingAction = action;
+function clearPlaybackAttempt() {
   clearTimeout(playbackTimer);
+  pendingAction = null;
+}
+
+function reportAutoplayBlocked(action = pendingAction) {
+  if (!mediaReady || !inRoom || (action && pendingAction !== action)) return;
+  if (action?.playing === false || (!action && waitingForPlaybackTap()) || (!isHost && !guestPlayback?.playing)) return;
+  clearPlaybackAttempt();
+
+  if (!isHost && !action?.fromTap && !muted && !autoplayMuted) {
+    autoplayMuted = true;
+    applyVolume();
+    commandPlayback(true);
+    return;
+  }
+  if (media.type === 'video' || !action?.fromTap) setPlaybackPrompt('start');
+  else setPlaybackPrompt('native');
+  if (isHost) sendSync();
+  updateTimeline();
+}
+
+function commandPlayback(playing, fromTap = false) {
+  const action = {playing, fromTap};
+  clearPlaybackAttempt();
+  pendingAction = action;
+  playbackTimer = setTimeout(() => {
+    if (pendingAction !== action) return;
+    if (playing && !getPlaying()) {
+      reportAutoplayBlocked(action);
+      return;
+    }
+    clearPlaybackAttempt();
+    if (playing) setPlaybackPrompt(autoplayMuted ? 'sound' : '');
+    if (isHost) sendSync();
+    updateTimeline();
+  }, 4200);
   try {
     if (media.type === 'video') {
       if (playing) {
-        video.play().catch(() => {
-          if (currentGeneration !== generation || pendingAction !== action) return;
-          pendingAction = null;
-          setSoundPrompt(true);
-          if (isHost) sendSync();
-          updateTimeline();
+        video.play().catch(error => {
+          if (pendingAction !== action) return;
+          if (error.name === 'NotAllowedError') reportAutoplayBlocked(action);
+          else {
+            clearPlaybackAttempt();
+            if (error.name !== 'AbortError') playerStatus('Не удалось запустить видео. Проверь доступность ссылки.');
+            if (isHost) sendSync();
+            updateTimeline();
+          }
         });
       } else {
         video.pause();
@@ -507,53 +572,54 @@ function commandPlayback(playing) {
       else vkPlayer.pause();
     }
   } catch (error) {
-    pendingAction = null;
-    throw error;
+    console.warn('Playback:', error);
+    if (playing) reportAutoplayBlocked(action);
+    else clearPlaybackAttempt();
   }
-  playbackTimer = setTimeout(() => {
-    if (currentGeneration !== generation || pendingAction !== action) return;
-    pendingAction = null;
-    if (playing && !getPlaying()) setSoundPrompt(true);
-    if (isHost) sendSync();
-    updateTimeline();
-  }, 4200);
+}
+
+function syncPosition(snapshot) {
+  const {playing, serverTime} = snapshot;
+  const elapsed = playing && Number.isFinite(serverTime)
+    ? Math.max(0, Date.now() + serverOffset - serverTime) / 1000 : 0;
+  return Math.min(finiteTime(snapshot.time) + elapsed, getDuration() || Infinity);
+}
+
+function syncPlayerPosition(snapshot) {
+  const time = syncPosition(snapshot);
+  const tolerance = snapshot.seek ? 0.05 : snapshot.playing ? 1.25 : 0.25;
+  if (Math.abs(getTime() - time) > tolerance) {
+    try {
+      if (media.type === 'video') video.currentTime = time;
+      if (media.type === 'youtube') ytPlayer.seekTo(time, true);
+      if (media.type === 'vk') vkPlayer.seek(time);
+      pendingSeek = {time, until: Date.now() + 800};
+    } catch (error) {
+      console.warn('Seek:', error);
+    }
+  }
+  clock = time;
 }
 
 function applySync(snapshot) {
   if (!inRoom || snapshot?.room !== room || !media || snapshot.mediaId !== mediaId
       || snapshot.version < syncVersion) return;
   syncVersion = snapshot.version;
-  const {playing, seek, serverTime} = snapshot;
-  const elapsed = playing && Number.isFinite(serverTime)
-    ? Math.max(0, Date.now() + serverOffset - serverTime) / 1000 : 0;
-  const desiredTime = finiteTime(snapshot.time) + elapsed;
-  const duration = getDuration();
-  const time = Math.min(desiredTime, duration || Infinity);
+  if (!isHost) guestPlayback = snapshot;
   if (!mediaReady) {
     pendingSync = snapshot;
-    clock = time;
-    playingState = playing;
+    clock = syncPosition(snapshot);
     updateTimeline();
     return;
   }
-  try {
-    const difference = Math.abs(getTime() - time);
-    const tolerance = seek ? 0.05 : playing ? 1.25 : 0.25;
-    if (difference > tolerance) {
-      if (media.type === 'video') video.currentTime = time;
-      if (media.type === 'youtube') ytPlayer.seekTo(time, true);
-      if (media.type === 'vk') vkPlayer.seek(time);
-      pendingSeek = {time, until: Date.now() + 800};
-    }
-    const intended = pendingAction?.playing ?? getPlaying();
-    playingState = playing;
-    if (intended !== playing) commandPlayback(playing);
-    if (!playing) setSoundPrompt(false);
-  } catch (error) {
-    console.warn('Sync:', error);
-    if (playing) setSoundPrompt(true);
+  const {playing} = snapshot;
+  if (!playing && waitingForPlaybackTap()) setPlaybackPrompt(autoplayMuted ? 'sound' : '');
+  const intended = pendingAction?.playing ?? getPlaying();
+  const waiting = !isHost && playing && waitingForPlaybackTap();
+  if (!waiting) {
+    syncPlayerPosition(snapshot);
+    if (intended !== playing || (!playing && media.type === 'youtube' && pendingSeek)) commandPlayback(playing);
   }
-  clock = time;
   updateTimeline();
 }
 function formatTime(n){n=Math.max(0,Math.floor(Number(n)||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0')}
@@ -562,7 +628,15 @@ function updateTimeline(){
   $('elapsed').textContent=formatTime(t);$('duration').textContent=formatTime(d);
   $('progress').max=d||100;$('progress').value=Math.min(d||100,t);
   window.CinemaUI.setPlaying(playing);
-  $('playingBadge').textContent=!media?'● ОЖИДАНИЕ':!mediaReady?'◌ ЗАГРУЗКА':playing?'◉ СМОТРИМ ВМЕСТЕ':'◉ ПАУЗА';
+  let status = '● ОЖИДАНИЕ';
+  if (media) {
+    if (waitingForPlaybackTap()) status = '◌ НУЖНО НАЖАТИЕ';
+    else if (!mediaReady) status = '◌ ЗАГРУЗКА';
+    else if (getPlaying()) status = '◉ СМОТРИМ ВМЕСТЕ';
+    else if (!isHost && guestPlayback?.playing) status = '◌ СИНХРОНИЗАЦИЯ';
+    else status = '◉ ПАУЗА';
+  }
+  $('playingBadge').textContent=status;
 }
 function seekTo(t){
   if(!inRoom||!isHost||!media||!mediaReady)return;
@@ -578,13 +652,8 @@ function seekTo(t){
 $('play').onclick=()=>{
   if(!inRoom||!isHost||!media||!mediaReady)return;
   const shouldPlay=!(pendingAction?.playing??getPlaying());
-  try{
-    commandPlayback(shouldPlay);
-    updateTimeline();
-  }catch(e){
-    console.warn('Playback:',e);playingState=getPlaying();updateTimeline();
-    toast('Не удалось запустить видео. Проверь ссылку и доступность ролика.');
-  }
+  commandPlayback(shouldPlay, true);
+  updateTimeline();
 };
 $('back').onclick=()=>seekTo(getTime()-10);
 $('forward').onclick=()=>seekTo(getTime()+10);
@@ -596,10 +665,10 @@ video.addEventListener('seeked',()=>sendSync(true));
 for(const event of ['seeking','waiting','stalled'])video.addEventListener(event,()=>reportWatch(false));
 $('sound').onclick=()=>{
   if(!mediaReady)return;
-  muted=!muted;applyVolume();
-  if(!muted)activateSound();
+  if (muted || autoplayMuted || waitingForPlaybackTap()) resumeLocalPlayback();
+  else { muted = true; applyVolume(); }
 };
-$('soundPrompt').onclick=activateSound;
+$('soundPrompt').onclick=resumeLocalPlayback;
 function avatar(name){return String(name||'?').trim().slice(0,1).toUpperCase()}
 function isMine(msg){return !!selfPublicId&&msg.author===selfPublicId}
 function badgeFor(msg){return msg.isHost?'👑':msg.badge||'🎀'}
@@ -713,6 +782,7 @@ socket.on('sync', snapshot => {
 socket.on('connect',()=>enterRoom());
 socket.on('disconnect',reason=>{
   inRoom=false;
+  clearPlaybackAttempt();
   joinFlight=0;
   $('status').textContent='Переподключение…';
   $('status').classList.remove('is-online');
