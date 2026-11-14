@@ -11,6 +11,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {PGLiteSocketServer} from '@electric-sql/pglite-socket';
 import {io} from 'socket.io-client';
+import argon2 from 'argon2';
 import sharp from 'sharp';
 import {advanceEvidence} from '../lib/watch.js';
 import {parseMedia} from '../media.js';
@@ -130,6 +131,33 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
     else resolve(result);
   }));
 
+  const previousPrivacy={watchTime:false,films:false,sessions:false,shared:false,registration:false,
+    history:false,friends:false,presence:false,hideStats:false};
+  await db.exec(await fs.readFile(new URL('../migrations/001_accounts.sql',import.meta.url),'utf8'));
+  await db.exec(`CREATE TABLE schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());
+    INSERT INTO schema_migrations(name) VALUES ('001_accounts.sql')`);
+  const legacyHash=await argon2.hash(pass,{type:argon2.argon2id});
+  const priorOwner=crypto.randomUUID(),priorPartner=crypto.randomUUID(),priorPrivate=crypto.randomUUID();
+  const oldRoom=crypto.randomBytes(16).toString('hex');
+  const oldWatch=crypto.randomUUID(),otherWatch=crypto.randomUUID();
+  for(const [id,name] of [[priorOwner,'remedium_cavus'],[priorPartner,'stanislav'],[priorPrivate,'legacy-private']]){
+    await db.query(`INSERT INTO users(id,login,nickname,password_hash,friend_code) VALUES($1,$2,$2,$3,$4)`,
+      [id,name,legacyHash,crypto.randomBytes(6).toString('hex')]);
+  }
+  await db.query(`INSERT INTO profile_privacy(user_id,settings,updated_at)
+    SELECT id,$1,created_at+CASE WHEN id=$2 THEN interval '1 minute' ELSE interval '0' END FROM users`,
+    [JSON.stringify(previousPrivacy),priorPrivate]);
+  await db.query(`INSERT INTO cinema_rooms(id,owner_id,state) VALUES($1,$2,$3)`,
+    [oldRoom,priorOwner,JSON.stringify({messages:[{text:'Старый чат зала'}],letters:[{id:'old-letter'}]})]);
+  for(const [id,partner,slot] of [[oldWatch,priorPartner,320000000],[otherWatch,priorPrivate,320000001]]){
+    await db.query(`INSERT INTO watch_sessions(id,room_id,movie_id,movie_title,media_type,started_at,updated_at,status)
+      VALUES($1::uuid,$2,$1::uuid::text,'Старый просмотр','video',to_timestamp($3::bigint*5),now(),'completed')`,[id,oldRoom,slot]);
+    await db.query(`INSERT INTO watch_participants(watch_session_id,user_id,credited_seconds)
+      VALUES($1,$2,5),($1,$3,5)`,[id,priorOwner,partner]);
+    await db.query(`INSERT INTO shared_watch_intervals(watch_session_id,user_a_id,user_b_id,slot)
+      VALUES($1,least($2::uuid,$3::uuid),greatest($2::uuid,$3::uuid),$4)`,[id,priorOwner,partner,slot]);
+  }
+
   await start();
   const a=await create('cinema-owner','Создатель',setupCode);
   const b=await create('cinema-guest','Гость');
@@ -147,14 +175,39 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const before=(await request('/api/profiles/'+b.id,{token:a.token})).json;
   assert.equal(before.person.nickname,'Новый ник');
   assert.equal(before.person.id,b.id);
-  assert.deepEqual(before.personal,{});assert.equal(before.history,null);assert.equal(before.canSeeFriends,false);
-  await request('/api/profiles/'+b.id+'/friends',{token:a.token,expect:404});
+  assert.equal(before.personal.seconds,0);
+  assert.deepEqual(before.history,[]);assert.equal(before.canSeeFriends,true);
+  assert.equal(before.friendCount,0);assert.deepEqual(before.shared,[]);assert.equal(before.sharedTotal.sessions,0);
+  assert(before.person.registeredAt);assert.equal(before.person.online,false);
+  assert.deepEqual((await request('/api/profiles/'+b.id+'/friends',{token:a.token})).json.friends,[]);
   await request('/api/dialogs',{method:'POST',token:a.token,body:{userId:b.id},expect:403});
   await request('/api/friends/'+b.id,{method:'POST',token:a.token});
   await request('/api/friends/'+b.id,{method:'POST',token:a.token});
   assert.equal((await request('/api/friends',{token:b.token})).json.people.length,1);
+  assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.friendCount,0);
   await request('/api/friends/'+a.id,{method:'PATCH',token:b.token,body:{action:'accept'}});
   assert.equal((await request('/api/friends',{token:b.token})).json.people[0].relationship,'friend');
+  assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.friendCount,1);
+
+  const migrated=(await request('/api/profiles/'+priorOwner,{token:a.token})).json;
+  assert.equal(migrated.personal.seconds,10);assert.equal(migrated.personal.shared_count,1);
+  assert.equal(migrated.sharedTotal.sessions,1);assert.deepEqual(migrated.shared,[]);
+  assert(migrated.person.registeredAt);
+  const privateProfile=(await request('/api/profiles/'+priorPrivate,{token:a.token})).json;
+  assert.deepEqual(privateProfile.personal,{});assert.equal(privateProfile.sharedTotal,null);
+  assert.equal(privateProfile.history,null);assert.equal(privateProfile.canSeeFriends,false);
+  const ownProfile=await login('remedium_cavus');
+  const partnerProfile=await login('stanislav');
+  const ownOverview=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json;
+  assert.deepEqual(ownOverview.shared.map(item=>item.person.id),[priorPrivate]);
+  assert.deepEqual(ownOverview.history.find(item=>item.id===oldWatch).participants,[]);
+  assert.equal(ownOverview.history.find(item=>item.id===otherWatch).participants[0].id,priorPrivate);
+  assert.deepEqual((await request('/api/shared/'+priorPartner,{token:ownProfile.token})).json.history,[]);
+  assert.equal((await request('/api/shared/'+priorOwner,{token:partnerProfile.token})).json.history[0].id,oldWatch);
+  const {rows:[cleanRoom]}=await db.query('SELECT state FROM cinema_rooms WHERE id=$1',[oldRoom]);
+  assert.deepEqual(cleanRoom.state,{letters:[{id:'old-letter'}]});
+  await db.query(`UPDATE cinema_rooms SET state=state||'{"messages":[{"text":"Старая запись"}]}'::jsonb WHERE id=$1`,[oldRoom]);
+  assert.equal((await db.query('SELECT state FROM cinema_rooms WHERE id=$1',[oldRoom])).rows[0].state.messages,undefined);
 
   const photo=await sharp({create:{width:40,height:40,channels:3,background:'#222'}}).png().toBuffer();
   await request('/api/profile/avatar',{method:'PUT',token:b.token,body:Buffer.from('not image'),expect:400});
@@ -189,12 +242,32 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.equal(ownerRoom.history[0].title,'Старый сеанс');
   const invite=(await request('/api/friends/'+b.id+'/invite',{method:'POST',token:a.token,expect:201})).json.message.invite;
   assert.equal(invite.room,room);
-  await send(bs,'join',{room,invite:invite.code});
+  const guestRoom=await send(bs,'join',{room,invite:invite.code});
+  const firstChatId=guestRoom.state.chatId;
   const as2=await connect(aPhone);
   await send(as2,'join',{room});
   const roomChat=once(bs,'chat');
-  await send(as,'chat',{room,id:crypto.randomBytes(16).toString('hex'),text:'Сообщение кинозала'});
-  assert.equal((await roomChat)[0].text,'Сообщение кинозала');
+  const outgoing={room,chatId:firstChatId,id:crypto.randomBytes(16).toString('hex'),text:'Сообщение кинозала'};
+  await send(as,'chat',outgoing);
+  const [received]=await roomChat;
+  assert.equal(received.text,outgoing.text);
+  await send(as,'chat',outgoing);
+  assert.equal((await send(as2,'join',{room})).state.messages.length,1);
+  const reaction=once(as,'reaction-update');
+  await send(bs,'react',{id:received.id,emoji:'❤️'});
+  assert.equal((await reaction)[0].chatId,firstChatId);
+  const secondaryDevice=await connect(aPhone);
+  await send(secondaryDevice,'join',{room});
+  const otherDeviceLeft=once(as,'room-state');
+  secondaryDevice.disconnect();
+  assert.equal((await otherDeviceLeft)[0].chatId,firstChatId);
+  const guestLeft=once(as,'room-state');
+  await send(bs,'join',{});
+  const [cleared]=await guestLeft;
+  assert.notEqual(cleared.chatId,firstChatId);assert.deepEqual(cleared.messages,[]);
+  const returned=await send(bs,'join',{room});
+  assert.deepEqual(returned.state.messages,[]);
+  await send(as,'chat',{...outgoing,chatId:returned.state.chatId});
   const poll=once(bs,'room-state');
   await send(as,'poll-create',['Начало','Интерстеллар']);
   const vote=(await poll)[0].poll;
@@ -209,7 +282,11 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
 
   const mediaState=once(bs,'room-state');
   await send(as,'media',{url:'https://media.example/movie.mp4',title:'Космический фильм',poster:'posters/demo.webp'});
-  const mediaId=(await mediaState)[0].mediaId;
+  const [loaded]=await mediaState;
+  const mediaId=loaded.mediaId;
+  assert.notEqual(loaded.chatId,returned.state.chatId);assert.deepEqual(loaded.messages,[]);
+  await assert.rejects(send(as,'chat',{...outgoing,chatId:returned.state.chatId}),/Чат зала обновился/);
+  await send(as,'chat',{...outgoing,chatId:loaded.chatId});
   const synced=once(bs,'sync');
   as.emit('sync',{mediaId,time:0,playing:true});
   assert.equal((await synced)[0].playing,true);
@@ -228,13 +305,17 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert(profile.shared[0].seconds>0);
   assert.equal(profile.history[0].movie_title,'Космический фильм');
   assert.equal(profile.history[0].status,'completed');
-  assert.equal((await request('/api/profiles/'+a.id,{token:c.token})).json.personalHidden,true);
+  const visible=(await request('/api/profiles/'+a.id,{token:c.token})).json;
+  assert.equal(visible.personalHidden,false);assert.equal(visible.friendCount,1);
+  assert.equal(visible.sharedTotal.sessions,1);assert.deepEqual(visible.shared,[]);
+  assert.equal(visible.history[0].movie_title,'Космический фильм');
   const rules={watchTime:false,films:true,sessions:false,shared:false,registration:true,history:false,friends:false,presence:false,hideStats:false};
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:rules});
   const filtered=(await request('/api/profiles/'+a.id,{token:c.token})).json;
   assert.deepEqual(filtered.personal,{films:1});
   assert.equal(filtered.history,null);
   assert.equal(filtered.canSeeFriends,false);
+  assert.equal(filtered.friendCount,1);assert.equal(filtered.sharedTotal,null);
   const preview=(await request('/api/profiles/'+a.id+'?view=friend',{token:a.token})).json;
   assert.equal(preview.self,false);assert.deepEqual(preview.personal,filtered.personal);
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:{...rules,hideStats:true}});
@@ -251,7 +332,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const guestFirst=await connect(bNew);
   const recovered=await send(guestFirst,'join',{room});
   assert.equal(recovered.isHost,false);
-  assert.equal(recovered.state.messages[0].text,'Сообщение кинозала');
+  assert.notEqual(recovered.state.chatId,loaded.chatId);
+  assert.deepEqual(recovered.state.messages,[]);
   const ownerNew=await connect(aNew);
   assert.equal((await send(ownerNew,'join',{})).state.room,room);
   await request('/api/friends/'+b.id,{method:'DELETE',token:aNew.token});
