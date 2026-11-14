@@ -67,7 +67,7 @@ function setPlaybackPrompt(mode = '', hint = 'Нажми ▶ внутри пле
   nativeHint.classList.toggle('hidden', mode !== 'native');
   $('playerShell').classList.toggle('embed-local-controls', mode === 'native');
   const frame = $('playerShell').querySelector('.embed iframe');
-  if (frame) frame.tabIndex = mode === 'native' || isHost ? 0 : -1;
+  if (frame) frame.tabIndex = mode === 'native' || isHost || media?.type === 'vk' ? 0 : -1;
 }
 function waitingForPlaybackTap() {
   return playbackPrompt === 'start' || playbackPrompt === 'native';
@@ -89,11 +89,12 @@ function applyVolume(){
 function resumeLocalPlayback(){
   if (!mediaReady || !inRoom) return;
   const shouldPlay = isHost ? waitingForPlaybackTap() || getPlaying() : guestPlayback?.playing;
+  const needsStart = !getPlaying() || waitingForPlaybackTap();
   autoplayMuted = false;
   muted = false;
   setPlaybackPrompt();
   applyVolume();
-  if (!shouldPlay) return;
+  if (!shouldPlay || !needsStart) return;
   if (!isHost) syncPlayerPosition(guestPlayback);
   // Playback must be requested directly in the tap handler.
   commandPlayback(true, true);
@@ -148,12 +149,17 @@ function playbackEvent(playing, g, ended=false) {
     if (pendingAction?.playing !== false) commandPlayback(false);
     return;
   }
+  const starting = pendingAction?.playing === true;
   if (pendingAction?.playing === playing) clearPlaybackAttempt();
   playingState = playing;
   if (playing) {
-    if (!isHost && waitingForPlaybackTap() && guestPlayback?.playing) syncPlayerPosition(guestPlayback);
+    if (!isHost && guestPlayback?.playing && (waitingForPlaybackTap() || !starting)) {
+      syncPlayerPosition(guestPlayback);
+    }
     setPlaybackPrompt(autoplayMuted ? 'sound' : '');
     playerStatus();
+  } else if (!isHost && inRoom && guestPlayback?.playing && !starting) {
+    setPlaybackPrompt('start');
   }
   emitPlayback(getTime(), playing, false, ended);
   if (!playing) reportWatch(false);
@@ -166,7 +172,7 @@ let joinFlight=0;
 
 function openCinemaPanel(panel) {
   if (panel.open) return;
-  CinemaNav.setOpen(false, true);
+  CinemaNav.setOpen(false, panel.id !== 'movieInvite');
   if (panel.id === 'wishCompose') {
     if (!inRoom) return toast('Сначала войди в комнату');
     $('wishText').value = '';
@@ -319,6 +325,56 @@ $('invite').onclick = async () => {
   }
 };
 
+const movieInvite = $('movieInvite');
+const movieInviteStatus = $('movieInviteStatus');
+const movieInviteFriends = $('movieInviteFriends');
+let invitePickerVersion = 0;
+
+$('shareMovie').onclick = async () => {
+  if (!inRoom || !isHost || !mediaId) return;
+  const version = ++invitePickerVersion;
+  const selectedFilm = mediaId;
+  movieInviteStatus.textContent = 'Загружаем друзей…';
+  movieInviteFriends.replaceChildren();
+  openCinemaPanel(movieInvite);
+  try {
+    const {people} = await RC.api('/api/friends');
+    if (!movieInvite.open || version !== invitePickerVersion) return;
+    const friends = people.filter(person => person.relationship === 'friend');
+    movieInviteStatus.textContent = friends.length ? '' : 'Пока нет друзей для приглашения.';
+    for (const person of friends) {
+      const row = RC.el('div', null, 'movie-invite-friend');
+      const identity = RC.el('div');
+      identity.append(RC.el('strong', person.nickname), RC.el('small', '@' + person.login));
+      const send = RC.button('Отправить', async () => {
+        if (!inRoom || !isHost || mediaId !== selectedFilm) {
+          movieInviteStatus.textContent = 'Фильм сменился. Открой приглашение заново.';
+          return;
+        }
+        const buttons = movieInviteFriends.querySelectorAll('button');
+        for (const button of buttons) button.disabled = true;
+        movieInviteStatus.textContent = 'Отправляем приглашение…';
+        try {
+          const {id} = await RC.api('/api/friends/' + encodeURIComponent(person.id) + '/invite', {method:'POST'});
+          toast('Приглашение отправлено в личные сообщения');
+          if (!movieInvite.open || version !== invitePickerVersion) return;
+          movieInviteStatus.replaceChildren('Приглашение отправлено. ', RC.link('Открыть диалог', '/messages/' + id));
+          movieInviteFriends.replaceChildren();
+        } catch (error) {
+          if (!movieInvite.open || version !== invitePickerVersion) return;
+          movieInviteStatus.textContent = error.message;
+          for (const button of buttons) button.disabled = false;
+        }
+      });
+      send.setAttribute('aria-label', 'Отправить приглашение: ' + person.nickname);
+      row.append(identity, send);
+      movieInviteFriends.append(row);
+    }
+  } catch (error) {
+    if (movieInvite.open && version === invitePickerVersion) movieInviteStatus.textContent = error.message;
+  }
+};
+
 function updateHost() {
   const canControl = inRoom && isHost;
   document.body.classList.toggle('guest-view', !isHost);
@@ -327,14 +383,16 @@ function updateHost() {
   $('invite').disabled = !canControl || inviting;
   $('load').disabled = !canControl;
   $('url').disabled = !canControl;
-  $('movieTitle').disabled = !canControl;
+  $('shareMovie').hidden = !canControl || !media;
+  $('playerShell').classList.toggle('has-media', !!media);
   for (const id of ['play', 'back', 'forward', 'progress']) {
     $(id).disabled = !canControl || !media || !mediaReady;
   }
   $('role').hidden = !inRoom || !viewer;
   $('roleName').textContent = viewer ? 'Вы: ' + viewer.nickname : '';
   $('roleCrown').hidden = !isHost;
-  $('sound').disabled = !mediaReady;
+  $('sound').disabled = !mediaReady || !inRoom;
+  $('full').disabled = !media;
   $('message').disabled = !inRoom;
   $('send').disabled = !inRoom || sendingChat;
   video.controls = true;
@@ -346,8 +404,7 @@ function updateHost() {
 $('load').onclick = async () => {
   const url = $('url').value.trim();
   if (!url) return toast('Вставь ссылку на видео');
-  const title=$('movieTitle').value.trim();
-  const response=await request('media',{url,title,poster:LOCAL_POSTERS[title.toLocaleLowerCase('ru')]});
+  const response=await request('media',{url});
   if (!response.ok) toast(response.error || 'Не удалось загрузить видео');
 };
 
@@ -416,7 +473,7 @@ function showMedia(m){
     }
     embed.searchParams.set('js_api','1');
     frame.src=embed.href;frame.title='VK Видео';frame.allow='autoplay; encrypted-media; fullscreen; picture-in-picture';
-    frame.allowFullscreen=true;frame.referrerPolicy='strict-origin-when-cross-origin';frame.tabIndex=isHost?0:-1;
+    frame.allowFullscreen=true;frame.referrerPolicy='strict-origin-when-cross-origin';
     $('vk').append(frame);$('vk').style.display='block';
     loadPlayerScript('vkapi','https://vkvideo.ru/js/api/videoplayer.js',()=>!!window.VK?.VideoPlayer).then(()=>{
       if(g!==generation)return;
@@ -430,6 +487,7 @@ function showMedia(m){
       };
       vkPlayer.on('inited',data=>{observe(data);playerReady(g)});
       vkPlayer.on('timeupdate',data=>{observe(data);updateTimeline()});
+      vkPlayer.on('seeked',data=>{observe(data);if(g===generation) sendSync(true)});
       for(const event of ['started','resumed'])vkPlayer.on(event,data=>{
         observe(data);if(!mediaReady)playerReady(g);playbackEvent(true,g);
       });
@@ -732,7 +790,6 @@ function resetRoomView() {
   syncVersion = -1;
   showMedia(null);
   $('url').value = '';
-  $('movieTitle').value = '';
   $('message').value = '';
   $('floating').replaceChildren();
   messages = [];
@@ -761,7 +818,6 @@ function applyRoomState(state, joinedNow = false) {
     syncVersion = -1;
     showMedia(media);
     $('url').value = media?.url || '';
-    $('movieTitle').value = state.title || '';
   }
   updateHost();
   if (Array.isArray(state.messages)) {

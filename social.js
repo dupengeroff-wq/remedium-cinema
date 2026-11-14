@@ -32,7 +32,7 @@
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
-    message:'M20 11a7 7 0 0 1-7 7H5l1-3.5A7 7 0 1 1 20 11ZM9 11h6',
+    message:'M20 11.5a7.5 7.5 0 0 1-7.5 7.5H9l-5 2 1.5-4A7.5 7.5 0 1 1 20 11.5ZM9 10h6m-6 3h4',
     send:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4'
   };
   function icon(name) {
@@ -399,6 +399,12 @@
     showModal('Редактировать профиль',root);
   }
 
+  function messageButton(person) {
+    const control = button('Сообщение', () => openDialog(person, {relationship:'friend'}));
+    control.prepend(icon('message'));
+    return control;
+  }
+
   async function renderFriends() {
     const {people}=await api('/api/friends');
     const section=panel('Друзья');
@@ -429,7 +435,7 @@
     const remove=id=>api('/api/friends/'+id,{method:'DELETE'});
     for(const p of people){
       const controls=[];
-      if(p.relationship==='friend') controls.push(button('Сообщение',()=>openDialog(p,{relationship:'friend'})),
+      if(p.relationship==='friend') controls.push(messageButton(p),
         action('В кинозал',()=>api('/api/friends/'+p.id+'/invite',{method:'POST'}),({id})=>{location.href='/messages/'+id}),
         action('Удалить',()=>remove(p.id),renderFriends));
       if(p.relationship==='incoming') controls.push(...[['Принять','accept'],['Отклонить','decline']].map(([label,a])=>

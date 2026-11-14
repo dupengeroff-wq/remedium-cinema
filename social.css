@@ -429,3 +429,13 @@ body.social-page{
 @media(prefers-reduced-motion:reduce){
   .profile-settings .privacy-row input,.profile-settings .privacy-row input::before{transition:none}
 }
+
+.movie-invite-body{overflow-wrap:anywhere}
+#movieInviteFriends{display:grid;gap:8px}
+.movie-invite-friend{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;
+  padding:8px 10px;border:1px solid #ffffff24;border-radius:12px;background:#ffffff06;
+}
+.movie-invite-friend strong,.movie-invite-friend small{display:block}
+.movie-invite-friend small{color:#bbb}
+.movie-invite-friend .btn{min-height:44px}
