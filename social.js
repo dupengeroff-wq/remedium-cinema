@@ -41,8 +41,8 @@
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
-    message:'M20 11.5a7.5 7.5 0 0 1-7.5 7.5H9l-5 2 1.5-4A7.5 7.5 0 1 1 20 11.5ZM9 10h6m-6 3h4',
-    send:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4'
+    userPlus:'M14 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM3 21v-2a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v2M20 8v6m-3-3h6',
+    lock:'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2ZM12 16v2'
   };
   function icon(name) {
     const ns='http://www.w3.org/2000/svg';
@@ -163,21 +163,18 @@
     return list;
   }
 
-  async function openDialog(person,data) {
-    try {
-      const {id}=await api('/api/dialogs',{method:'POST',body:{userId:person.id}});
-      location.href='/messages/'+id;
-    }catch(error){
-      const body=el('div');
-      body.append(empty(error.message));
-      if(error.status===403){
-        if(data.relationship==='none') body.append(action('Отправить заявку',
-          ()=>api('/api/friends/'+person.id,{method:'POST'}),()=>{body.replaceChildren(empty('Заявка отправлена.'))}));
-        if(data.relationship==='incoming') body.append(action('Принять заявку',
-          ()=>api('/api/friends/'+person.id,{method:'PATCH',body:{action:'accept'}}),()=>openDialog(person,{relationship:'friend'})));
-      }
-      showModal(person.nickname,body);
-    }
+  const sendFriendRequest=id=>api('/api/friends/'+id,{method:'POST'});
+  const answerFriendRequest=(id,response)=>api('/api/friends/'+id,{method:'PATCH',body:{action:response}});
+
+  function friendRequestButton(data) {
+    const pending=data.relationship==='outgoing';
+    const incoming=data.relationship==='incoming';
+    const label=pending?'Заявка отправлена':incoming?'Принять заявку':'Добавить в друзья';
+    const control=action(label,()=>incoming?answerFriendRequest(data.person.id,'accept'):sendFriendRequest(data.person.id),renderProfile);
+    control.classList.add('primary');
+    control.disabled=pending||data.preview;
+    control.prepend(icon('userPlus'));
+    return control;
   }
 
   async function renderProfile() {
@@ -187,6 +184,8 @@
     const query=preview?'?view=friend'+(friend?'&friend='+encodeURIComponent(friend):''):'';
     const data=await api('/api/profiles/'+id+query);
     const {person}=data;
+    const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
+    const isHidden=!data.self && data.personalHidden && data.shared===null && data.historyHidden;
     document.title=person.nickname+' · REMEDIUM CINEMA';
     const card=panel(null,'profile-card');
     const header=el('section');
@@ -210,25 +209,29 @@
       });
       info.append(presence);
     }
+    info.append(el('p','Друзья · '+data.friendCount,'muted'));
     if(person.bio) info.append(el('p',person.bio));
     hero.append(avatar(person,true),info);
     header.append(hero);
-    const buttons=el('div',null,'profile-actions'+(data.canSeeFriends?'':' single'));
-    if(data.self) buttons.append(button('Редактировать профиль',()=>settings(data),true));
-    else if(data.preview){
-      const simulated=button('Сообщение',null,true);
-      simulated.disabled=true;
-      buttons.append(simulated);
-    } else buttons.append(button('Сообщение',()=>openDialog(person,data),true));
-    if(data.canSeeFriends) buttons.append(data.self?link('Друзья','/friends'):action('Друзья',
-      ()=>api('/api/profiles/'+person.id+'/friends'+query),({friends})=>{
-        const list=el('div',null,'person-list');
-        list.append(...(friends.length?friends.map(p=>personRow(p)):[empty('Пока нет друзей.')]));
-        showModal('Друзья',list);
-      }));
-    const primary=buttons.firstElementChild;
-    primary.replaceChildren(icon(data.self?'edit':'message'),el('span',primary.textContent));
-    if(data.canSeeFriends) buttons.lastElementChild.prepend(icon('people'));
+    const buttons=el('div',null,'profile-actions');
+    if(data.self){
+      const edit=button('Редактировать профиль',()=>settings(data),true);
+      edit.prepend(icon('edit'));
+      buttons.append(edit);
+    } else {
+      buttons.append(isFriend?messageButton(person,data.preview):friendRequestButton(data));
+    }
+    if(data.self || isFriend || (data.canSeeFriends && !isHidden)) {
+      const friends=data.self||!data.canSeeFriends?link('Друзья','/friends'):action('Друзья',
+        ()=>api('/api/profiles/'+person.id+'/friends'+query),({friends})=>{
+          const list=el('div',null,'person-list');
+          list.append(...(friends.length?friends.map(p=>personRow(p)):[empty('Пока нет друзей.')]));
+          showModal('Друзья',list);
+        });
+      friends.prepend(icon('people'));
+      buttons.append(friends);
+    }
+    buttons.classList.toggle('single',buttons.childElementCount===1);
     header.append(buttons);
     if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
     card.append(header);
@@ -240,11 +243,13 @@
     if(data.shared!==null){
       const shared=el('section',null,'profile-section');
       shared.append(el('h2','Совместная статистика'));
-      if(!data.shared.length) shared.append(empty('Пока нет совместных просмотров.'));
+      if(data.sharedTotal?.sessions)shared.append(stats(data.sharedTotal));
+      if(!data.shared.length && !data.sharedTotal?.sessions)shared.append(empty('Пока нет совместных просмотров.'));
       for(const item of data.shared) {
         const partner=data.self?item.person.id:data.previewFriend||person.id;
         const row=personRow(item.person,[action('Совместные сеансы',()=>api('/api/shared/'+partner),value=>showModal('Совместные сеансы',historyList(value.history)))]);
-        shared.append(row,stats(item));
+        shared.append(row);
+        if(data.self)shared.append(stats(item));
       }
       card.append(shared);
     }
@@ -265,6 +270,13 @@
       card.append(history);
     }
     main.replaceChildren(card);
+    if(isHidden){
+      const notice=panel(null,'profile-card profile-locked');
+      const copy=el('div');
+      copy.append(el('h2','Профиль скрыт'),empty('Владелец профиля скрыл статистику и историю просмотров.'));
+      notice.append(icon('lock'),copy);
+      main.append(notice);
+    }
     if(options.get('edit')==='1'&&data.self&&!modal.open) settings(data);
   }
 
@@ -408,9 +420,12 @@
     showModal('Редактировать профиль',root);
   }
 
-  function messageButton(person) {
-    const control = button('Сообщение', () => openDialog(person, {relationship:'friend'}));
-    control.prepend(icon('message'));
+  function messageButton(person,preview=false) {
+    const control=action('Сообщение',()=>api('/api/dialogs',{method:'POST',body:{userId:person.id}}),
+      ({id})=>{location.href='/messages/'+id});
+    control.classList.add('primary');
+    control.disabled=preview;
+    control.prepend(CinemaNav.messageIcon());
     return control;
   }
 
@@ -432,7 +447,7 @@
       try{
         const found=(await api('/api/people?q='+encodeURIComponent(input.value))).people;
         results.replaceChildren(...(found.length?found.map(p=>personRow(p,[
-          action('Добавить',()=>api('/api/friends/'+p.id,{method:'POST'}),({relationship})=>{
+          action('Добавить',()=>sendFriendRequest(p.id),({relationship})=>{
             results.replaceChildren(empty(relationship==='friend'?'Уже в друзьях.':relationship==='incoming'?'Входящая заявка уже есть.':'Заявка отправлена.'));
           })
         ])):[empty('Никого не нашли.')]));
@@ -448,7 +463,7 @@
         action('В кинозал',()=>api('/api/friends/'+p.id+'/invite',{method:'POST'}),({id})=>{location.href='/messages/'+id}),
         action('Удалить',()=>remove(p.id),renderFriends));
       if(p.relationship==='incoming') controls.push(...[['Принять','accept'],['Отклонить','decline']].map(([label,a])=>
-        action(label,()=>api('/api/friends/'+p.id,{method:'PATCH',body:{action:a}}),renderFriends)));
+        action(label,()=>answerFriendRequest(p.id,a),renderFriends)));
       if(p.relationship==='outgoing') controls.push(el('span','Заявка отправлена','muted'),action('Отменить',()=>remove(p.id),renderFriends));
       list.append(personRow(p,controls));
     }
@@ -518,7 +533,7 @@
     const submit=el('button',null,'btn direct-send');
     submit.type='submit';
     submit.setAttribute('aria-label','Отправить');
-    submit.append(icon('send'));
+    submit.append(CinemaNav.messageIcon());
     composer.append(input,submit);
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
