@@ -224,11 +224,11 @@ body.social-page{
   background-repeat:repeat,repeat,repeat,no-repeat,no-repeat;
   font:16px/1.45 system-ui,-apple-system,sans-serif;overflow-wrap:anywhere
 }
-body.social-page.profile-visitor{isolation:isolate;background:#020203}
-.profile-visitor::before,.profile-visitor::after{
+body.social-page.profile-page{isolation:isolate;background:#020203}
+.profile-page::before,.profile-page::after{
   content:"";position:fixed;z-index:-1;pointer-events:none
 }
-.profile-visitor::before{
+.profile-page::before{
   inset:0;
   background:
     radial-gradient(circle at 13% 12%,#fff9 0 .6px,#a6adc819 1.3px,transparent 2.6px),
@@ -243,7 +243,7 @@ body.social-page.profile-visitor{isolation:isolate;background:#020203}
     radial-gradient(circle at 30% 92%,#fff5 0 .45px,transparent 1.4px),
     radial-gradient(ellipse at 78% 68%,#11162470,transparent 58%);
 }
-.profile-visitor::after{
+.profile-page::after{
   --planet-size:clamp(590px,100vw,1180px);
   width:var(--planet-size);aspect-ratio:1;right:calc(var(--planet-size) * -.56);
   bottom:calc(clamp(48px,10dvh,110px) - var(--planet-size));border-radius:50%;
@@ -282,8 +282,6 @@ body.social-page.profile-visitor{isolation:isolate;background:#020203}
 .social-page .field::placeholder{color:#adadad}
 .social-auth{max-width:440px;margin:5vh auto}
 .profile-card{max-width:580px;margin-inline:auto;border-color:#ffffff62;box-shadow:inset 0 1px 0 #ffffff20,0 14px 42px #0004}
-.profile-card > section + section{border-top:1px solid var(--glass-line);margin-top:17px;padding-top:15px}
-.profile-section > .stat-grid + .person-row{margin-top:8px}
 .profile-hero{display:flex;align-items:flex-start;gap:clamp(12px,3vw,18px);min-width:0}
 .profile-hero h1{margin-bottom:5px;font-size:clamp(21px,5.6vw,28px);line-height:1.15;letter-spacing:-.025em}
 .profile-crown{font-size:.72em;margin-inline-start:6px}
@@ -331,6 +329,7 @@ body.social-page.profile-visitor{isolation:isolate;background:#020203}
 .profile-view .profile-shared :is(.stat,.person-row){gap:7px}
 .profile-view .profile-shared .stat{padding-inline:7px}
 .profile-view .profile-shared .person-row + .profile-stat-group{margin-top:6px}
+.profile-view .profile-shared .profile-stat-group + .person-row{margin-top:12px}
 .profile-view .profile-shared .row-actions{width:auto;margin-inline-start:auto}
 .profile-view .profile-shared-history.btn{width:44px;padding:0;background:transparent;border-color:transparent}
 .profile-view .profile-shared-history.btn:hover{background:#ffffff0b}

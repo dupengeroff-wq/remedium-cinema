@@ -74,7 +74,7 @@
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
-      document.body.classList.remove('profile-visitor');
+      document.body.classList.remove('profile-page');
       CinemaNav.show(false);
       CinemaNav.clearUnread();
       const form=panel('Войди в REMEDIUM CINEMA','social-auth');
@@ -142,7 +142,7 @@
     return grid;
   }
 
-  function visitorStats(values,joint=false) {
+  function profileStats(values,joint=false) {
     const featured=joint?['seconds','films','sessions']:['seconds','films','sessions','days'];
     const primary={},secondary={};
     for(const [key,value] of Object.entries(values)){
@@ -211,10 +211,10 @@
     return content;
   }
 
-  function profileHistory(items,loadPage,visitor) {
+  function profileHistory(items,loadPage) {
     const section=el('section',null,'profile-section');
     const title=el('h2','История просмотров');
-    if(!visitor || !items.length){
+    if(!items.length){
       section.append(title,paginatedHistory(items,loadPage));
       return section;
     }
@@ -259,9 +259,9 @@
     const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
     const isHidden=!data.self && data.personalHidden && data.shared===null && data.historyHidden;
     document.title=person.nickname+' · REMEDIUM CINEMA';
+    const profile=el('div',null,'profile-view');
     const card=panel(null,'profile-card');
-    const profile=data.self?card:el('div',null,'profile-view');
-    if(!data.self)profile.append(card);
+    profile.append(card);
     const header=el('section');
     const hero=el('div',null,'profile-hero');
     const info=el('div',null,'profile-details');
@@ -312,30 +312,28 @@
     card.append(header);
     if(!data.personalHidden && Object.keys(data.personal).length) {
       const personal=el('section',null,'profile-section');
-      personal.append(el('h2','Личная статистика'),data.self?stats(data.personal):visitorStats(data.personal));
+      personal.append(el('h2','Личная статистика'),profileStats(data.personal));
       profile.append(personal);
     }
     if(data.shared!==null){
       const shared=el('section',null,'profile-section profile-shared');
       shared.append(el('h2','Совместная статистика'));
       if(!data.shared.length && !data.sharedTotal?.sessions)shared.append(empty('Пока нет совместных просмотров.'));
-      for(const item of data.shared) {
-        const partner=data.self?item.person.id:data.previewFriend||person.id;
+      for(const {person:companion,...metrics} of data.shared) {
+        const partner=data.self?companion.id:data.previewFriend||person.id;
         const inspect=action('Совместные сеансы',()=>api('/api/shared/'+partner),value=>showModal('Совместные сеансы',historyList(value.history)));
-        if(!data.self){
-          inspect.classList.add('profile-shared-history');
-          inspect.setAttribute('aria-label','Совместные сеансы');
-          inspect.replaceChildren(icon('chevron'));
-        }
-        shared.append(personRow(item.person,[inspect]));
-        if(data.self)shared.append(stats(item));
+        inspect.classList.add('profile-shared-history');
+        inspect.setAttribute('aria-label','Совместные сеансы');
+        inspect.replaceChildren(icon('chevron'));
+        shared.append(personRow(companion,[inspect]));
+        if(data.self)shared.append(profileStats(metrics,true));
       }
-      if(data.sharedTotal?.sessions)shared.append(visitorStats(data.sharedTotal,true));
+      if(data.sharedTotal?.sessions)shared.append(profileStats(data.sharedTotal,true));
       profile.append(shared);
     }
     if(!data.historyHidden && data.history!==null){
       const loadPage=offset=>api('/api/profiles/'+id+(query?query+'&':'?')+'offset='+offset);
-      profile.append(profileHistory(data.history,loadPage,!data.self));
+      profile.append(profileHistory(data.history,loadPage));
     }
     if(isHidden){
       const notice=panel(null,'profile-card profile-locked');
@@ -344,7 +342,7 @@
       notice.append(icon('lock'),copy);
       profile.append(notice);
     }
-    document.body.classList.toggle('profile-visitor',!data.self);
+    document.body.classList.add('profile-page');
     main.replaceChildren(profile);
     if(options.get('edit')==='1'&&data.self&&!modal.open) settings(data);
   }
