@@ -10,10 +10,10 @@
   const entries=[
     {label:'Мой профиль',href:'/profile',icon:'profile'},
     {label:'Друзья',href:'/friends',icon:'friends'},
-    {label:'Сообщения',href:'/messages',icon:'messages',id:'cinemaMessagesLink'},
+    {label:'Сообщения',href:'/messages',icon:'send',id:'cinemaMessagesLink',badge:'directUnread'},
     {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
-    {label:'Отправить послание',panel:'send-wish',icon:'write',id:'wishOpen'},
-    {label:'Послания',panel:'wishInbox',icon:'inbox'},
+    {label:'Отправить послание',panel:'send-wish',icon:'mail-plus',id:'wishOpen'},
+    {label:'Послания',panel:'wishInbox',icon:'book-heart',badge:'wishBadge'},
     {label:'Голосование за фильм',panel:'pollPanel',icon:'vote'},
     {label:'Кинорулетка',panel:'roulettePanel',icon:'roulette'},
     {label:'Наш список фильмов',panel:'watchlist',icon:'films'}
@@ -22,28 +22,80 @@
     home:'M3 10.5 12 3l9 7.5 M5 9.5V21h14V9.5 M10 21v-6h4v6',
     profile:'M15.2 8a3.2 3.2 0 1 1-6.4 0 3.2 3.2 0 0 1 6.4 0ZM5 20v-1.5a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V20',
     friends:'M14 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM4 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M17 5a3 3 0 0 1 0 6m3 4a4 4 0 0 1 2 4v1',
-    messages:'M20 11.5a7.5 7.5 0 0 1-7.5 7.5H9l-5 2 1.5-4A7.5 7.5 0 1 1 20 11.5ZM9 10h6m-6 3h4',
-    write:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4',
-    inbox:'M6 5h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Zm-2 2 8 6 8-6',
     vote:'M20.8 8.7a4.5 4.5 0 0 0-7.7-3.2L12 6.6l-1.1-1.1a4.5 4.5 0 0 0-6.4 6.4l7.5 7.5 7.5-7.5a4.5 4.5 0 0 0 1.3-3.2Z',
     roulette:'M3 6h2c5 0 7 12 13 12h3m-3-3 3 3-3 3M3 18h2c1.4 0 2.5-.8 3.5-2.2m7-7.7C16.3 6.7 17.5 6 19 6h2m-3-3 3 3-3 3',
     films:'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM7 5v14M17 5v14M3 10h4m-4 4h4m10-4h4m-4 4h4'
   };
 
+  /* Lucide SVG paths (https://github.com/lucide-icons/lucide/tree/main/icons)
+     ISC License
+
+     Copyright (c) 2026 Lucide Icons and Contributors
+
+     Permission to use, copy, modify, and/or distribute this software for any
+     purpose with or without fee is hereby granted, provided that the above
+     copyright notice and this permission notice appear in all copies.
+
+     THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+     WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+     MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+     ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+     WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+     ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+     IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+  const lucideIcons={
+    send:{
+      paths:[
+        'M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z',
+        'm21.854 2.147-10.94 10.939'
+      ]
+    },
+    'mail-plus':{
+      transform:'translate(.36 -.18) scale(.97)',
+      paths:[
+        'M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8',
+        'm22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7',
+        'M19 16v6',
+        'M16 19h6'
+      ]
+    },
+    'book-heart':{
+      transform:'translate(.96 .96) scale(.92)',
+      paths:[
+        'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20',
+        'M8.62 9.8A2.25 2.25 0 1 1 12 6.836a2.25 2.25 0 1 1 3.38 2.966l-2.626 2.856a.998.998 0 0 1-1.507 0z'
+      ]
+    }
+  };
+
   function icon(name) {
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');
-    const path=document.createElementNS(ns,'path');
+    const lucide=lucideIcons[name];
     svg.setAttribute('viewBox','0 0 24 24');
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('fill','none');
     svg.setAttribute('stroke','currentColor');
-    svg.setAttribute('stroke-width','1.65');
+    svg.setAttribute('stroke-width',lucide?'1.8':'1.65');
     svg.setAttribute('stroke-linecap','round');
     svg.setAttribute('stroke-linejoin','round');
-    path.setAttribute('d',icons[name]);
-    svg.append(path);
-    return svg;
+    const shape=lucide?.transform?document.createElementNS(ns,'g'):svg;
+    if(shape!==svg){
+      shape.setAttribute('transform',lucide.transform);
+      svg.append(shape);
+    }
+    for(const data of lucide?.paths||[icons[name]]){
+      const path=document.createElementNS(ns,'path');
+      path.setAttribute('d',data);
+      if(lucide)path.setAttribute('vector-effect','non-scaling-stroke');
+      shape.append(path);
+    }
+    if(!lucide)return svg;
+    const box=el('span',null,'remedium-nav-icon');
+    box.setAttribute('aria-hidden','true');
+    box.append(svg);
+    return box;
   }
 
   const list=menu.querySelector('ul');
@@ -61,10 +113,11 @@
     }
     row.title=entry.label;
     row.append(icon(entry.icon),el('span',entry.label,'cinema-nav-label'));
-    if(entry.icon==='messages'||entry.icon==='inbox'||(entry.icon==='films'&&onCinema)) {
-      const count=el('span',null,entry.icon==='films'?'cinema-nav-count':'unread');
-      count.id={messages:'directUnread',inbox:'wishBadge',films:'watchCount'}[entry.icon];
-      count.hidden=entry.icon!=='films';
+    const showsFilmCount=entry.icon==='films'&&onCinema;
+    if(entry.badge||showsFilmCount) {
+      const count=el('span',null,showsFilmCount?'cinema-nav-count':'unread');
+      count.id=entry.badge||'watchCount';
+      count.hidden=!showsFilmCount;
       row.append(count);
     }
     const item=el('li');
@@ -175,7 +228,7 @@
   try { previousRoom=sessionStorage.getItem('remediumCinemaRoom'); } catch {}
   if(/^[\w-]{3,80}$/.test(previousRoom||'')) setRoom(previousRoom);
   window.CinemaNav={
-    show,setOpen,watchUnread,setUnreadBadge,
+    show,setOpen,watchUnread,setUnreadBadge,messageIcon:()=>icon('send'),
     setRoom(id) {
       setRoom(id);
       try {

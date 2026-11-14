@@ -26,13 +26,21 @@
   }
 
   const empty=text=>el('p',text,'social-note');
+  const sharedVideoPrefix='Видео из кинозала\n';
+  function sharedVideoUrl(body) {
+    if (!body.startsWith(sharedVideoPrefix)) return null;
+    try {
+      const url=new URL(body.slice(sharedVideoPrefix.length));
+      if (['https:','http:'].includes(url.protocol) && !url.username && !url.password) return url;
+    } catch {}
+    return null;
+  }
   const iconPaths={
     clock:'M12 7v5l3 2 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
     film:'M4 8h16v12H4zM4 8l-1-4 16-2 1 6M8 3l2 4m3-4 2 4',
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
-    message:'M20 11.5a7.5 7.5 0 0 1-7.5 7.5H9l-5 2 1.5-4A7.5 7.5 0 1 1 20 11.5ZM9 10h6m-6 3h4',
     send:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4'
   };
   function icon(name) {
@@ -218,7 +226,7 @@
         showModal('Друзья',list);
       }));
     const primary=buttons.firstElementChild;
-    primary.replaceChildren(icon(data.self?'edit':'message'),el('span',primary.textContent));
+    primary.replaceChildren(data.self?icon('edit'):CinemaNav.messageIcon(),el('span',primary.textContent));
     if(data.canSeeFriends) buttons.lastElementChild.prepend(icon('people'));
     header.append(buttons);
     if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
@@ -401,7 +409,7 @@
 
   function messageButton(person) {
     const control = button('Сообщение', () => openDialog(person, {relationship:'friend'}));
-    control.prepend(icon('message'));
+    control.prepend(CinemaNav.messageIcon());
     return control;
   }
 
@@ -541,8 +549,16 @@
       if(!ordered.length) stream.append(empty('Начало переписки.'));
       for(const m of ordered){
         const mine=m.senderId===viewer.id;
-        const bubble=el('article',m.deleted?'Сообщение удалено':m.body,'direct-bubble'+(mine?' mine':''));
+        const video=m.deleted||m.invite?null:sharedVideoUrl(m.body);
+        const body=m.deleted?'Сообщение удалено':video?'Видео из кинозала':m.body;
+        const bubble=el('article',body,'direct-bubble'+(mine?' mine':''));
         if(m.invite&&!m.deleted) bubble.append(el('br'),link('Открыть кинозал','/?room='+encodeURIComponent(m.invite.room)+'&invite='+encodeURIComponent(m.invite.code)));
+        if(video){
+          const open=link('Открыть видео · '+video.hostname,video.href);
+          open.target='_blank';
+          open.rel='noopener noreferrer';
+          bubble.append(el('br'),open);
+        }
         const meta=el('div',date(m.createdAt)+(mine&&BigInt(readByOther)>=BigInt(m.id)?' · Прочитано':''),'direct-meta');
         if(mine&&!m.deleted)meta.append(action('Удалить',()=>api('/api/dialogs/'+id+'/messages/'+m.id,{method:'DELETE'}),()=>{
           stored.set(m.id,{...m,deleted:true,body:'',invite:null});

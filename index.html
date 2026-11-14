@@ -110,11 +110,6 @@ html,body{background:#000!important;color:#f5f5f5}
 .my-badge{border-color:rgba(255,255,255,.25)!important;background:rgba(255,255,255,.07)!important}
 .seek{accent-color:#eee!important}
 ::selection{background:#777;color:#fff}
-/* Guest playback lock: prevent direct controls on embedded players. */
-body.guest-view #yt,body.guest-view #yt iframe,
-body.guest-view #video{pointer-events:none!important}
-body.guest-view #play,body.guest-view #back,
-body.guest-view #forward,body.guest-view #progress{pointer-events:none!important;opacity:.4}
 
 /* REMEDIUM CINEMA · graphite glass refinement */
 :root{--bg:#000;--surface:rgba(14,14,14,.30);--surface2:rgba(22,22,22,.34);--border:rgba(255,255,255,.15);--accent:#e7e7e7;--muted:#a0a0a0}
@@ -130,9 +125,10 @@ html,body{background:#000!important}
 
 /* Full-viewport cinema mode: player fills the available display. */
 
-/* Keep local controls available when the guest cannot use the embedded controls. */
+/* The embedded players have their own controls in the inline view. */
 #playerShell:not(.has-media) > .controls,
-body:not(.guest-view) #playerShell:not(.is-fullscreen) > .controls{display:none!important}
+#playerShell:not(.is-fullscreen) > .controls{display:none!important}
+#roomInviteActions[hidden],#movieSetup[hidden]{display:none!important}
 
 /* Responsive layout: iPhone, iPad and desktop. */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -315,8 +311,6 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .roulette-result-winner{color:var(--muted)!important;font-size:12px!important;font-weight:normal!important;text-align:left!important;line-height:1.5!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;text-shadow:none!important}
 .cosmos-features,.cosmos-panel,.roulette-stage{min-width:0;max-width:100%;box-sizing:border-box}
 .roulette-stage{width:100%;overflow:hidden;contain:layout paint}
-body.guest-view #playerShell.embed-local-controls .embed,
-body.guest-view #playerShell.embed-local-controls .embed iframe{pointer-events:auto!important}
 .sound-prompt,.native-playback-hint{
   position:absolute;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);
   text-align:center;color:#fff;background:#151515ee;border:1px solid #ffffff75;
@@ -348,8 +342,16 @@ body.guest-view #playerShell.embed-local-controls .embed iframe{pointer-events:a
   </button>
   <div class="brand"><span class="mark" aria-hidden="true">✦</span> <span>REMEDIUM <span class="accent">CINEMA</span></span></div>
 </header>
-<section class="hero"><div><div class="eyebrow">A UNIVERSE FOR TWO</div><h1>Ближе, чем <span class="accent">звёзды.</span></h1><p>Один космос. Два сердца. Ваш собственный кинозал.</p></div><div class="actions"><button id="invite" class="btn" disabled>↗ Пригласить</button></div></section>
-<div class="layout"><main class="stage"><div class="player-shell" id="playerShell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet" aria-hidden="true"><span class="planet-core"></span></div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline></video><div id="yt" class="embed"></div><div id="vk" class="embed"></div><div class="screen-top"><span id="screenRoom" class="chip">✦ REMEDIUM CINEMA</span><div class="screen-actions"><span id="playingBadge" class="chip">● ОЖИДАНИЕ</span><button id="shareMovie" class="iconbtn share-movie" type="button" aria-label="Пригласить друга на фильм" aria-haspopup="dialog" aria-controls="movieInvite" title="Пригласить друга на фильм" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 5l8 7-8 7v-5c-5 0-8 1-10 5 0-6 3-10 10-10z"/></svg></button></div></div><div id="floating" class="floating"></div><div id="playerStatus" class="player-status hidden" role="status" aria-live="polite"></div><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Присоединиться к просмотру</button><div id="nativePlaybackHint" class="native-playback-hint hidden" role="status"></div></div><div class="controls" role="group" aria-label="Управление видео"><button id="play" class="iconbtn" disabled>▶</button><button id="back" class="iconbtn" disabled>↶</button><button id="forward" class="iconbtn" disabled>↷</button><span id="elapsed" class="time">0:00</span><input id="progress" aria-label="Позиция воспроизведения" class="seek" type="range" min="0" max="100" value="0" disabled><span id="duration" class="time">0:00</span><button id="sound" class="iconbtn" title="Звук">🔊</button><button id="full" class="iconbtn" title="Полный экран">⛶</button></div></div>
+<section class="hero"><div><div class="eyebrow">A UNIVERSE FOR TWO</div><h1>Ближе, чем <span class="accent">звёзды.</span></h1><p>Один космос. Два сердца. Ваш собственный кинозал.</p></div><div id="roomInviteActions" class="actions" hidden><button id="invite" class="btn" disabled>↗ Пригласить</button></div></section>
+<div class="layout"><main class="stage"><div class="player-shell" id="playerShell"><div class="screen" id="screen"><div id="placeholder" class="placeholder"><div class="planet" aria-hidden="true"><span class="planet-core"></span></div><h2>Ваш космический кинозал</h2><p>Выберите фильм — и отправляйтесь в путешествие вместе.</p></div><video id="video" playsinline></video><div id="yt" class="embed"></div><div id="vk" class="embed"></div>
+<div class="screen-top">
+  <div id="vkRecovery" class="vk-recovery" hidden>
+    <button id="vkDismiss" class="iconbtn" type="button" aria-label="Закрыть рекомендации" title="Закрыть рекомендации">×</button>
+    <button id="vkContinue" class="iconbtn" type="button">▶ Продолжить</button>
+  </div>
+  <button id="shareMovie" class="iconbtn share-movie" type="button" aria-label="Пригласить друга на фильм" aria-haspopup="dialog" aria-controls="movieInvite" title="Пригласить друга на фильм" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 5l8 7-8 7v-5c-5 0-8 1-10 5 0-6 3-10 10-10z"/></svg></button>
+</div>
+<div id="floating" class="floating"></div><div id="playerStatus" class="player-status hidden" role="status" aria-live="polite"></div><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Присоединиться к просмотру</button><div id="nativePlaybackHint" class="native-playback-hint hidden" role="status"></div></div><div class="controls" role="group" aria-label="Управление видео"><button id="play" class="iconbtn" disabled>▶</button><button id="back" class="iconbtn" disabled>↶</button><button id="forward" class="iconbtn" disabled>↷</button><span id="elapsed" class="time">0:00</span><input id="progress" aria-label="Позиция воспроизведения" class="seek" type="range" min="0" max="100" value="0" disabled><span id="duration" class="time">0:00</span><button id="sound" class="iconbtn" title="Звук">🔊</button><button id="full" class="iconbtn" title="Полный экран">⛶</button></div></div>
 <aside id="cinemaChat" class="chat" aria-labelledby="cinemaChatTitle">
   <div class="chathead">
     <h2 id="cinemaChatTitle">Чат кинозала</h2>
@@ -358,7 +360,7 @@ body.guest-view #playerShell.embed-local-controls .embed iframe{pointer-events:a
       <span id="online" class="small connection-state">0 онлайн</span>
     </div>
   </div><div id="messages" class="messages"><div class="empty">Здесь начнётся ваша история ✦<br>Зажми сообщение, чтобы поставить реакцию.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn chat-send" type="submit" aria-label="Отправить сообщение" disabled>➤</button></form></aside>
-<div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role room-identity" hidden><span id="roleName"></span><span id="roleCrown" aria-hidden="true" hidden>♛</span></span></div><div class="movieform"><input id="url" class="field" inputmode="url" autocapitalize="off" spellcheck="false" aria-label="Ссылка на видео" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div>
+<div id="movieSetup" hidden><div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role room-identity" hidden><span id="roleName"></span><span id="roleCrown" aria-hidden="true" hidden>♛</span></span></div><div class="movieform"><input id="url" class="field" inputmode="url" autocapitalize="off" spellcheck="false" aria-label="Ссылка на видео" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div></div>
 <section class="cosmos-panel" hidden>
     <p class="feature-note">История запусков фильмов сохраняется отдельно от комнат. На бесплатном Render данные могут исчезнуть после перезапуска сервера — периодически скачивайте копию.</p><button id="historyExport" type="button" class="btn">↓ Скачать историю</button><div id="historyList" class="feature-list"></div>
   </section>

@@ -2,6 +2,7 @@ const $=id=>document.getElementById(id);
 const socket=io({autoConnect:false});
 const video=$('video');
 const cinemaMenu=$('cinemaMenu');
+const sharedVideoPrefix='Видео из кинозала\n';
 CinemaNav.watchUnread(socket);
 let room = '', selfPublicId = '', isHost = false, inRoom = false;
 let inviting = false;
@@ -13,6 +14,8 @@ let muted = false, messages = [];
 let mediaReady = false, mediaTimer = null, playbackTimer = null;
 let pendingSync = null, pendingAction = null, pendingSeek = null;
 let guestPlayback = null, autoplayMuted = false, playbackPrompt = '';
+let vkPauseTime = null, vkRestoring = false;
+let vkRecommendationsDismissed = false;
 let chatAttempt = null, sendingChat = false;
 const playerScripts = new Map();
 let badge = '🎀', pickerMessage = null;
@@ -65,9 +68,6 @@ function setPlaybackPrompt(mode = '', hint = 'Нажми ▶ внутри пле
   const nativeHint = $('nativePlaybackHint');
   nativeHint.textContent = mode === 'native' ? hint : '';
   nativeHint.classList.toggle('hidden', mode !== 'native');
-  $('playerShell').classList.toggle('embed-local-controls', mode === 'native');
-  const frame = $('playerShell').querySelector('.embed iframe');
-  if (frame) frame.tabIndex = mode === 'native' || isHost || media?.type === 'vk' ? 0 : -1;
 }
 function waitingForPlaybackTap() {
   return playbackPrompt === 'start' || playbackPrompt === 'native';
@@ -95,6 +95,10 @@ function resumeLocalPlayback(){
   setPlaybackPrompt();
   applyVolume();
   if (!shouldPlay || !needsStart) return;
+  if (media?.type === 'vk' && !$('vkRecovery').hidden) {
+    recoverVkPlayback(true);
+    return;
+  }
   if (!isHost) syncPlayerPosition(guestPlayback);
   // Playback must be requested directly in the tap handler.
   commandPlayback(true, true);
@@ -246,7 +250,6 @@ function enterRoom() {
     history.replaceState(null,'',location.pathname+(isHost?'':'?room='+encodeURIComponent(id))+location.hash);
     $('entry').classList.add('hidden');
     $('roomInfo').textContent='КОМНАТА · '+id;
-    $('screenRoom').textContent='✦ ROOM '+id.slice(0,6).toUpperCase();
     $('status').textContent='Подключено';
     $('status').classList.add('is-online');
     sharedCinemaHistory=response.history||[];
@@ -331,9 +334,13 @@ const movieInviteFriends = $('movieInviteFriends');
 let invitePickerVersion = 0;
 
 $('shareMovie').onclick = async () => {
-  if (!inRoom || !isHost || !mediaId) return;
+  if (!inRoom || !media || !mediaId) return;
   const version = ++invitePickerVersion;
+  const selectedRoom = room;
   const selectedFilm = mediaId;
+  const shareAsHost = isHost;
+  const body = sharedVideoPrefix + media.url;
+  $('movieInviteTitle').textContent = shareAsHost ? 'Пригласить друга на фильм' : 'Поделиться видео с другом';
   movieInviteStatus.textContent = 'Загружаем друзей…';
   movieInviteFriends.replaceChildren();
   openCinemaPanel(movieInvite);
@@ -341,24 +348,36 @@ $('shareMovie').onclick = async () => {
     const {people} = await RC.api('/api/friends');
     if (!movieInvite.open || version !== invitePickerVersion) return;
     const friends = people.filter(person => person.relationship === 'friend');
-    movieInviteStatus.textContent = friends.length ? '' : 'Пока нет друзей для приглашения.';
+    movieInviteStatus.textContent = friends.length ? '' : 'Пока нет друзей.';
     for (const person of friends) {
       const row = RC.el('div', null, 'movie-invite-friend');
       const identity = RC.el('div');
       identity.append(RC.el('strong', person.nickname), RC.el('small', '@' + person.login));
+      const clientId = crypto.randomUUID();
       const send = RC.button('Отправить', async () => {
-        if (!inRoom || !isHost || mediaId !== selectedFilm) {
+        if (!inRoom || room !== selectedRoom || isHost !== shareAsHost || mediaId !== selectedFilm) {
           movieInviteStatus.textContent = 'Фильм сменился. Открой приглашение заново.';
+          return;
+        }
+        if (!shareAsHost && body.length > 2000) {
+          movieInviteStatus.textContent = 'Ссылка слишком длинная для личного сообщения.';
           return;
         }
         const buttons = movieInviteFriends.querySelectorAll('button');
         for (const button of buttons) button.disabled = true;
-        movieInviteStatus.textContent = 'Отправляем приглашение…';
+        movieInviteStatus.textContent = 'Отправляем…';
         try {
-          const {id} = await RC.api('/api/friends/' + encodeURIComponent(person.id) + '/invite', {method:'POST'});
-          toast('Приглашение отправлено в личные сообщения');
+          let dialog;
+          if (shareAsHost) {
+            dialog = await RC.api('/api/friends/' + encodeURIComponent(person.id) + '/invite', {method:'POST'});
+          } else {
+            dialog = await RC.api('/api/dialogs', {method:'POST', body:{userId:person.id}});
+            await RC.api('/api/dialogs/' + dialog.id + '/messages', {method:'POST', body:{body,clientId}});
+          }
+          const sent = shareAsHost ? 'Приглашение отправлено.' : 'Ссылка на видео отправлена.';
+          toast(sent);
           if (!movieInvite.open || version !== invitePickerVersion) return;
-          movieInviteStatus.replaceChildren('Приглашение отправлено. ', RC.link('Открыть диалог', '/messages/' + id));
+          movieInviteStatus.replaceChildren(sent + ' ', RC.link('Открыть диалог', '/messages/' + dialog.id));
           movieInviteFriends.replaceChildren();
         } catch (error) {
           if (!movieInvite.open || version !== invitePickerVersion) return;
@@ -366,7 +385,7 @@ $('shareMovie').onclick = async () => {
           for (const button of buttons) button.disabled = false;
         }
       });
-      send.setAttribute('aria-label', 'Отправить приглашение: ' + person.nickname);
+      send.setAttribute('aria-label', (shareAsHost ? 'Отправить приглашение: ' : 'Отправить ссылку: ') + person.nickname);
       row.append(identity, send);
       movieInviteFriends.append(row);
     }
@@ -380,10 +399,15 @@ function updateHost() {
   document.body.classList.toggle('guest-view', !isHost);
   $('myBadge').classList.toggle('hidden', isHost);
   $('myBadge').textContent = badge;
+  $('roomInviteActions').hidden = !isHost;
+  $('movieSetup').hidden = !isHost;
   $('invite').disabled = !canControl || inviting;
   $('load').disabled = !canControl;
   $('url').disabled = !canControl;
-  $('shareMovie').hidden = !canControl || !media;
+  const shareLabel = isHost ? 'Пригласить друга на фильм' : 'Поделиться видео с другом';
+  $('shareMovie').hidden = !inRoom || !media;
+  $('shareMovie').title = shareLabel;
+  $('shareMovie').setAttribute('aria-label', shareLabel);
   $('playerShell').classList.toggle('has-media', !!media);
   for (const id of ['play', 'back', 'forward', 'progress']) {
     $(id).disabled = !canControl || !media || !mediaReady;
@@ -396,9 +420,8 @@ function updateHost() {
   $('message').disabled = !inRoom;
   $('send').disabled = !inRoom || sendingChat;
   video.controls = true;
-  $('yt').style.pointerEvents = isHost ? 'auto' : 'none';
-  $('vk').style.pointerEvents = 'auto';
   refreshSoundButton();
+  updateVkRecovery();
 }
 
 $('load').onclick = async () => {
@@ -408,9 +431,11 @@ $('load').onclick = async () => {
   if (!response.ok) toast(response.error || 'Не удалось загрузить видео');
 };
 
-function showMedia(m){
+function showMedia(m, recovery = null){
   const g=++generation;
-  mediaReady=false;pendingSync=null;pendingSeek=null;guestPlayback=null;autoplayMuted=false;
+  mediaReady=false;pendingSync=recovery;pendingSeek=null;
+  guestPlayback=isHost?null:recovery;
+  if(!recovery)autoplayMuted=false;
   clearTimeout(mediaTimer);
   clearPlaybackAttempt();
   video.onloadedmetadata=null;video.oncanplay=null;video.onerror=null;
@@ -421,7 +446,11 @@ function showMedia(m){
   video.removeAttribute('src');video.load();video.style.display='none';
   $('yt').style.display='none';$('vk').style.display='none';
   $('yt').replaceChildren();$('vk').replaceChildren();
-  knownDuration=0;clock=0;playingState=false;
+  knownDuration=0;playingState=false;
+  clock=recovery?syncPosition(recovery):0;
+  vkPauseTime=recovery?clock:null;
+  vkRestoring=!!recovery;
+  vkRecommendationsDismissed=recovery?.dismissed===true;
   refreshSoundButton();setPlaybackPrompt();
   $('placeholder').classList.toggle('hidden',!!m);
   updateHost();updateTimeline();playerStatus(m?'Загружаем видео…':'');
@@ -487,11 +516,42 @@ function showMedia(m){
       };
       vkPlayer.on('inited',data=>{observe(data);playerReady(g)});
       vkPlayer.on('timeupdate',data=>{observe(data);updateTimeline()});
-      vkPlayer.on('seeked',data=>{observe(data);if(g===generation) sendSync(true)});
-      for(const event of ['started','resumed'])vkPlayer.on(event,data=>{
-        observe(data);if(!mediaReady)playerReady(g);playbackEvent(true,g);
+      vkPlayer.on('seeked',data=>{
+        if(g!==generation)return;
+        observe(data);
+        if(vkPauseTime!==null && (!vkRestoring || getTime()>0))vkPauseTime=getTime();
+        sendSync(true);
       });
-      for(const event of ['paused','ended'])vkPlayer.on(event,data=>{observe(data);playbackEvent(false,g,event==='ended')});
+      for(const event of ['started','resumed'])vkPlayer.on(event,data=>{
+        if(g!==generation)return;
+        observe(data);vkRecommendationsDismissed=false;
+        if(!mediaReady)playerReady(g);
+        // Some embeds defer seeking until playback starts.
+        if(vkRestoring && (isHost || guestPlayback?.playing)){
+          vkRestoring=false;
+          pendingSeek=null;
+          syncPlayerPosition(isHost?{time:vkPauseTime,seek:true}:guestPlayback);
+        }
+        vkPauseTime=null;
+        playbackEvent(true,g);
+      });
+      for(const event of ['paused','ended'])vkPlayer.on(event,data=>{
+        if(g!==generation)return;
+        const previousTime=clock;
+        observe(data);
+        const time=getTime();
+        if(playingState || vkPauseTime!==null){
+          const ended=event==='ended' && getDuration()>0 && time>=getDuration()-1;
+          vkPauseTime=ended?0:(time || (pendingSeek?0:vkPauseTime??previousTime));
+        }
+        playbackEvent(false,g,event==='ended');
+      });
+      vkPlayer.on('recommendationsLoaded',data=>{
+        if(g!==generation || !mediaReady || getPlaying() || !data?.videos?.length)return;
+        vkRecommendationsDismissed=false;
+        vkPauseTime??=getTime();
+        updateVkRecovery();
+      });
       vkPlayer.on('volumechange',data=>{
         if(g!==generation||autoplayMuted||typeof data?.muted!=='boolean')return;
         muted=data.muted;refreshSoundButton();
@@ -577,6 +637,12 @@ function clearPlaybackAttempt() {
 function reportAutoplayBlocked(action = pendingAction) {
   if (!mediaReady || !inRoom || (action && pendingAction !== action)) return;
   if (action?.playing === false || (!action && waitingForPlaybackTap()) || (!isHost && !guestPlayback?.playing)) return;
+  if (action?.recoverVk) {
+    // VK has no command to dismiss its recommendation screen. Recreate the same embed at the saved time.
+    const state = isHost ? action.recoverVk : guestPlayback;
+    showMedia(media, {...state, seek:true});
+    return;
+  }
   clearPlaybackAttempt();
 
   if (!isHost && !action?.fromTap && !muted && !autoplayMuted) {
@@ -591,8 +657,8 @@ function reportAutoplayBlocked(action = pendingAction) {
   updateTimeline();
 }
 
-function commandPlayback(playing, fromTap = false) {
-  const action = {playing, fromTap};
+function commandPlayback(playing, fromTap = false, recoverVk = null) {
+  const action = {playing, fromTap, recoverVk};
   clearPlaybackAttempt();
   pendingAction = action;
   playbackTimer = setTimeout(() => {
@@ -680,21 +746,40 @@ function applySync(snapshot) {
   }
   updateTimeline();
 }
+
+function updateVkRecovery() {
+  const show = inRoom && mediaReady && media?.type === 'vk' && vkPauseTime !== null
+    && !(pendingAction?.playing ?? getPlaying());
+  const canResume = isHost || guestPlayback?.playing;
+  $('vkRecovery').hidden = !show || (vkRecommendationsDismissed && !canResume);
+  $('vkDismiss').hidden = vkRecommendationsDismissed;
+  $('vkContinue').hidden = !canResume;
+}
+
+function recoverVkPlayback(resume) {
+  if ($('vkRecovery').hidden || (!isHost && !guestPlayback) || (resume && $('vkContinue').hidden)) return;
+  const state = isHost
+    ? {room, mediaId, version:syncVersion, time:vkPauseTime, playing:resume, seek:true}
+    : {...guestPlayback, seek:true};
+  if (resume) {
+    setPlaybackPrompt();
+    syncPlayerPosition(state);
+    commandPlayback(true, true, state);
+    updateTimeline();
+  } else {
+    showMedia(media, {...state, dismissed:true});
+  }
+}
+$('vkDismiss').onclick = () => recoverVkPlayback(false);
+$('vkContinue').onclick = () => recoverVkPlayback(true);
+
 function formatTime(n){n=Math.max(0,Math.floor(Number(n)||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s).padStart(2,'0')}
 function updateTimeline(){
   const t=getTime(),d=getDuration(),playing=pendingAction?.playing??getPlaying();
   $('elapsed').textContent=formatTime(t);$('duration').textContent=formatTime(d);
   $('progress').max=d||100;$('progress').value=Math.min(d||100,t);
   window.CinemaUI.setPlaying(playing);
-  let status = '● ОЖИДАНИЕ';
-  if (media) {
-    if (waitingForPlaybackTap()) status = '◌ НУЖНО НАЖАТИЕ';
-    else if (!mediaReady) status = '◌ ЗАГРУЗКА';
-    else if (getPlaying()) status = '◉ СМОТРИМ ВМЕСТЕ';
-    else if (!isHost && guestPlayback?.playing) status = '◌ СИНХРОНИЗАЦИЯ';
-    else status = '◉ ПАУЗА';
-  }
-  $('playingBadge').textContent=status;
+  updateVkRecovery();
 }
 function seekTo(t){
   if(!inRoom||!isHost||!media||!mediaReady)return;

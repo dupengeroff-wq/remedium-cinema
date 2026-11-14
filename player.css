@@ -40,7 +40,6 @@ body.cinema-open .wrap,body.cinema-open .layout,body.cinema-open .stage{transfor
  #playerShell .controls #sound{margin-left:auto}
  #playerShell.is-fullscreen .controls{padding-top:25px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
  #playerShell.is-fullscreen .screen-bottom{bottom:136px}
- #playerShell .screen-top .chip{font-size:9px;padding:7px 8px}
 }
 @media(max-height:450px) and (orientation:landscape){
  #playerShell.is-fullscreen .controls{flex-wrap:nowrap;gap:8px;padding-top:22px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
@@ -50,13 +49,21 @@ body.cinema-open .wrap,body.cinema-open .layout,body.cinema-open .stage{transfor
 }
 @media(prefers-reduced-motion:reduce){#playerShell .controls,#playerShell .controls .iconbtn{transition:none}}
 
-#playerShell .screen-actions{display:flex;align-items:center;gap:8px;min-width:0}
+#playerShell .screen-top{align-items:center}
+#playerShell .share-movie{margin-inline-start:auto}
 #playerShell .share-movie:not([hidden]){
   display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;
   background:#151515e8;border:1px solid #ffffff4d;color:#fff;pointer-events:auto;cursor:pointer;
 }
-#playerShell .share-movie:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#playerShell .share-movie:focus-visible,#playerShell .vk-recovery button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 #playerShell.controls-hidden .share-movie:not([hidden]){pointer-events:none}
+#playerShell .vk-recovery{display:flex;align-items:center;gap:6px}
+#playerShell .vk-recovery button{
+  min-height:44px;padding:0 10px;background:#151515ed;border:1px solid #ffffff4d;
+  color:#fff;font-size:clamp(12px,3.4vw,15px);white-space:nowrap;pointer-events:auto;
+}
+#playerShell #vkDismiss{min-width:44px;font-size:22px}
+#playerShell.is-fullscreen .vk-recovery,#playerShell .screen-top [hidden]{display:none!important}
 
 .guest-view #playerShell :is(#play,#back,#forward,#progress){display:none}
 .guest-view #playerShell .controls{justify-content:flex-end;flex-wrap:nowrap;gap:8px}
@@ -64,8 +71,3 @@ body.cinema-open .wrap,body.cinema-open .layout,body.cinema-open .stage{transfor
 .guest-view #playerShell .controls #sound{margin-left:auto}
 .guest-view #playerShell .controls .time + .time{margin-left:-3px}
 #playerShell.is-fullscreen.is-fallback .controls{padding-bottom:max(14px,env(safe-area-inset-bottom))}
-@media(max-width:600px){
-  #playerShell .screen-actions{gap:5px}
-  #playerShell .share-movie:not([hidden]){width:44px;height:44px;min-width:44px}
-  #playerShell .screen-top .chip{letter-spacing:.25px}
-}
