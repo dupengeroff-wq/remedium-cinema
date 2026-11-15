@@ -680,6 +680,9 @@ for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.cs
     res.sendFile(path.join(projectDir, asset));
   });
 }
+app.use('/assets/profile-themes',express.static(path.join(projectDir,'assets','profile-themes'),{
+  index:false,dotfiles:'deny',maxAge:'1d'
+}));
 app.get('/posters/:filename', (req, res) => {
   const filename = req.params.filename;
   if (!/^[a-z0-9][a-z0-9-]*\.webp$/i.test(filename)) return res.sendStatus(404);

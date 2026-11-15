@@ -296,13 +296,22 @@ body.social-page.profile-page{isolation:isolate;background:#020203}
 .profile-view .profile-actions{margin-top:13px}
 .profile-view .profile-actions .btn{font-weight:670;border-radius:12px}
 .social-page .profile-actions .btn.profile-friend-status{
-  border-color:#55e47d;color:#f4f4f4;
-  background:linear-gradient(180deg,#153923,#050b07 54%,#173c25);
-  box-shadow:inset 0 0 14px #43e87555,0 0 11px #42e87380,0 0 22px #35d86640;
+  --friend-secondary-rgb:var(--profile-accent-secondary-rgb,var(--profile-accent-rgb));
+  --friend-surface:linear-gradient(180deg,rgb(var(--profile-accent-rgb) / .23),
+    rgb(var(--profile-accent-rgb) / .025) 54%,rgb(var(--friend-secondary-rgb) / .26)),#0c080b;
+  --friend-glow:inset 0 0 14px rgb(var(--profile-accent-rgb) / .34),
+    0 0 11px rgb(var(--friend-secondary-rgb) / .48),0 0 22px rgb(var(--profile-accent-rgb) / .25);
+  border-color:rgb(var(--profile-accent-rgb,85 228 125));color:#f4f4f4;
+  background:var(--friend-surface,linear-gradient(180deg,#153923,#050b07 54%,#173c25));
+  box-shadow:var(--friend-glow,inset 0 0 14px #43e87555,0 0 11px #42e87380,0 0 22px #35d86640);
 }
 .social-page .profile-actions span.profile-friend-status{cursor:default}
-.social-page .profile-actions :is(a,button).profile-friend-status:hover{border-color:#93f5ac}
-.profile-friend-status .social-icon{color:#8aeda5}
+.social-page .profile-actions :is(a,button).profile-friend-status:hover{
+  border-color:rgb(var(--profile-accent-light-rgb,var(--profile-accent-rgb,147 245 172)));
+}
+.profile-friend-status .social-icon{
+  color:rgb(var(--profile-accent-light-rgb,var(--profile-accent-rgb,138 237 165)));
+}
 .own-profile-card{position:relative}
 .own-profile-card .profile-details{padding-inline-end:34px}
 .profile-edit{
@@ -370,9 +379,14 @@ button.profile-history-tile:focus-visible{outline:2px solid #fff;outline-offset:
 #socialDialog:has(.profile-history-details) .dialog-close{float:none;position:absolute;top:clamp(14px,3vw,22px);right:clamp(14px,3vw,22px);margin:0}
 #socialDialog:has(.profile-history-details) #socialDialogContent > h2{min-height:44px;padding-inline-end:54px;display:flex;align-items:center}
 .history-movie-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:4px}
+.history-item-actions{display:flex;flex:none;gap:2px}
 .profile-history-details .history-cover-edit.btn{flex:none;width:32px;min-height:32px;padding:3px;border:0;background:transparent}
+.profile-history-details .history-item-actions .social-icon{width:16px;height:16px}
 .history-cover-editor,.history-cover-form{display:grid;gap:8px}
 .history-cover-editor .history-row .btn{display:flex;min-height:36px;margin-top:5px}
+#socialDialog:has(.history-delete-confirm){width:min(365px,calc(100% - 24px))}
+.history-delete-actions{display:flex;justify-content:flex-end;gap:8px}
+.history-delete-confirm .form-status:not(:empty){margin:10px 0 0}
 .tmdb-attribution-logo{display:block;width:66px;max-height:24px;object-fit:contain;object-position:left center;margin:5px 0}
 .social-dialog{background:#131313f0;color:#f2f2f2;width:min(560px,calc(100% - 20px));max-height:calc(100dvh - 20px);overflow:auto;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .social-dialog::backdrop{background:#000b}

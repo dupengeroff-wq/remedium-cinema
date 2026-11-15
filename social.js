@@ -11,6 +11,9 @@
   let refreshDialogList;
   let friendRefresh;
   let profileId;
+  let cancelCoverSearch;
+  let openProfileHistory;
+  let profileRender=0;
 
   const navigation=document.getElementById('socialNav');
   if(segment[0]==='messages'){
@@ -26,6 +29,10 @@
   }
 
   const empty=text=>el('p',text,'social-note');
+  const profileThemes={
+    none:'Минимал','hello-kitty-pink':'Hello Kitty',cosmos:'Космос',sakura:'Сакура',
+    clouds:'Облака',lavender:'Лавандовый сон',cyberpunk:'Киберпанк','icy-night':'Ледяная ночь'
+  };
   const sharedVideoPrefix='Видео из кинозала\n';
   function sharedVideoUrl(body) {
     if (!body.startsWith(sharedVideoPrefix)) return null;
@@ -45,6 +52,7 @@
     bow:'M9 9.5 4.8 6.8A2.4 2.4 0 0 0 1 8.8v6.4a2.4 2.4 0 0 0 3.8 2L9 14.5m6-5 4.2-2.7a2.4 2.4 0 0 1 3.8 2v6.4a2.4 2.4 0 0 1-3.8 2L15 14.5M9 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z',
     heart:'M12 20.5 3.8 12.3a4.8 4.8 0 0 1 6.8-6.8L12 7l1.4-1.5a4.8 4.8 0 0 1 6.8 6.8Z',
     check:'m5 12 4 4L19 6',
+    trash:'M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3',
     userPlus:'M14 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM3 21v-2a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v2M20 8v6m-3-3h6',
     lock:'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2ZM12 16v2',
     chevron:'m9 6 6 6-6 6'
@@ -71,16 +79,24 @@
     return node;
   }
   function showModal(title,content) {
+    cancelCoverSearch?.();
+    cancelCoverSearch=null;
     const heading=el('h2',title);
     heading.id='socialDialogTitle';
     detail.replaceChildren(heading,content);
     modal.scrollTop=0;
     if(!modal.open) modal.showModal();
   }
+  modal.addEventListener('close',()=>{
+    if(modal.open) return;
+    cancelCoverSearch?.();
+    cancelCoverSearch=null;
+  });
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
-      document.body.classList.remove('profile-page','profile-kitty');
+      document.body.classList.remove('profile-page');
+      applyProfileTheme('none');
       CinemaNav.show(false);
       CinemaNav.clearUnread();
       const form=panel('Войди в REMEDIUM CINEMA','social-auth');
@@ -174,7 +190,7 @@
   function profileBow(className) {
     const bow=el('span',null,className);
     bow.setAttribute('aria-hidden','true');
-    bow.append(icon('bow'));
+    bow.append(icon('bow'),el('span',null,'profile-theme-glyph'));
     return bow;
   }
 
@@ -185,20 +201,21 @@
   }
 
   function applyProfileTheme(theme) {
-    document.body.classList.toggle('profile-kitty',theme==='hello-kitty-pink');
+    const selected=Object.hasOwn(profileThemes,theme)?theme:'none';
+    document.body.dataset.profileTheme=selected;
+    document.body.classList.toggle('profile-themed',selected!=='none');
+    document.body.classList.toggle('profile-kitty',selected==='hello-kitty-pink');
   }
 
   function showThemePicker(data,trigger) {
     const picker=el('div',null,'profile-theme-picker');
+    const carousel=el('div',null,'profile-theme-carousel');
     const grid=el('div',null,'profile-theme-grid');
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
-    picker.append(el('p','Выберите тему для своего профиля','profile-theme-description'),grid,status);
+    picker.append(el('p','Выберите тему для своего профиля','profile-theme-description'),carousel,status);
     let saving=false;
-    const choices=[
-      ['none','Без темы'],
-      ['hello-kitty-pink','Hello Kitty Pink']
-    ].map(([theme,label])=>{
+    const choices=Object.entries(profileThemes).map(([theme,label])=>{
       const chosen=theme===(data.theme||'none');
       const option=button('',()=>save(theme));
       option.className='profile-theme-card';
@@ -206,13 +223,7 @@
       option.setAttribute('aria-pressed',String(chosen));
       const sample=el('span',null,'profile-theme-sample');
       sample.setAttribute('aria-hidden','true');
-      const header=el('span',null,'theme-sample-header');
-      header.append(el('span',null,'theme-sample-avatar'),el('span',null,'theme-sample-lines'));
-      const actions=el('span',null,'theme-sample-actions');
-      actions.append(el('span'),el('span'));
-      const stats=el('span',null,'theme-sample-stats');
-      stats.append(el('span'),el('span'));
-      sample.append(header,actions,stats);
+      sample.append(el('span',null,'profile-theme-glyph'));
       const marker=el('span',null,'profile-theme-marker');
       if(chosen) marker.append(icon('check'),el('span','Выбрана'));
       option.append(sample,el('strong',label),marker);
@@ -232,7 +243,7 @@
         applyProfileTheme(saved.theme);
         if(modal.open&&picker.isConnected) modal.close();
       } catch(error) {
-        status.textContent=error.message;
+        status.textContent=historyRequestError(error);
       } finally {
         saving=false;
         trigger.disabled=false;
@@ -241,9 +252,40 @@
       }
     }
 
+    const previous=themeArrow('Предыдущие темы',-1);
+    const next=themeArrow('Следующие темы',1);
+    function themeArrow(label,direction) {
+      const arrow=button('',()=>{
+        const step=Math.max(choices[0].offsetWidth,grid.clientWidth-choices[0].offsetWidth);
+        grid.scrollBy({left:direction*step,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+      });
+      arrow.classList.add('profile-theme-arrow');
+      arrow.setAttribute('aria-label',label);
+      arrow.append(icon('chevron'));
+      return arrow;
+    }
+    function updateArrows() {
+      previous.disabled=grid.scrollLeft<1;
+      next.disabled=grid.scrollLeft+grid.clientWidth>=grid.scrollWidth-1;
+    }
+    grid.addEventListener('scroll',updateArrows,{passive:true});
+    grid.addEventListener('keydown',event=>{
+      const index=choices.indexOf(event.target);
+      if(index<0)return;
+      const target={ArrowLeft:index-1,ArrowRight:index+1,Home:0,End:choices.length-1}[event.key];
+      if(target===undefined)return;
+      event.preventDefault();
+      choices[Math.max(0,Math.min(choices.length-1,target))].focus();
+    });
     grid.append(...choices);
-    showModal('Оформление профиля',picker);
-    choices.find(choice=>choice.getAttribute('aria-pressed')==='true')?.focus({preventScroll:true});
+    carousel.append(previous,grid,next);
+    showModal('Выбор темы профиля',picker);
+    const selected=choices.find(choice=>choice.getAttribute('aria-pressed')==='true');
+    if(selected){
+      grid.scrollLeft=selected.offsetLeft-(grid.clientWidth-selected.offsetWidth)/2;
+      selected.focus({preventScroll:true});
+    }
+    updateArrows();
   }
 
   modal.addEventListener('click',event=>{
@@ -297,33 +339,35 @@
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
     const results=el('div',null,'history-list');
-    const title=field('Название фильма','title',{value:displayMovieTitle(item),maxLength:120,required:true});
+    const initialTitle=displayMovieTitle(item);
+    const title=field('Название фильма','title',{value:initialTitle,maxLength:120,required:true});
     const searchForm=el('form',null,'history-cover-form');
     const search=el('button','Найти обложку','btn');
     search.type='submit';
     searchForm.append(title.group,search);
     const manualForm=el('form',null,'history-cover-form');
-    const address=field('HTTPS-ссылка на обложку','poster',{
-      type:'url',maxLength:1200,required:true,
-      value:item.poster_key?.startsWith('https://')?item.poster_key:''
-    });
+    const initialAddress=item.custom_poster_url?.startsWith('https://')?item.custom_poster_url:'';
+    const address=field('HTTPS-ссылка на обложку','poster',{type:'url',maxLength:1200,value:initialAddress});
     const saveManual=el('button','Сохранить обложку по ссылке','btn');
     saveManual.type='submit';
     manualForm.append(address.group,saveManual);
     const base='/api/watch-history/'+item.id;
     let saving=false;
-    let searchVersion=0;
+    let searchRequest;
+    const isOpen=()=>modal.open&&editor.isConnected;
 
     async function save(values,control) {
       if(saving)return;
       saving=true;
       control.disabled=true;
-      status.textContent='';
+      status.textContent='Сохраняем…';
+      let saved=false;
       try{
         await api(base+'/cover',{method:'PATCH',body:{revision:item.poster_revision??null,...values}});
-        await renderProfile(modal.open&&editor.isConnected);
+        saved=true;
+        await renderProfile(editor);
       }catch(error){
-        status.textContent=error.message;
+        if(isOpen()) status.textContent=saved?'Изменения сохранены. Не удалось обновить историю.':historyRequestError(error);
       }finally{
         saving=false;
         control.disabled=false;
@@ -340,7 +384,6 @@
 
     function showFilms(films) {
       results.replaceChildren(...films.map(film=>filmRow(film,button('Выбрать',()=>{
-        ++searchVersion;
         const confirm=button('Подтвердить обложку',()=>{
           const values=film.id?{filmId:film.id}:{poster:film.poster_key,title:film.title};
           save(values,confirm);
@@ -353,31 +396,43 @@
       event.preventDefault();
       const name=title.input.value.trim();
       if(name.length<2){status.textContent='Введи название фильма.';return}
-      const version=++searchVersion;
+      searchRequest?.abort();
+      const request=new AbortController();
+      searchRequest=request;
       search.disabled=true;
       status.textContent='Ищем обложки…';
       results.replaceChildren();
       const custom=personalCatalogCover(name);
       try {
-        const {films}=await api(base+'/cover-search?title='+encodeURIComponent(name));
-        if(version!==searchVersion||!editor.isConnected)return;
+        const signal=AbortSignal.any([request.signal,AbortSignal.timeout(12000)]);
+        const {films}=await api(base+'/cover-search?title='+encodeURIComponent(name),{signal});
+        if(request!==searchRequest||!isOpen())return;
         const candidates=custom?[custom,...films.filter(film=>film.poster_key!==custom.poster_key)]:films;
         showFilms(candidates);
         status.textContent=candidates.length?'':options.searchAvailable
           ?'Обложки не найдены.'
           :'В каталоге сайта обложка не найдена. Можно указать ссылку вручную.';
       }catch(error){
-        if(version===searchVersion){
+        if(request===searchRequest&&!request.signal.aborted&&isOpen()){
           if(custom)showFilms([custom]);
-          status.textContent=error.message;
+          status.textContent=historyRequestError(error);
         }
       }finally{
-        search.disabled=false;
+        if(request===searchRequest){
+          searchRequest=null;
+          search.disabled=false;
+        }
       }
     };
     manualForm.onsubmit=event=>{
       event.preventDefault();
-      save({poster:address.input.value.trim(),title:title.input.value.trim()},saveManual);
+      const values={};
+      const name=title.input.value.trim();
+      const poster=address.input.value.trim();
+      if(name&&name!==initialTitle) values.title=name;
+      if(poster!==initialAddress||(!values.title&&!poster&&item.custom_poster_url)) values.poster=poster;
+      if(!Object.keys(values).length){status.textContent='Укажи новое название или ссылку на обложку.';return}
+      save(values,saveManual);
     };
     editor.append(button('Назад к истории',back),searchForm,results,manualForm,status);
     if(options.searchAvailable||item.release_year){
@@ -393,10 +448,48 @@
       editor.append(credits);
     }
     showModal('Обложка фильма',editor);
+    cancelCoverSearch=()=>searchRequest?.abort();
     title.input.focus();
   }
 
-  function historyList(items,editCover) {
+  function historyRequestError(error) {
+    return error.name==='TimeoutError'?'Сервер не ответил вовремя. Попробуй снова.':error.message;
+  }
+
+  function confirmWatchDeletion(item,back) {
+    const content=el('div',null,'history-delete-confirm');
+    const actions=el('div',null,'history-delete-actions');
+    const status=el('p',null,'form-status');
+    status.setAttribute('role','status');
+    let deleting=false,deleted=false;
+    const confirm=button('Удалить',async ()=>{
+      if(deleting)return;
+      deleting=true;
+      confirm.disabled=true;
+      status.textContent=deleted?'Обновляем историю…':'Удаляем просмотр…';
+      try{
+        if(!deleted){
+          await api('/api/watch-history/'+item.id,{method:'DELETE'});
+          deleted=true;
+        }
+        await renderProfile(content);
+      }catch(error){
+        if(modal.open&&content.isConnected){
+          status.textContent=deleted?'Просмотр удалён. Не удалось обновить историю.':historyRequestError(error);
+          if(deleted)confirm.textContent='Обновить список';
+        }
+      }finally{
+        deleting=false;
+        confirm.disabled=false;
+      }
+    },true);
+    actions.append(button('Отмена',back),confirm);
+    content.append(el('p','Вы действительно хотите удалить эту запись из истории просмотров?'),actions,status);
+    showModal('Удалить просмотр?',content);
+    actions.firstElementChild.focus();
+  }
+
+  function historyList(items,actions=null) {
     const list=el('div',null,'history-list');
     if(!items.length) list.append(empty('Пока нет просмотров.'));
     for(const item of items) {
@@ -406,15 +499,22 @@
       const state={running:'Идёт',interrupted:'Прерван',completed:'Завершён'}[item.status];
       const year=item.release_year?' ('+item.release_year+')':'';
       const title=el('strong',(displayMovieTitle(item)||'Без названия')+year);
-      if(editCover&&item.can_edit_cover){
+      if(actions&&item.can_edit_cover){
         const label=item.poster_key?'Заменить обложку':'Добавить обложку';
-        const edit=button('',()=>editCover(item));
+        const edit=button('',()=>actions.edit(item));
         edit.classList.add('history-cover-edit');
         edit.setAttribute('aria-label',label);
         edit.title=label;
         edit.append(icon('edit'));
+        const remove=button('',()=>actions.remove(item));
+        remove.classList.add('history-cover-edit','history-delete-button');
+        remove.setAttribute('aria-label','Удалить просмотр');
+        remove.title='Удалить просмотр';
+        remove.append(icon('trash'));
+        const controls=el('div',null,'history-item-actions');
+        controls.append(edit,remove);
         const heading=el('div',null,'history-movie-heading');
-        heading.append(title,edit);
+        heading.append(title,controls);
         info.append(heading);
       } else {
         info.append(title);
@@ -432,16 +532,16 @@
     return list;
   }
 
-  function paginatedHistory(items,loadPage,editCover) {
+  function paginatedHistory(items,loadPage,actions) {
     const content=el('div',null,'history-list profile-history-details');
-    content.append(historyList(items,editCover));
+    content.append(historyList(items,actions));
     let offset=items.length;
     if(offset===50){
       const more=button('Показать ещё');
       more.onclick=run(more,()=>loadPage(offset),({history})=>{
         if(history?.length){
           offset+=history.length;
-          content.insertBefore(historyList(history,editCover),more);
+          content.insertBefore(historyList(history,actions),more);
         }
         if(history?.length!==50)more.remove();
       });
@@ -453,16 +553,23 @@
   function profileHistory(items,loadPage,options,reopen) {
     const section=el('section',null,'profile-section');
     const title=profileHeading('История просмотров');
-    if(!items.length){
-      section.append(title,paginatedHistory(items,loadPage));
-      return section;
-    }
     const header=el('div',null,'profile-history-heading');
     let historyContent;
+    const back=()=>openProfileHistory?.();
+    const actions=options?{
+      edit:item=>coverEditor(item,options,back),
+      remove:item=>confirmWatchDeletion(item,back)
+    }:null;
     const showHistory=()=>{
-      historyContent??=paginatedHistory(items,loadPage,options?item=>coverEditor(item,options,showHistory):null);
+      historyContent??=paginatedHistory(items,loadPage,actions);
       showModal('История просмотров',historyContent);
     };
+    openProfileHistory=showHistory;
+    if(!items.length){
+      section.append(title,paginatedHistory(items,loadPage));
+      if(reopen)showHistory();
+      return section;
+    }
     const all=button('Все',showHistory);
     all.setAttribute('aria-haspopup','dialog');
     all.setAttribute('aria-label','Вся история просмотров');
@@ -472,7 +579,7 @@
     for(const item of items.slice(0,4)){
       const editable=options&&item.can_edit_cover;
       const label=displayMovieTitle(item)||'Обложка просмотра';
-      const tile=editable?button('',()=>coverEditor(item,options,showHistory)):el('div');
+      const tile=editable?button('',()=>actions.edit(item)):el('div');
       tile.className='profile-history-tile';
       tile.append(historyPoster(item));
       if(editable){
@@ -503,12 +610,16 @@
     return control;
   }
 
-  async function renderProfile(reopenHistory=false) {
+  async function renderProfile(historyView=null) {
+    const render=++profileRender;
     const id=profileId||viewer.id;
     const preview=options.get('view')==='friend';
     const friend=options.get('friend');
     const query=preview?'?view=friend'+(friend?'&friend='+encodeURIComponent(friend):''):'';
     const data=await api('/api/profiles/'+id+query);
+    if(render!==profileRender) return;
+    const reopenHistory=historyView instanceof Element&&modal.open&&
+      (detail.contains(historyView)||detail.querySelector('.profile-history-details'));
     const {person}=data;
     applyProfileTheme(data.theme);
     const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
@@ -556,9 +667,9 @@
       edit.append(icon('edit'));
       const theme=button('',()=>showThemePicker(data,theme));
       theme.className='profile-edit profile-theme-toggle';
-      theme.setAttribute('aria-label','Оформление профиля');
+      theme.setAttribute('aria-label','Выбор темы профиля');
       theme.setAttribute('aria-haspopup','dialog');
-      theme.title='Оформление профиля';
+      theme.title='Выбор темы профиля';
       theme.append(icon('brush'));
       tools.append(edit,theme);
       card.classList.add('own-profile-card');
@@ -627,7 +738,7 @@
     }
     if(!data.historyHidden && data.history!==null){
       const loadPage=offset=>api('/api/profiles/'+id+(query?query+'&':'?')+'offset='+offset);
-      profile.append(profileHistory(data.history,loadPage,data.coverEditor,reopenHistory===true));
+      profile.append(profileHistory(data.history,loadPage,data.coverEditor,Boolean(reopenHistory)));
     }
     document.body.classList.add('profile-page');
     main.replaceChildren(profile);

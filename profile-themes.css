@@ -1,5 +1,5 @@
 .profile-avatar-frame{display:contents}
-.profile-card-bow,.profile-name-heart,.profile-heading-ribbon{display:none}
+.profile-card-bow,.profile-name-heart,.profile-heading-ribbon,.profile-theme-glyph{display:none}
 .profile-tools{
   display:grid;gap:2px;position:absolute;inset:6px 6px auto auto;z-index:1;
 }
@@ -11,7 +11,7 @@
 html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
 #socialDialog:has(.profile-theme-picker){
   position:fixed;inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  margin:auto;width:min(460px,calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  margin:auto;width:min(690px,calc(100% - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
   max-width:none;max-height:calc(100vh - 24px);
   max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   padding:clamp(14px,4vw,21px);overflow:auto;overscroll-behavior:contain;
@@ -28,66 +28,104 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   font-size:clamp(17px,4.3vw,20px);line-height:1.2;
 }
 .profile-theme-picker .profile-theme-description{margin:1px 0 14px;color:#ccc1cd;font-size:14px}
-.profile-theme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.profile-theme-carousel{
+  display:grid;grid-template-columns:34px minmax(0,1fr) 34px;align-items:center;gap:5px;
+}
+.profile-theme-carousel .profile-theme-arrow{
+  width:34px;height:44px;padding:0;border:0;background:none;
+}
+.profile-theme-arrow:first-child .social-icon{transform:rotate(180deg)}
+.profile-theme-grid{
+  display:flex;gap:8px;position:relative;min-width:0;overflow-x:auto;overflow-y:hidden;
+  overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:4px 3px 9px;
+  scrollbar-width:thin;scrollbar-color:#ffffff55 transparent;
+}
 .profile-theme-card{
-  appearance:none;display:grid;align-content:start;gap:8px;text-align:left;min-width:0;margin:0;
-  padding:8px;border:1px solid #ffffff2e;border-radius:13px;
+  appearance:none;display:grid;align-content:start;gap:6px;text-align:center;min-width:0;margin:0;
+  flex:0 0 clamp(90px,24vw,110px);scroll-snap-align:start;
+  padding:6px;border:1px solid #ffffff2e;border-radius:12px;
   background:#ffffff06;color:#f4f0f5;font:inherit;cursor:pointer;touch-action:manipulation;
 }
 .profile-theme-card:hover:not(:disabled){border-color:#ffffff62}
 .profile-theme-card:focus-visible{outline:2px solid #fae4ee;outline-offset:2px}
-.profile-theme-card[aria-pressed="true"]{border-color:#e9e2eab0;background:#ffffff0d}
-.profile-theme-card[data-theme="hello-kitty-pink"][aria-pressed="true"]{
-  border-color:#f487baa6;background:#d3529619;
+.profile-theme-card[aria-pressed="true"]{
+  border-color:rgb(var(--profile-accent-rgb,233 226 234) / .85);
+  box-shadow:0 0 7px rgb(var(--profile-accent-rgb,233 226 234) / .32);
+  background:rgb(var(--profile-accent-rgb,255 255 255) / .09);
 }
 .profile-theme-card:disabled{opacity:.65;cursor:wait}
 .profile-theme-card strong{font-size:clamp(12px,3.5vw,15px);line-height:1.25;overflow-wrap:anywhere}
 .profile-theme-marker{
-  display:flex;align-items:center;gap:4px;min-height:17px;color:#d9d1dc;
+  display:flex;align-items:center;justify-content:center;gap:4px;min-height:17px;
+  color:rgb(var(--profile-accent-light-rgb,217 209 220));
   font-size:12px;line-height:1.2;
 }
 .profile-theme-marker .social-icon{width:14px;height:14px}
-.profile-theme-card[data-theme="hello-kitty-pink"] .profile-theme-marker{color:#ffc6df}
 .profile-theme-picker .form-status:not(:empty){margin:10px 0 0}
 
+[data-profile-theme="hello-kitty-pink"],
+.profile-theme-card[data-theme="hello-kitty-pink"]{
+  --profile-accent-rgb:250 128 185;
+  --profile-accent-light-rgb:255 198 223;
+}
+[data-profile-theme="cosmos"],.profile-theme-card[data-theme="cosmos"]{
+  --profile-accent-rgb:159 198 232;--profile-accent-light-rgb:221 240 255;
+  --profile-theme-base:#070e19;--profile-theme-panel:#091320e6;--profile-theme-mark:"✦";
+}
+[data-profile-theme="sakura"],.profile-theme-card[data-theme="sakura"]{
+  --profile-accent-rgb:248 134 169;--profile-accent-light-rgb:255 219 231;
+  --profile-theme-base:#150a13;--profile-theme-panel:#1a0d18e6;--profile-theme-mark:"✿";
+  --profile-theme-art:url('/assets/profile-themes/sakura.webp');
+}
+[data-profile-theme="clouds"],.profile-theme-card[data-theme="clouds"]{
+  --profile-accent-rgb:184 193 247;--profile-accent-light-rgb:251 225 245;
+  --profile-accent-secondary-rgb:237 173 220;
+  --profile-theme-base:#11101f;--profile-theme-panel:#171426db;--profile-theme-mark:"☁︎";
+  --profile-theme-art:url('/assets/profile-themes/clouds.webp');
+}
+[data-profile-theme="lavender"],.profile-theme-card[data-theme="lavender"]{
+  --profile-accent-rgb:193 158 247;--profile-accent-light-rgb:235 216 255;
+  --profile-theme-base:#110c22;--profile-theme-panel:#160f28e3;--profile-theme-mark:"❋";
+  --profile-theme-art:url('/assets/profile-themes/lavender.webp');
+}
+[data-profile-theme="cyberpunk"],.profile-theme-card[data-theme="cyberpunk"]{
+  --profile-accent-rgb:250 102 193;--profile-accent-light-rgb:179 244 255;
+  --profile-accent-secondary-rgb:80 222 251;
+  --profile-theme-base:#070d18;--profile-theme-panel:#0a1421ed;--profile-theme-mark:"◇";
+  --profile-theme-art:url('/assets/profile-themes/cyberpunk.webp');
+}
+[data-profile-theme="icy-night"],.profile-theme-card[data-theme="icy-night"]{
+  --profile-accent-rgb:126 205 252;--profile-accent-light-rgb:217 244 255;
+  --profile-theme-base:#06121e;--profile-theme-panel:#091827db;--profile-theme-mark:"❄︎";
+  --profile-theme-art:url('/assets/profile-themes/icy-night.webp');
+}
+
 .profile-theme-sample{
-  --sample-line:#93909b52;--sample-panel:#141419ed;--sample-action:#d8d5da;
-  display:grid;gap:5px;min-width:0;padding:8px;border:1px solid var(--sample-line);border-radius:8px;
-  background:radial-gradient(circle at 18% 13%,#bfc1d0 0 .6px,transparent 1.3px),
-    radial-gradient(circle at 85% 28%,#adb4c6 0 .7px,transparent 1.5px),
-    radial-gradient(ellipse at 100% 120%,#30323e,transparent 56%),#09090c;
+  display:grid;place-items:center;aspect-ratio:1;min-width:0;
+  border:1px solid rgb(var(--profile-accent-rgb,175 172 188) / .55);border-radius:10px;
+  background:var(--profile-theme-art,none) center 72%/cover no-repeat,var(--profile-theme-base,#0c0c11);
 }
-.theme-sample-header{
-  display:grid;grid-template-columns:clamp(24px,8vw,38px) minmax(0,1fr);align-items:center;gap:6px;
-  padding:5px;border:1px solid var(--sample-line);border-radius:6px;background:var(--sample-panel);
+.profile-theme-card[data-theme="none"] .profile-theme-sample{
+  background:radial-gradient(ellipse at 55% 65%,#29222c66,transparent 65%),#0c0c11;
 }
-.theme-sample-avatar{
-  aspect-ratio:1;border:1px solid var(--sample-line);border-radius:5px;
-  background:linear-gradient(145deg,#36353d,#25242b);
-}
-.theme-sample-lines{display:grid;gap:5px}
-.theme-sample-lines::before,.theme-sample-lines::after{
-  content:"";width:75%;height:3px;border-radius:3px;background:#d4cdd8b0;
-}
-.theme-sample-lines::after{width:50%;background:#b1a8b48c}
-.theme-sample-actions,.theme-sample-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
-.theme-sample-actions > span{height:9px;border-radius:3px;background:var(--sample-action)}
-.theme-sample-actions > span + span{
-  border:1px solid #68e08e;background:#14261b;box-shadow:0 0 4px #57d37d61;
-}
-.theme-sample-stats > span{height:11px;border:1px solid var(--sample-line);border-radius:4px;background:var(--sample-panel)}
 .profile-theme-card[data-theme="hello-kitty-pink"] .profile-theme-sample{
-  --sample-line:#ed71a9a6;--sample-panel:#251220eb;--sample-action:#efafd1;
-  background:url('/profile-theme-clouds.webp') center bottom/135% auto no-repeat,
-    radial-gradient(ellipse at top right,#4a203b,#180e17 72%);
+  background:url('/profile-theme-kitty.webp') center/84% auto no-repeat,
+    radial-gradient(circle at 45% 38%,#8e3d6f,#271024 85%);
 }
-.profile-theme-card[data-theme="hello-kitty-pink"] .theme-sample-avatar{
-  background:#642e52 url('/profile-theme-kitty.webp') center/85% auto no-repeat;
+.profile-theme-card[data-theme="cosmos"] .profile-theme-sample{
+  background:linear-gradient(148deg,#090b18f5 3%,#171c2c35 55%,#7abbf120),
+    url('/cinema-moon.webp?v=2') center/cover #070c15;
 }
+.profile-theme-card:is([data-theme="none"],[data-theme="icy-night"]) .profile-theme-glyph{
+  display:block;color:rgb(var(--profile-accent-light-rgb,235 224 240));font-size:28px;
+  text-shadow:0 0 9px rgb(var(--profile-accent-rgb,215 205 239) / .8);
+}
+.profile-theme-glyph::before{content:var(--profile-theme-mark,"✦")}
 
 /* The pink palette applies only while a profile is rendered with this theme. */
 body.social-page.profile-page.profile-kitty{
-  --kitty-line:#fa80b9b0;--kitty-soft-line:#ed75aa83;--kitty-ink:#ffc6df;
+  --kitty-line:rgb(var(--profile-accent-rgb) / 69.02%);--kitty-soft-line:#ed75aa83;
+  --kitty-ink:rgb(var(--profile-accent-light-rgb));
   --kitty-surface:linear-gradient(142deg,#2a1421c9,#1b0d17d9 74%);
   --kitty-glow:0 0 12px #e7589b29,inset 0 1px #ffb4d618;
   background:radial-gradient(ellipse at 48% -5%,#3b162c 0%,transparent 58%),
@@ -159,3 +197,85 @@ body.social-page.profile-page.profile-kitty{
   color:#fcc2df;background:radial-gradient(ellipse at 40% 17%,#472d3e,#1a0e17 75%);
 }
 .profile-kitty .profile-history-details .history-row{border-color:var(--kitty-soft-line)}
+
+/* Shared surfaces for the additional palettes. Kitty keeps its existing artwork and treatment. */
+body.social-page.profile-page.profile-themed:not(.profile-kitty){
+  --profile-secondary-rgb:var(--profile-accent-secondary-rgb,var(--profile-accent-rgb));
+  --profile-line:rgb(var(--profile-accent-rgb) / .55);
+  --profile-shine:0 0 14px rgb(var(--profile-secondary-rgb) / .24),inset 0 1px rgb(var(--profile-accent-rgb) / .14);
+  --profile-surface:linear-gradient(150deg,rgb(var(--profile-accent-rgb) / .07),transparent 66%),var(--profile-theme-panel);
+  background:radial-gradient(ellipse at 76% 0%,rgb(var(--profile-accent-rgb) / .15),transparent 56%),
+    radial-gradient(ellipse at 5% 72%,rgb(var(--profile-secondary-rgb) / .10),transparent 52%),var(--profile-theme-base);
+}
+.profile-themed:not(.profile-kitty) .profile-view{
+  --glass-muted:rgb(var(--profile-accent-light-rgb) / .83);
+}
+.profile-themed:not(.profile-kitty) .profile-view::before{
+  content:"";position:fixed;inset:auto 0 0;z-index:-1;pointer-events:none;
+  height:min(68dvh,clamp(235px,56vw,520px));
+  background:var(--profile-theme-art,none) center bottom/cover no-repeat,
+    radial-gradient(circle at 13% 22%,rgb(var(--profile-accent-light-rgb) / .72) 0 .7px,transparent 2.1px),
+    radial-gradient(circle at 85% 34%,rgb(var(--profile-accent-light-rgb) / .85) 0 .8px,transparent 3px),
+    radial-gradient(circle at 22% 68%,rgb(var(--profile-accent-light-rgb) / .55) 0 .6px,transparent 2px),
+    radial-gradient(circle at 93% 76%,rgb(var(--profile-accent-light-rgb) / .55) 0 .7px,transparent 3px);
+  mask-image:linear-gradient(transparent 1%,#000 57%);
+  opacity:.82;
+}
+.profile-theme-card[data-theme="icy-night"] .profile-theme-sample{
+  box-shadow:inset 0 0 16px #0d152bc7;
+}
+body.profile-page[data-profile-theme="icy-night"]::after{
+  --planet-size:clamp(64px,19vw,120px);
+  top:calc(55px + env(safe-area-inset-top));bottom:auto;right:max(26px,calc((100vw - 510px) / 2));
+  background:linear-gradient(145deg,#93d4ff18,#061b36aa),url('/cinema-moon.webp?v=2') center/cover;
+  box-shadow:0 0 22px #a2dbff4a,inset 0 1px 5px #dcf0ff99;opacity:.84;
+}
+body.profile-page:is([data-profile-theme="sakura"],[data-profile-theme="cyberpunk"],[data-profile-theme="clouds"])::after{
+  opacity:.24;
+}
+.profile-themed:not(.profile-kitty) .profile-view :is(.profile-card,.stat,.profile-shared .person-row){
+  border-color:var(--profile-line);background:var(--profile-surface);box-shadow:var(--profile-shine);
+}
+.profile-themed:not(.profile-kitty) .profile-view .profile-card{position:relative}
+.profile-themed:not(.profile-kitty) .profile-hero .social-avatar{border-color:var(--profile-line)}
+.profile-themed:not(.profile-kitty) .profile-card-bow{
+  position:absolute;display:grid;place-items:center;inset:-11px auto auto 14px;min-width:25px;
+  background:var(--profile-theme-base);border-radius:50%;pointer-events:none;
+}
+.profile-themed:not(.profile-kitty) :is(.profile-card-bow,.profile-heading-ribbon) > .social-icon{display:none}
+.profile-themed:not(.profile-kitty) :is(.profile-card-bow,.profile-heading-ribbon) > .profile-theme-glyph{
+  display:block;color:rgb(var(--profile-accent-light-rgb));font-size:18px;line-height:1.2;
+  text-shadow:0 0 9px rgb(var(--profile-accent-rgb) / .85);
+}
+.profile-themed:not(.profile-kitty) .profile-tools .profile-edit,
+.profile-themed:not(.profile-kitty) .profile-view :is(.stat,.profile-shared-history,.profile-locked,.profile-history-heading .btn) .social-icon{
+  color:rgb(var(--profile-accent-light-rgb));filter:drop-shadow(0 0 4px rgb(var(--profile-accent-rgb) / .43));
+}
+.profile-themed:not(.profile-kitty) .profile-actions .btn.primary{
+  border-color:rgb(var(--profile-accent-light-rgb) / .8);
+  background:linear-gradient(156deg,rgb(var(--profile-accent-light-rgb)),rgb(var(--profile-accent-rgb)) 84%);
+  color:#10111a;box-shadow:inset 0 1px 2px #fff8,0 0 12px rgb(var(--profile-secondary-rgb) / .25);
+}
+.profile-themed:not(.profile-kitty) .profile-view > .profile-section + .profile-section{
+  border-color:rgb(var(--profile-accent-rgb) / .18);
+}
+.profile-themed:not(.profile-kitty) .profile-view .profile-section h2{
+  display:flex;align-items:center;gap:8px;min-width:0;
+}
+.profile-themed:not(.profile-kitty) .profile-history-heading h2{flex:1}
+.profile-themed:not(.profile-kitty) .profile-heading-ribbon{
+  display:flex;flex:1 1 26px;align-items:center;min-width:18px;gap:6px;
+}
+.profile-themed:not(.profile-kitty) .profile-heading-ribbon::after{
+  content:"";height:1px;flex:1;
+  background:linear-gradient(90deg,rgb(var(--profile-secondary-rgb) / .8),transparent);
+  box-shadow:0 0 7px rgb(var(--profile-secondary-rgb) / .53);
+}
+.profile-themed:not(.profile-kitty) :is(.profile-history-tile,.profile-history-heading .btn){
+  border-color:var(--profile-line);box-shadow:var(--profile-shine);
+}
+.profile-themed:not(.profile-kitty) .profile-history-tile .history-poster{
+  background:radial-gradient(ellipse at 45% 12%,rgb(var(--profile-accent-rgb) / .2),transparent 68%),var(--profile-theme-base);
+  color:rgb(var(--profile-accent-light-rgb));
+}
+.profile-themed:not(.profile-kitty) .profile-history-details .history-row{border-color:var(--profile-line)}
