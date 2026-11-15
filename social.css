@@ -346,14 +346,6 @@ body.social-page.profile-page{isolation:isolate;background:#020203}
   position:absolute;inset:0;z-index:-2;width:100%;height:100%;border-radius:0;
   background:radial-gradient(ellipse at 45% 18%,#232530,#08080b 75%);color:#afb4c6;
 }
-.profile-history-tile::after{
-  content:"";position:absolute;z-index:-1;inset:0;
-  background:linear-gradient(180deg,transparent 46%,#020203c7 76%,#020203 100%);
-}
-.profile-history-tile > span{
-  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
-  margin:0 4px 7px;font-size:clamp(10px,2.7vw,13px);font-weight:620;line-height:1.2;text-align:center;
-}
 .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .stat{display:flex;gap:10px;align-items:center;padding:9px 11px;background:linear-gradient(145deg,#ffffff05,transparent);border:1px solid #ffffff2b;border-radius:12px;min-width:0}
 .social-icon{display:block;width:19px;height:19px;flex:none;color:currentColor}
@@ -369,6 +361,17 @@ body.social-page.profile-page{isolation:isolate;background:#020203}
 .person-row .row-actions .btn{font-size:12px;padding:7px}
 .history-poster{display:grid;place-items:center;flex:0 0 42px;width:42px;height:60px;overflow:hidden;border-radius:6px;background:#292929}
 .history-poster img{width:100%;height:100%;object-fit:cover}
+.profile-history-details .history-row > .history-poster{flex:0 0 58px;width:58px;height:79px;border-radius:8px}
+.profile-history-details .history-row strong{line-height:1.3}
+.history-companions{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:2px}
+.history-companions .social-icon{width:16px;height:16px}
+#socialDialog:has(.profile-history-details) .dialog-close{float:none;position:absolute;top:clamp(14px,3vw,22px);right:clamp(14px,3vw,22px);margin:0}
+#socialDialog:has(.profile-history-details) #socialDialogContent > h2{min-height:44px;padding-inline-end:54px;display:flex;align-items:center}
+.history-movie-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:4px}
+.profile-history-details .history-cover-edit.btn{flex:none;width:32px;min-height:32px;padding:3px;border:0;background:transparent}
+.history-cover-editor,.history-cover-form{display:grid;gap:8px}
+.history-cover-editor .history-row .btn{display:flex;min-height:36px;margin-top:5px}
+.tmdb-attribution-logo{display:block;width:66px;max-height:24px;object-fit:contain;object-position:left center;margin:5px 0}
 .social-dialog{background:#131313f0;color:#f2f2f2;width:min(560px,calc(100% - 20px));max-height:calc(100dvh - 20px);overflow:auto;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .social-dialog::backdrop{background:#000b}
 .dialog-close{float:right;min-width:44px;margin:0 0 8px 8px}

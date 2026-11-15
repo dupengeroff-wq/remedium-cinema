@@ -47,6 +47,7 @@
     document.body.classList.toggle('cinema-open', on);
     icon('full', on ? 'exit' : 'full', on ? 'Выйти из полного экрана' : 'На весь экран');
     byId('full').setAttribute('aria-pressed', String(on));
+    if(on) byId('finishMovieDialog')?.close();
     if (!on) {
       clearTimeout(hideTimer);
       shell.classList.remove('controls-hidden');
@@ -128,7 +129,7 @@
     }
     const target = event.target;
     const typing = target instanceof Element && target.closest('input,textarea,select,[contenteditable="true"]');
-    if (!typing && !event.repeat && event.code === 'KeyF' && !event.ctrlKey && !event.metaKey && !event.altKey && byId('entry').classList.contains('hidden')) {
+    if (!typing && !byId('finishMovieDialog')?.open && !event.repeat && event.code === 'KeyF' && !event.ctrlKey && !event.metaKey && !event.altKey && byId('entry').classList.contains('hidden')) {
       event.preventDefault();
       toggleFullscreen();
     }

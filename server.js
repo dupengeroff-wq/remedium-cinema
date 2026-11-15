@@ -3,7 +3,6 @@ import express from 'express';
 import {createServer} from 'node:http';
 import {Server} from 'socket.io';
 import crypto from 'node:crypto';
-import {isIP} from 'node:net';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -15,6 +14,8 @@ import {mountProfiles} from './lib/profiles.js';
 import {mountMessages} from './lib/messages.js';
 import {mountAvatars} from './lib/avatars.js';
 import {createWatchTracker} from './lib/watch.js';
+import {catalogPoster,catalogPosters,posterUrl,sourcePoster} from './lib/watch-media.js';
+import {mountFilmCovers} from './lib/film-covers.js';
 
 const projectDir = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -92,7 +93,8 @@ function hydrateRoom(record, nickname) {
   room.media=isRecord(saved.media)?saved.media:null;
   room.mediaId=room.media?(isToken(saved.mediaId)?saved.mediaId:uid()):null;
   room.title=clean(saved.title,120);
-  room.watchPoster=localPoster(saved.watchPoster);
+  room.watchPoster=posterUrl(saved.watchPoster);
+  room.lastFinishedMediaId=isToken(saved.lastFinishedMediaId)?saved.lastFinishedMediaId:null;
   room.historyRecorded=!!saved.historyRecorded;
   room.time=Number.isFinite(saved.time)?Math.max(0,Math.min(saved.time,43200)):0;
   for(const [key,badge] of Object.entries(saved.badges||{})){
@@ -110,7 +112,7 @@ function snapshotRoom(room) {
   return {
     authVersion:2,hostToken:room.hostToken,guestToken:room.guestToken,hostName:room.hostName,
     identityKey:room.identityKey,media:room.media,mediaId:room.mediaId,title:room.title,
-    watchPoster:room.watchPoster,historyRecorded:room.historyRecorded,time:currentTime(room),
+    watchPoster:room.watchPoster,lastFinishedMediaId:room.lastFinishedMediaId,historyRecorded:room.historyRecorded,time:currentTime(room),
     badges:room.badges,letters:room.letters,poll:room.poll,
     roulette:room.roulette?.startedAt!=null?room.roulette:null
   };
@@ -150,10 +152,6 @@ function saveSoon(room) {
     saveTimer.unref();
   }
 }
-function localPoster(value) {
-  return typeof value==='string'&&/^posters\/[a-z0-9-]+\.webp$/i.test(value)?value:null;
-}
-
 const roomFor = socket => rooms.get(socket.data.room);
 function member(socket) {
   const room=roomFor(socket);
@@ -262,20 +260,6 @@ function defaultTitle(media) {
   }
 }
 
-function posterUrl(value) {
-  if (typeof value !== 'string' || value.length > 1200) return null;
-  if (/^posters\/[a-z0-9-]+\.webp$/i.test(value)) return value;
-  try {
-    const url = new URL(value);
-    const host = url.hostname.replace(/^\[|\]$/g, '');
-    if (url.protocol !== 'https:' || url.username || url.password || url.port || isIP(host)
-        || !host.includes('.') || /\.(local|localhost|internal|test|invalid)$/i.test(host)) return null;
-    return url.href;
-  } catch {
-    return null;
-  }
-}
-
 function makeCards(items) {
   const cards = [];
   while (cards.length < 28) {
@@ -310,7 +294,7 @@ function leave(socket) {
     room.playing=false;
     room.updated=Date.now();
     room.syncVersion++;
-    tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
+    if(!room.finishing)tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
     saveSoon(room);
   }
   broadcast(room,chatReset);
@@ -423,22 +407,24 @@ io.on('connection', socket => {
 
   on('watch-heartbeat', 4, async payload=>{
     const room=roomFor(socket);
-    if(member(socket)) await tracker.report(socket,room,payload);
+    if(member(socket)&&!room.finishing) await tracker.report(socket,room,payload);
   });
 
   on('media', 4, (payload, reply, fail) => {
     const room = roomFor(socket);
     if (!member(socket)?.isHost) return fail('Менять фильм может только создатель');
+    if(room.finishing) return fail('Завершаем текущий фильм.');
     const media = parseMedia(payload?.url);
     if (!media) return fail('Поддерживаются YouTube, VK Видео и прямые HTTPS-ссылки MP4/WebM');
     tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
     room.media = media;
-    room.watchPoster=localPoster(payload?.poster);
     room.mediaId = uid();
     room.title = clean(payload?.title, 120) || defaultTitle(media);
+    room.watchPoster=posterUrl(payload?.poster)||catalogPoster(room.title)||sourcePoster(media);
     room.historyRecorded = false;
     room.time = 0;
     room.playing = false;
+    room.playbackDuration = 0;
     room.updated = Date.now();
     room.syncVersion++;
     resetRoomChat(room);
@@ -447,16 +433,48 @@ io.on('connection', socket => {
     reply({ok: true});
   });
 
+  on('watch-finish', 5, async (payload,reply,fail)=>{
+    const room=roomFor(socket);
+    if(!member(socket)?.isHost || socket.data.auth.role!=='creator')
+      return fail('Завершить фильм может только администратор своей комнаты.');
+    const id=payload?.mediaId;
+    if(isToken(id) && id===room.lastFinishedMediaId) return reply({ok:true});
+    if(!room.media || id!==room.mediaId) return fail('Фильм уже сменился.');
+    room.finishing ||= (async ()=>{
+      await tracker.finish(room,true);
+      room.lastFinishedMediaId=id;
+      room.media=null;
+      room.mediaId=null;
+      room.title='';
+      room.watchPoster=null;
+      room.historyRecorded=false;
+      room.time=0;
+      room.playing=false;
+      room.updated=Date.now();
+      room.syncVersion++;
+      saveSoon(room);
+      broadcast(room);
+    })().finally(()=>{room.finishing=null});
+    await room.finishing;
+    reply({ok:true});
+  });
+
   on('sync', 18, payload => {
     const room = roomFor(socket);
-    if (!member(socket)?.isHost || !room.media || payload?.mediaId !== room.mediaId) return;
+    if (!member(socket)?.isHost || !room.media || room.finishing || payload?.mediaId !== room.mediaId) return;
     const time = payload.time;
     if (typeof time !== 'number' || !Number.isFinite(time) || time < 0 || time > 43200
         || typeof payload.playing !== 'boolean') return;
     const seek = payload.seek === true;
     const changed = room.playing !== payload.playing;
     if (changed || seek) tracker.invalidate(room);
-    if (payload.ended===true && !payload.playing) tracker.finish(room,true).catch(error=>console.warn('Watch close:',error.code||error.name));
+    const duration=payload.duration;
+    const validDuration=Number.isFinite(duration) && duration>0 && duration<=43200;
+    if(validDuration && !payload.ended && time<=duration+1.5) room.playbackDuration=duration;
+    const completed=payload.ended===true && !payload.playing && !seek && room.watchId
+      && validDuration && Math.abs(room.playbackDuration-duration)<=1.5 && Math.abs(time-duration)<=1.5
+      && Date.now()-room.updated<=10000 && Math.abs(currentTime(room)-duration)<=5;
+    if(completed) tracker.finish(room,true).catch(error=>console.warn('Watch close:',error.code||error.name));
     room.time = time;
     room.playing = payload.playing;
     room.updated = Date.now();
@@ -636,6 +654,7 @@ mountAuth(app,session=>io.in('session:'+session).disconnectSockets(true));
 mountProfiles(app,io);
 mountMessages(app,io);
 mountAvatars(app);
+mountFilmCovers(app);
 app.use(apiErrors);
 app.get('/health',(_,res)=>res.json({ok:true}));
 app.get('/ready',async (_,res)=>{
@@ -649,6 +668,9 @@ app.get(['/profile','/profile/:id','/friends','/messages','/messages/:id'],(_,re
 app.get(['/', '/index.html'], (_, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(projectDir, 'index.html'));
+});
+app.get('/catalog-posters.js',(_,res)=>{
+  res.type('js').set('Cache-Control','no-cache').send('const LOCAL_POSTERS = Object.freeze('+JSON.stringify(catalogPosters)+');');
 });
 for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js','navigation.js','cinema-moon.webp']) {
   app.get('/' + asset, (_, res) => {
@@ -671,6 +693,7 @@ async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   for(const room of rooms.values()) {
+    await room.finishing?.catch(()=>{});
     await tracker.finish(room).catch(()=>{});
     dirtyRooms.add(room);
   }

@@ -165,13 +165,30 @@
     return content;
   }
 
+  function displayMovieTitle(item) {
+    const title=item.movie_title?.trim();
+    return title&&!/^(?:youtube|vk видео|rutube|видео)$/i.test(title)?title:'';
+  }
+
+  function posterSource(key) {
+    if(typeof key!=='string')return null;
+    if(/^posters\/[a-z0-9-]+\.webp$/i.test(key))return '/'+key;
+    try {
+      const url=new URL(key);
+      if(url.protocol==='https:'&&!url.username&&!url.password)return url.href;
+    } catch {}
+    return null;
+  }
+
   function historyPoster(item) {
     const poster=el('div','✦','history-poster');
-    if(/^posters\/[a-z0-9-]+\.webp$/i.test(item.poster_key||'')){
+    const source=posterSource(item.poster_key);
+    if(source){
       const img=el('img');
       img.alt='';
       img.loading='lazy';
-      img.src='/'+item.poster_key;
+      img.referrerPolicy='no-referrer';
+      img.src=source;
       img.onerror=()=>{poster.textContent='✦'};
       poster.replaceChildren(img);
     }
@@ -179,33 +196,165 @@
     return poster;
   }
 
-  function historyList(items) {
+  function personalCatalogCover(name) {
+    try{
+      const items=JSON.parse(localStorage.getItem('remediumCinemaPersonalWatchV1'));
+      const key=name.toLocaleLowerCase('ru');
+      const match=Array.isArray(items)&&items.find(entry=>typeof entry?.name==='string'&&entry.name.trim().toLocaleLowerCase('ru')===key&&posterSource(entry.poster));
+      return match?{title:match.name,poster_key:match.poster}:null;
+    }catch{return null}
+  }
+
+  function coverEditor(item,options,back) {
+    const editor=el('div',null,'history-cover-editor');
+    const status=el('p',null,'form-status');
+    status.setAttribute('role','status');
+    const results=el('div',null,'history-list');
+    const title=field('Название фильма','title',{value:displayMovieTitle(item),maxLength:120,required:true});
+    const searchForm=el('form',null,'history-cover-form');
+    const search=el('button','Найти обложку','btn');
+    search.type='submit';
+    searchForm.append(title.group,search);
+    const manualForm=el('form',null,'history-cover-form');
+    const address=field('HTTPS-ссылка на обложку','poster',{
+      type:'url',maxLength:1200,required:true,
+      value:item.poster_key?.startsWith('https://')?item.poster_key:''
+    });
+    const saveManual=el('button','Сохранить обложку по ссылке','btn');
+    saveManual.type='submit';
+    manualForm.append(address.group,saveManual);
+    const base='/api/watch-history/'+item.id;
+    let saving=false;
+    let searchVersion=0;
+
+    async function save(values,control) {
+      if(saving)return;
+      saving=true;
+      control.disabled=true;
+      status.textContent='';
+      try{
+        await api(base+'/cover',{method:'PATCH',body:{revision:item.poster_revision??null,...values}});
+        await renderProfile(modal.open&&editor.isConnected);
+      }catch(error){
+        status.textContent=error.message;
+      }finally{
+        saving=false;
+        control.disabled=false;
+      }
+    }
+
+    function filmRow(film,control) {
+      const row=el('div',null,'history-row');
+      const info=el('div',null,'grow');
+      info.append(el('strong',film.title+(film.release_year?' ('+film.release_year+')':'')),control);
+      row.append(historyPoster(film),info);
+      return row;
+    }
+
+    function showFilms(films) {
+      results.replaceChildren(...films.map(film=>filmRow(film,button('Выбрать',()=>{
+        ++searchVersion;
+        const confirm=button('Подтвердить обложку',()=>{
+          const values=film.id?{filmId:film.id}:{poster:film.poster_key,title:film.title};
+          save(values,confirm);
+        },true);
+        results.replaceChildren(filmRow(film,confirm),button('Назад к результатам',()=>showFilms(films)));
+      }))));
+    }
+
+    searchForm.onsubmit=async event=>{
+      event.preventDefault();
+      const name=title.input.value.trim();
+      if(name.length<2){status.textContent='Введи название фильма.';return}
+      const version=++searchVersion;
+      search.disabled=true;
+      status.textContent='Ищем обложки…';
+      results.replaceChildren();
+      const custom=personalCatalogCover(name);
+      try {
+        const {films}=await api(base+'/cover-search?title='+encodeURIComponent(name));
+        if(version!==searchVersion||!editor.isConnected)return;
+        const candidates=custom?[custom,...films.filter(film=>film.poster_key!==custom.poster_key)]:films;
+        showFilms(candidates);
+        status.textContent=candidates.length?'':options.searchAvailable
+          ?'Обложки не найдены.'
+          :'В каталоге сайта обложка не найдена. Можно указать ссылку вручную.';
+      }catch(error){
+        if(version===searchVersion){
+          if(custom)showFilms([custom]);
+          status.textContent=error.message;
+        }
+      }finally{
+        search.disabled=false;
+      }
+    };
+    manualForm.onsubmit=event=>{
+      event.preventDefault();
+      save({poster:address.input.value.trim(),title:title.input.value.trim()},saveManual);
+    };
+    editor.append(button('Назад к истории',back),searchForm,results,manualForm,status);
+    if(options.searchAvailable||item.release_year){
+      const credits=el('details',null,'profile-more-stats');
+      const logo=el('img',null,'tmdb-attribution-logo');
+      logo.src='https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg';
+      logo.alt='TMDB';
+      logo.loading='lazy';
+      const attribution=link('','https://www.themoviedb.org','');
+      attribution.append(logo);
+      credits.append(el('summary','Источник данных'),attribution,
+        empty('This product uses the TMDB API but is not endorsed or certified by TMDB.'));
+      editor.append(credits);
+    }
+    showModal('Обложка фильма',editor);
+    title.input.focus();
+  }
+
+  function historyList(items,editCover) {
     const list=el('div',null,'history-list');
     if(!items.length) list.append(empty('Пока нет просмотров.'));
     for(const item of items) {
       const row=el('div',null,'history-row');
       const info=el('div',null,'grow');
-      const source={youtube:'YouTube',vk:'VK Видео',video:'MP4 / WebM'}[item.media_type]||item.media_type;
-      const state={running:'Идёт',interrupted:'Прерван',completed:'Завершён'}[item.status]||'';
-      info.append(el('strong',item.movie_title),el('div',[source,date(item.started_at),duration(item.credited_seconds),state].filter(Boolean).join(' · '),'muted'));
+      const source={youtube:'YouTube',vk:'VK Видео',rutube:'Rutube',video:'MP4 / WebM'}[item.media_type];
+      const state={running:'Идёт',interrupted:'Прерван',completed:'Завершён'}[item.status];
+      const year=item.release_year?' ('+item.release_year+')':'';
+      const title=el('strong',(displayMovieTitle(item)||'Без названия')+year);
+      if(editCover){
+        const label=item.poster_key?'Заменить обложку':'Добавить обложку';
+        const edit=button('',()=>editCover(item));
+        edit.classList.add('history-cover-edit');
+        edit.setAttribute('aria-label',label);
+        edit.title=label;
+        edit.append(icon('edit'));
+        const heading=el('div',null,'history-movie-heading');
+        heading.append(title,edit);
+        info.append(heading);
+      } else {
+        info.append(title);
+      }
+      info.append(el('div',[source,item.started_at&&date(item.started_at),duration(item.credited_seconds),state].filter(Boolean).join(' · '),'muted'));
       if(item.ended_at) info.append(el('div','До '+date(item.ended_at),'muted'));
-      if(item.participants?.length) info.append(el('div','С '+item.participants.map(p=>p.nickname).join(', '),'muted'));
+      if(item.participants?.length){
+        const together=el('div','Смотрели вместе: '+item.participants.map(p=>p.nickname).join(', '),'history-companions');
+        together.prepend(icon('people'));
+        info.append(together);
+      }
       row.append(historyPoster(item),info);
       list.append(row);
     }
     return list;
   }
 
-  function paginatedHistory(items,loadPage) {
-    const content=el('div',null,'history-list');
-    content.append(historyList(items));
+  function paginatedHistory(items,loadPage,editCover) {
+    const content=el('div',null,'history-list profile-history-details');
+    content.append(historyList(items,editCover));
     let offset=items.length;
     if(offset===50){
       const more=button('Показать ещё');
       more.onclick=run(more,()=>loadPage(offset),({history})=>{
         if(history?.length){
           offset+=history.length;
-          content.insertBefore(historyList(history),more);
+          content.insertBefore(historyList(history,editCover),more);
         }
         if(history?.length!==50)more.remove();
       });
@@ -214,7 +363,7 @@
     return content;
   }
 
-  function profileHistory(items,loadPage) {
+  function profileHistory(items,loadPage,options,reopen) {
     const section=el('section',null,'profile-section');
     const title=el('h2','История просмотров');
     if(!items.length){
@@ -222,7 +371,12 @@
       return section;
     }
     const header=el('div',null,'profile-history-heading');
-    const all=button('Все',()=>showModal('История просмотров',paginatedHistory(items,loadPage)));
+    let historyContent;
+    const showHistory=()=>{
+      historyContent??=paginatedHistory(items,loadPage,options?item=>coverEditor(item,options,showHistory):null);
+      showModal('История просмотров',historyContent);
+    };
+    const all=button('Все',showHistory);
     all.setAttribute('aria-haspopup','dialog');
     all.setAttribute('aria-label','Вся история просмотров');
     all.append(icon('chevron'));
@@ -230,11 +384,13 @@
     const gallery=el('div',null,'profile-history-gallery');
     for(const item of items.slice(0,4)){
       const tile=el('div',null,'profile-history-tile');
-      tile.append(historyPoster(item),el('span',item.movie_title));
-      tile.title=item.movie_title;
+      tile.append(historyPoster(item));
+      tile.setAttribute('role','img');
+      tile.setAttribute('aria-label',displayMovieTitle(item)||'Обложка просмотра');
       gallery.append(tile);
     }
     section.append(header,gallery);
+    if(reopen)showHistory();
     return section;
   }
 
@@ -252,7 +408,7 @@
     return control;
   }
 
-  async function renderProfile() {
+  async function renderProfile(reopenHistory=false) {
     const id=profileId||viewer.id;
     const preview=options.get('view')==='friend';
     const friend=options.get('friend');
@@ -361,7 +517,7 @@
     }
     if(!data.historyHidden && data.history!==null){
       const loadPage=offset=>api('/api/profiles/'+id+(query?query+'&':'?')+'offset='+offset);
-      profile.append(profileHistory(data.history,loadPage));
+      profile.append(profileHistory(data.history,loadPage,data.coverEditor,reopenHistory===true));
     }
     document.body.classList.add('profile-page');
     main.replaceChildren(profile);
