@@ -2,10 +2,9 @@
   const {el,api}=RC;
   const content=document.getElementById('cinemaContent');
   const menu=document.getElementById('cinemaMenu');
+  menu.tabIndex=-1;
   const toggle=document.getElementById('cinemaMenuToggle');
   const scrim=document.getElementById('cinemaMenuScrim');
-  const close=document.getElementById('cinemaMenuClose');
-  const desktop=matchMedia('(min-width: 1025px)');
   const onCinema=document.body.classList.contains('cinema-page');
   const entries=[
     {label:'Мой профиль',href:'/profile',icon:'profile'},
@@ -46,14 +45,14 @@
   */
   const lucideIcons={
     send:{
-      transform:'translate(1.68 1.68) scale(.86)',
+      transform:'translate(.6 .6) scale(.95)',
       paths:[
         'M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z',
         'm21.854 2.147-10.94 10.939'
       ]
     },
     'mail-plus':{
-      transform:'translate(1.56 1.02) scale(.87)',
+      transform:'translate(.6 .6) scale(.95)',
       paths:[
         'M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8',
         'm22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7',
@@ -62,7 +61,7 @@
       ]
     },
     'book-heart':{
-      transform:'translate(1.56 1.56) scale(.87)',
+      transform:'translate(.6 .6) scale(.95)',
       paths:[
         'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20',
         'M8.62 9.8A2.25 2.25 0 1 1 12 6.836a2.25 2.25 0 1 1 3.38 2.966l-2.626 2.856a.998.998 0 0 1-1.507 0z'
@@ -74,12 +73,12 @@
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');
     const lucide=lucideIcons[name];
+    const isMessage=name==='send';
     svg.setAttribute('viewBox','0 0 24 24');
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('fill','none');
     svg.setAttribute('stroke','currentColor');
-    // Slightly finer lines balance the denser Lucide shapes at menu size.
-    svg.setAttribute('stroke-width',lucide?'1.45':'1.65');
+    svg.setAttribute('stroke-width',lucide?'1.6':'1.65');
     svg.setAttribute('stroke-linecap','round');
     svg.setAttribute('stroke-linejoin','round');
     const shape=lucide?.transform?document.createElementNS(ns,'g'):svg;
@@ -92,11 +91,41 @@
       path.setAttribute('d',data);
       shape.append(path);
     }
-    if(!lucide)return svg;
-    const box=el('span',null,'remedium-nav-icon');
-    box.setAttribute('aria-hidden','true');
-    box.append(svg);
-    return box;
+    if(lucide){
+      svg.setAttribute('class',isMessage?'message-icon':'wish-icon');
+      svg.setAttribute('width','20');
+      svg.setAttribute('height','20');
+    }
+    return svg;
+  }
+
+  const account=el('a',null,'cinema-menu-account');
+  account.href='/profile';
+  account.hidden=true;
+  const avatar=el('span',null,'cinema-menu-avatar');
+  avatar.setAttribute('aria-hidden','true');
+  const identity=el('span',null,'cinema-menu-identity');
+  const nickname=el('strong');
+  const login=el('span',null,'cinema-menu-login');
+  const presence=el('span',null,'connection-state');
+  identity.append(nickname,login,presence);
+  account.append(avatar,identity);
+  menu.prepend(account);
+
+  function setUser(user) {
+    account.hidden=!user;
+    const name=user?.nickname||'';
+    nickname.textContent=name;
+    login.textContent=user?'@'+user.login:'';
+    const initial=name.slice(0,1).toUpperCase()||'✦';
+    avatar.textContent=initial;
+    if(user?.avatar){
+      const image=el('img');
+      image.alt='';
+      image.src=user.avatar;
+      image.onerror=()=>{if(avatar.contains(image))avatar.textContent=initial};
+      avatar.replaceChildren(image);
+    }
   }
 
   const list=menu.querySelector('ul');
@@ -140,18 +169,17 @@
 
   function isOpen() { return menu.classList.contains('is-open'); }
   function setOpen(open,restoreFocus=false) {
-    const overlay=open && !desktop.matches;
     menu.classList.toggle('is-open',open);
     document.body.classList.toggle('cinema-menu-open',open);
-    menu.inert=!open && !desktop.matches;
+    menu.inert=!open;
     toggle.setAttribute('aria-expanded',String(open));
     toggle.setAttribute('aria-label',open?'Закрыть меню':'Меню кинозала');
-    scrim.hidden=!overlay;
-    content.inert=overlay;
-    if(overlay) {
+    scrim.hidden=!open;
+    content.inert=open;
+    if(open) {
       menu.setAttribute('role','dialog');
       menu.setAttribute('aria-modal','true');
-      close.focus({preventScroll:true});
+      menu.focus({preventScroll:true});
     } else {
       menu.removeAttribute('role');
       menu.removeAttribute('aria-modal');
@@ -162,20 +190,19 @@
   function show(visible) {
     setOpen(false);
     menu.hidden=toggle.hidden=!visible;
-    document.body.classList.toggle('cinema-account',visible);
+    if(!visible)setUser(null);
   }
 
   toggle.onclick=()=>setOpen(!isOpen(),true);
-  scrim.onclick=close.onclick=()=>setOpen(false,true);
-  desktop.addEventListener('change',()=>setOpen(isOpen()));
+  scrim.onclick=()=>setOpen(false,true);
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape' && isOpen()) setOpen(false,true);
   });
   menu.addEventListener('keydown',event=>{
     if(event.key!=='Tab' || scrim.hidden) return;
-    const controls=menu.querySelectorAll('a[href],button:not([disabled])');
+    const controls=menu.querySelectorAll('a[href]:not([hidden]),button:not([disabled])');
     const first=controls[0],last=controls[controls.length-1];
-    if((event.shiftKey && document.activeElement===first)||(!event.shiftKey && document.activeElement===last)) {
+    if((event.shiftKey && (document.activeElement===first||document.activeElement===menu))||(!event.shiftKey && document.activeElement===last)) {
       event.preventDefault();
       (event.shiftKey?last:first).focus();
     }
@@ -215,7 +242,15 @@
   }
   function watchUnread(socket) {
     observedSocket=socket;
+    function updatePresence() {
+      if(observedSocket!==socket)return;
+      presence.classList.toggle('is-online',socket.connected);
+      presence.textContent=socket.connected?'В сети':'Не в сети';
+    }
+    updatePresence();
     const refresh=()=>{if(observedSocket===socket) refreshUnread()};
+    socket.on('connect',updatePresence);
+    socket.on('disconnect',updatePresence);
     socket.on('connect',refresh);
     socket.on('direct-update',refresh);
     socket.on('direct-unread',refresh);
@@ -229,7 +264,7 @@
   try { previousRoom=sessionStorage.getItem('remediumCinemaRoom'); } catch {}
   if(/^[\w-]{3,80}$/.test(previousRoom||'')) setRoom(previousRoom);
   window.CinemaNav={
-    show,setOpen,watchUnread,setUnreadBadge,messageIcon:()=>icon('send'),
+    show,setOpen,setUser,watchUnread,setUnreadBadge,messageIcon:()=>icon('send'),
     setRoom(id) {
       setRoom(id);
       try {

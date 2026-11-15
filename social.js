@@ -41,7 +41,9 @@
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
-    send:'m3 10 18-6-6 17-3.5-7.5L3 10Zm8.5 3.5L21 4'
+    userPlus:'M14 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM3 21v-2a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v2M20 8v6m-3-3h6',
+    lock:'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2ZM12 16v2',
+    chevron:'m9 6 6 6-6 6'
   };
   function icon(name) {
     const ns='http://www.w3.org/2000/svg';
@@ -72,6 +74,7 @@
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
+      document.body.classList.remove('profile-page');
       CinemaNav.show(false);
       CinemaNav.clearUnread();
       const form=panel('Войди в REMEDIUM CINEMA','social-auth');
@@ -110,7 +113,10 @@
     const row=el('div',null,'person-row');
     const desc=el('div',null,'grow');
     desc.append(profileLink(person),el('div','@'+person.login,'muted'));
-    row.append(avatar(person),desc);
+    const photo=profileLink(person,'');
+    photo.setAttribute('aria-label','Профиль '+person.nickname);
+    photo.append(avatar(person));
+    row.append(photo,desc);
     if(tools.length) {
       const controls=el('div',null,'row-actions');
       controls.append(...tools);
@@ -122,18 +128,55 @@
   const statLabels={seconds:'Время просмотра',films:'Фильмы',sessions:'Сеансы',days:'Дни просмотра',
     last:'Последний просмотр',shared_count:'Совместные сеансы',first:'Первый просмотр'};
   const statIcons={seconds:'clock',films:'film',sessions:'film',days:'calendar',last:'clock',shared_count:'people',first:'calendar'};
-  function stats(values) {
+  const jointLabels={...statLabels,seconds:'Вместе',sessions:'Совместные сеансы'};
+  const jointIcons={...statIcons,sessions:'people'};
+  function stats(values,labels=statLabels,icons=statIcons) {
     const grid=el('div',null,'stat-grid');
     for(const [key,value] of Object.entries(values)){
-      if(!statLabels[key])continue;
+      if(!labels[key])continue;
       const card=el('div',null,'stat');
-      const formatted=key==='seconds'?duration(value):['first','last'].includes(key)?date(value):String(value);
+      const formatted=key==='seconds'?duration(value).replace(/ (ч|мин|с)(?= |$)/g,'\u00a0$1')
+        :['first','last'].includes(key)?date(value):String(value);
       const info=el('div',null,'grow');
-      info.append(el('strong',formatted),el('span',statLabels[key]));
-      card.append(icon(statIcons[key]),info);
+      info.append(el('strong',formatted),el('span',labels[key]));
+      card.append(icon(icons[key]),info);
       grid.append(card);
     }
     return grid;
+  }
+
+  function profileStats(values,joint=false) {
+    const featured=joint?['seconds','films','sessions']:['seconds','films','sessions','days'];
+    const primary={},secondary={};
+    for(const [key,value] of Object.entries(values)){
+      const group=featured.includes(key)?primary:secondary;
+      group[key]=value;
+    }
+    const labels=joint?jointLabels:statLabels;
+    const icons=joint?jointIcons:statIcons;
+    if(!Object.keys(primary).length)return stats(values,labels,icons);
+    const content=el('div',null,'profile-stat-group');
+    content.append(stats(primary,labels,icons));
+    if(Object.keys(secondary).length){
+      const more=el('details',null,'profile-more-stats');
+      more.append(el('summary','Другие показатели'),stats(secondary,labels,icons));
+      content.append(more);
+    }
+    return content;
+  }
+
+  function historyPoster(item) {
+    const poster=el('div','✦','history-poster');
+    if(/^posters\/[a-z0-9-]+\.webp$/i.test(item.poster_key||'')){
+      const img=el('img');
+      img.alt='';
+      img.loading='lazy';
+      img.src='/'+item.poster_key;
+      img.onerror=()=>{poster.textContent='✦'};
+      poster.replaceChildren(img);
+    }
+    poster.setAttribute('aria-hidden','true');
+    return poster;
   }
 
   function historyList(items) {
@@ -141,42 +184,72 @@
     if(!items.length) list.append(empty('Пока нет просмотров.'));
     for(const item of items) {
       const row=el('div',null,'history-row');
-      const poster=el('div','✦','history-poster');
-      if(/^posters\/[a-z0-9-]+\.webp$/i.test(item.poster_key||'')){
-        const img=el('img');
-        img.alt='';
-        img.loading='lazy';
-        img.src='/'+item.poster_key;
-        img.onerror=()=>{poster.textContent='✦'};
-        poster.replaceChildren(img);
-      }
       const info=el('div',null,'grow');
       const source={youtube:'YouTube',vk:'VK Видео',video:'MP4 / WebM'}[item.media_type]||item.media_type;
       const state={running:'Идёт',interrupted:'Прерван',completed:'Завершён'}[item.status]||'';
       info.append(el('strong',item.movie_title),el('div',[source,date(item.started_at),duration(item.credited_seconds),state].filter(Boolean).join(' · '),'muted'));
       if(item.ended_at) info.append(el('div','До '+date(item.ended_at),'muted'));
       if(item.participants?.length) info.append(el('div','С '+item.participants.map(p=>p.nickname).join(', '),'muted'));
-      row.append(poster,info);
+      row.append(historyPoster(item),info);
       list.append(row);
     }
     return list;
   }
 
-  async function openDialog(person,data) {
-    try {
-      const {id}=await api('/api/dialogs',{method:'POST',body:{userId:person.id}});
-      location.href='/messages/'+id;
-    }catch(error){
-      const body=el('div');
-      body.append(empty(error.message));
-      if(error.status===403){
-        if(data.relationship==='none') body.append(action('Отправить заявку',
-          ()=>api('/api/friends/'+person.id,{method:'POST'}),()=>{body.replaceChildren(empty('Заявка отправлена.'))}));
-        if(data.relationship==='incoming') body.append(action('Принять заявку',
-          ()=>api('/api/friends/'+person.id,{method:'PATCH',body:{action:'accept'}}),()=>openDialog(person,{relationship:'friend'})));
-      }
-      showModal(person.nickname,body);
+  function paginatedHistory(items,loadPage) {
+    const content=el('div',null,'history-list');
+    content.append(historyList(items));
+    let offset=items.length;
+    if(offset===50){
+      const more=button('Показать ещё');
+      more.onclick=run(more,()=>loadPage(offset),({history})=>{
+        if(history?.length){
+          offset+=history.length;
+          content.insertBefore(historyList(history),more);
+        }
+        if(history?.length!==50)more.remove();
+      });
+      content.append(more);
     }
+    return content;
+  }
+
+  function profileHistory(items,loadPage) {
+    const section=el('section',null,'profile-section');
+    const title=el('h2','История просмотров');
+    if(!items.length){
+      section.append(title,paginatedHistory(items,loadPage));
+      return section;
+    }
+    const header=el('div',null,'profile-history-heading');
+    const all=button('Все',()=>showModal('История просмотров',paginatedHistory(items,loadPage)));
+    all.setAttribute('aria-haspopup','dialog');
+    all.setAttribute('aria-label','Вся история просмотров');
+    all.append(icon('chevron'));
+    header.append(title,all);
+    const gallery=el('div',null,'profile-history-gallery');
+    for(const item of items.slice(0,4)){
+      const tile=el('div',null,'profile-history-tile');
+      tile.append(historyPoster(item),el('span',item.movie_title));
+      tile.title=item.movie_title;
+      gallery.append(tile);
+    }
+    section.append(header,gallery);
+    return section;
+  }
+
+  const sendFriendRequest=id=>api('/api/friends/'+id,{method:'POST'});
+  const answerFriendRequest=(id,response)=>api('/api/friends/'+id,{method:'PATCH',body:{action:response}});
+
+  function friendRequestButton(data) {
+    const pending=data.relationship==='outgoing';
+    const incoming=data.relationship==='incoming';
+    const label=pending?'Заявка отправлена':incoming?'Принять заявку':'Добавить в друзья';
+    const control=action(label,()=>incoming?answerFriendRequest(data.person.id,'accept'):sendFriendRequest(data.person.id),renderProfile);
+    control.classList.add('primary');
+    control.disabled=pending||data.preview;
+    control.prepend(icon('userPlus'));
+    return control;
   }
 
   async function renderProfile() {
@@ -186,8 +259,12 @@
     const query=preview?'?view=friend'+(friend?'&friend='+encodeURIComponent(friend):''):'';
     const data=await api('/api/profiles/'+id+query);
     const {person}=data;
+    const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
+    const isHidden=data.profileHidden===true;
     document.title=person.nickname+' · REMEDIUM CINEMA';
+    const profile=el('div',null,'profile-view');
     const card=panel(null,'profile-card');
+    profile.append(card);
     const header=el('section');
     const hero=el('div',null,'profile-hero');
     const info=el('div',null,'profile-details');
@@ -199,74 +276,95 @@
     }
     info.append(name,el('p','@'+person.login,'muted'));
     if(person.registeredAt) info.append(el('p','С '+new Date(person.registeredAt).toLocaleDateString('ru-RU',{dateStyle:'long'}),'muted'));
-    if(Object.hasOwn(person,'online')){
-      const connected=person.online || (data.self && socket?.connected);
+    if(Object.hasOwn(person,'online') || data.self){
+      const connected=data.self ? socket?.connected : person.online;
       const presence=el('p',connected?'В сети':'Не в сети','connection-state');
       presence.classList.toggle('is-online',Boolean(connected));
-      if(data.self && !connected) socket?.once('connect',()=>{
-        presence.textContent='В сети';
-        presence.classList.add('is-online');
-      });
+      if(data.self)presence.id='ownProfilePresence';
       info.append(presence);
     }
-    info.append(el('p','Друзья · '+data.friendCount,'muted'));
+    if(Number.isInteger(data.friendCount))info.append(el('p','Друзья · '+data.friendCount,'muted'));
     if(person.bio) info.append(el('p',person.bio));
     hero.append(avatar(person,true),info);
     header.append(hero);
-    const buttons=el('div',null,'profile-actions'+(data.canSeeFriends?'':' single'));
-    if(data.self) buttons.append(button('Редактировать профиль',()=>settings(data),true));
-    else if(data.preview){
-      const simulated=button('Сообщение',null,true);
-      simulated.disabled=true;
-      buttons.append(simulated);
-    } else buttons.append(button('Сообщение',()=>openDialog(person,data),true));
-    if(data.canSeeFriends) buttons.append(data.self?link('Друзья','/friends'):action('Друзья',
-      ()=>api('/api/profiles/'+person.id+'/friends'+query),({friends})=>{
-        const list=el('div',null,'person-list');
-        list.append(...(friends.length?friends.map(p=>personRow(p)):[empty('Пока нет друзей.')]));
-        showModal('Друзья',list);
-      }));
-    const primary=buttons.firstElementChild;
-    primary.replaceChildren(data.self?icon('edit'):CinemaNav.messageIcon(),el('span',primary.textContent));
-    if(data.canSeeFriends) buttons.lastElementChild.prepend(icon('people'));
-    header.append(buttons);
+    if(data.self){
+      CinemaNav.setUser(person);
+      const edit=button('',()=>settings(data));
+      edit.className='profile-edit';
+      edit.setAttribute('aria-label','Редактировать профиль');
+      edit.setAttribute('aria-haspopup','dialog');
+      edit.title='Редактировать профиль';
+      edit.append(icon('edit'));
+      card.classList.add('own-profile-card');
+      header.append(edit);
+    } else {
+      const buttons=el('div',null,'profile-actions');
+      buttons.append(isFriend?messageButton(person,data.preview):friendRequestButton(data));
+      if(isFriend){
+        let friends=el('span','Друзья','btn');
+        if(!isHidden){
+          friends=data.canSeeFriends?button('Друзья',()=>{
+            const list=el('div',null,'person-list');
+            list.append(...(data.mutualFriends?.length?data.mutualFriends.map(p=>personRow(p)):[empty('Общих друзей пока нет.')]));
+            showModal('Общие друзья',list);
+          }):link('Друзья','/friends');
+        }
+        friends.classList.add('profile-friend-status');
+        friends.prepend(icon('userPlus'));
+        buttons.append(friends);
+      }
+      buttons.classList.toggle('single',buttons.childElementCount===1);
+      header.append(buttons);
+    }
     if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
     card.append(header);
+    if(isHidden){
+      const notice=panel(null,'profile-card profile-locked');
+      const copy=el('div');
+      copy.append(el('h2','Этот пользователь скрыл свой профиль'),
+        empty('Информация, история просмотров и активность недоступны для просмотра'));
+      notice.append(icon('lock'),copy);
+      profile.append(notice);
+      document.body.classList.add('profile-page');
+      main.replaceChildren(profile);
+      return;
+    }
+    if(data.mutualFriends?.length){
+      const mutual=el('section',null,'profile-section mutual-friends');
+      const list=el('div',null,'person-list');
+      list.append(...data.mutualFriends.map(p=>personRow(p)));
+      mutual.append(el('h2','Общие друзья'),list);
+      profile.append(mutual);
+    }
     if(!data.personalHidden && Object.keys(data.personal).length) {
       const personal=el('section',null,'profile-section');
-      personal.append(el('h2','Личная статистика'),stats(data.personal));
-      card.append(personal);
+      personal.append(el('h2','Личная статистика'),profileStats(data.personal));
+      profile.append(personal);
     }
     if(data.shared!==null){
-      const shared=el('section',null,'profile-section');
+      const shared=el('section',null,'profile-section profile-shared');
       shared.append(el('h2','Совместная статистика'));
-      if(data.sharedTotal?.sessions)shared.append(stats(data.sharedTotal));
       if(!data.shared.length && !data.sharedTotal?.sessions)shared.append(empty('Пока нет совместных просмотров.'));
-      for(const item of data.shared) {
-        const partner=data.self?item.person.id:data.previewFriend||person.id;
-        const row=personRow(item.person,[action('Совместные сеансы',()=>api('/api/shared/'+partner),value=>showModal('Совместные сеансы',historyList(value.history)))]);
-        shared.append(row);
-        if(data.self)shared.append(stats(item));
+      for(const {person:companion,...metrics} of data.shared) {
+        const ownHistory=data.self||data.preview;
+        const partner=ownHistory?companion.id:person.id;
+        const historyPath=ownHistory?'/api/profile/shared/':'/api/shared/';
+        const inspect=action('Совместные сеансы',()=>api(historyPath+partner),value=>showModal('Совместные сеансы',historyList(value.history)));
+        inspect.classList.add('profile-shared-history');
+        inspect.setAttribute('aria-label','Совместные сеансы');
+        inspect.replaceChildren(icon('chevron'));
+        shared.append(personRow(companion,[inspect]));
+        if(data.self)shared.append(profileStats(metrics,true));
       }
-      card.append(shared);
+      if(data.sharedTotal?.sessions)shared.append(profileStats(data.sharedTotal,true));
+      profile.append(shared);
     }
     if(!data.historyHidden && data.history!==null){
-      const history=el('section',null,'profile-section');
-      history.append(el('h2','История просмотров'));
-      history.append(historyList(data.history));
-      let offset=data.history.length;
-      if(offset===50){
-        const more=button('Показать ещё');
-        more.onclick=run(more,()=>api('/api/profiles/'+id+(query?query+'&':'?')+'offset='+offset),next=>{
-          offset+=next.history?.length||0;
-          if(next.history?.length) history.insertBefore(historyList(next.history),more);
-          if((next.history?.length||0)<50) more.remove();
-        });
-        history.append(more);
-      }
-      card.append(history);
+      const loadPage=offset=>api('/api/profiles/'+id+(query?query+'&':'?')+'offset='+offset);
+      profile.append(profileHistory(data.history,loadPage));
     }
-    main.replaceChildren(card);
+    document.body.classList.add('profile-page');
+    main.replaceChildren(profile);
     if(options.get('edit')==='1'&&data.self&&!modal.open) settings(data);
   }
 
@@ -365,7 +463,7 @@
     ],body=>api('/api/profile',{method:'PATCH',body}),redraw));
     const toggles={watchTime:'Время просмотра',films:'Количество фильмов',sessions:'Количество сеансов',
       shared:'Совместная статистика',registration:'Дата регистрации',history:'История просмотров',
-      friends:'Список друзей',presence:'Статус присутствия',hideStats:'Скрыть всю статистику'};
+      friends:'Общие друзья',presence:'Статус присутствия',hideStats:'Скрыть всю статистику',hideProfile:'Скрыть профиль целиком'};
     const inputs={};
     const controls=Object.entries(toggles).map(([key,label])=>{
       const row=el('label',label,'privacy-row');
@@ -410,15 +508,18 @@
     showModal('Редактировать профиль',root);
   }
 
-  function messageButton(person) {
-    const control = button('Сообщение', () => openDialog(person, {relationship:'friend'}));
+  function messageButton(person,preview=false) {
+    const control=action('Сообщение',()=>api('/api/dialogs',{method:'POST',body:{userId:person.id}}),
+      ({id})=>{location.href='/messages/'+id});
+    control.classList.add('primary');
+    control.disabled=preview;
     control.prepend(CinemaNav.messageIcon());
     return control;
   }
 
   async function renderFriends() {
     const {people}=await api('/api/friends');
-    const section=panel('Друзья');
+    const section=panel('Друзья','friends-panel');
     section.append(empty('Твой код друга: '+viewer.friendCode));
     const search=el('form',null,'inline-tools');
     search.method='get';
@@ -433,16 +534,18 @@
       go.disabled=true;
       try{
         const found=(await api('/api/people?q='+encodeURIComponent(input.value))).people;
-        results.replaceChildren(...(found.length?found.map(p=>personRow(p,[
-          action('Добавить',()=>api('/api/friends/'+p.id,{method:'POST'}),({relationship})=>{
-            results.replaceChildren(empty(relationship==='friend'?'Уже в друзьях.':relationship==='incoming'?'Входящая заявка уже есть.':'Заявка отправлена.'));
-          })
-        ])):[empty('Никого не нашли.')]));
+        const labels={friend:'Уже в друзьях',incoming:'Входящая заявка',outgoing:'Заявка отправлена'};
+        results.replaceChildren(...(found.length?found.map(p=>{
+          const status=labels[p.relationship];
+          const control=status?el('span',status,'muted'):action('Добавить в друзья',()=>sendFriendRequest(p.id),
+            async ()=>{await renderFriends()});
+          return personRow(p,[control]);
+        }):[empty('Никого не нашли.')]));
       }catch(error){failure(error,results)}
       finally{go.disabled=false}
     };
     section.append(search,results);
-    const list=panel('Список и заявки');
+    const list=panel('Список и заявки','friends-panel');
     const remove=id=>api('/api/friends/'+id,{method:'DELETE'});
     for(const p of people){
       const controls=[];
@@ -450,7 +553,7 @@
         action('В кинозал',()=>api('/api/friends/'+p.id+'/invite',{method:'POST'}),({id})=>{location.href='/messages/'+id}),
         action('Удалить',()=>remove(p.id),renderFriends));
       if(p.relationship==='incoming') controls.push(...[['Принять','accept'],['Отклонить','decline']].map(([label,a])=>
-        action(label,()=>api('/api/friends/'+p.id,{method:'PATCH',body:{action:a}}),renderFriends)));
+        action(label,()=>answerFriendRequest(p.id,a),renderFriends)));
       if(p.relationship==='outgoing') controls.push(el('span','Заявка отправлена','muted'),action('Отменить',()=>remove(p.id),renderFriends));
       list.append(personRow(p,controls));
     }
@@ -520,7 +623,7 @@
     const submit=el('button',null,'btn direct-send');
     submit.type='submit';
     submit.setAttribute('aria-label','Отправить');
-    submit.append(icon('send'));
+    submit.append(CinemaNav.messageIcon());
     composer.append(input,submit);
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
@@ -637,8 +740,17 @@
     viewer=user;
     socket?.disconnect();
     socket=io({autoConnect:false});
+    CinemaNav.setUser(user);
     CinemaNav.show(true);
     CinemaNav.watchUnread(socket);
+    function refreshPresence(){
+      const status=document.getElementById('ownProfilePresence');
+      if(!status)return;
+      status.classList.toggle('is-online',socket.connected);
+      status.textContent=socket.connected?'В сети':'Не в сети';
+    }
+    socket.on('connect',refreshPresence);
+    socket.on('disconnect',refreshPresence);
     socket.on('direct-update',event=>{directRefresh?.(event).catch(error=>failure(error))});
     socket.on('direct-read',event=>{directRefresh?.(event).catch(error=>failure(error))});
     socket.on('direct-unread',()=>refreshDialogList?.());
