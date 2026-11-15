@@ -673,7 +673,8 @@ app.get(['/', '/index.html'], (_, res) => {
 app.get('/catalog-posters.js',(_,res)=>{
   res.type('js').set('Cache-Control','no-cache').send('const LOCAL_POSTERS = Object.freeze('+JSON.stringify(catalogPosters)+');');
 });
-for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js','navigation.js','cinema-moon.webp']) {
+for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.css','account.js','navigation.js',
+                     'cinema-moon.webp','profile-themes.css','profile-theme-kitty.webp','profile-theme-clouds.webp']) {
   app.get('/' + asset, (_, res) => {
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(projectDir, asset));

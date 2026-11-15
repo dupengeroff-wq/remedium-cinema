@@ -41,6 +41,10 @@
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
+    brush:'m9 13 7.5-9.3a2.7 2.7 0 1 1 3.8 3.8L11 15m-3-2a3.5 3.5 0 1 1 0 7H3c1.3-1 1.5-2.1 1.5-3.5A3.5 3.5 0 0 1 8 13Z',
+    bow:'M9 9.5 4.8 6.8A2.4 2.4 0 0 0 1 8.8v6.4a2.4 2.4 0 0 0 3.8 2L9 14.5m6-5 4.2-2.7a2.4 2.4 0 0 1 3.8 2v6.4a2.4 2.4 0 0 1-3.8 2L15 14.5M9 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z',
+    heart:'M12 20.5 3.8 12.3a4.8 4.8 0 0 1 6.8-6.8L12 7l1.4-1.5a4.8 4.8 0 0 1 6.8 6.8Z',
+    check:'m5 12 4 4L19 6',
     userPlus:'M14 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM3 21v-2a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v2M20 8v6m-3-3h6',
     lock:'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2ZM12 16v2',
     chevron:'m9 6 6 6-6 6'
@@ -67,14 +71,16 @@
     return node;
   }
   function showModal(title,content) {
-    detail.replaceChildren(el('h2',title),content);
+    const heading=el('h2',title);
+    heading.id='socialDialogTitle';
+    detail.replaceChildren(heading,content);
     modal.scrollTop=0;
     if(!modal.open) modal.showModal();
   }
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
-      document.body.classList.remove('profile-page');
+      document.body.classList.remove('profile-page','profile-kitty');
       CinemaNav.show(false);
       CinemaNav.clearUnread();
       const form=panel('Войди в REMEDIUM CINEMA','social-auth');
@@ -164,6 +170,87 @@
     }
     return content;
   }
+
+  function profileBow(className) {
+    const bow=el('span',null,className);
+    bow.setAttribute('aria-hidden','true');
+    bow.append(icon('bow'));
+    return bow;
+  }
+
+  function profileHeading(title) {
+    const heading=el('h2',title);
+    heading.append(profileBow('profile-heading-ribbon'));
+    return heading;
+  }
+
+  function applyProfileTheme(theme) {
+    document.body.classList.toggle('profile-kitty',theme==='hello-kitty-pink');
+  }
+
+  function showThemePicker(data,trigger) {
+    const picker=el('div',null,'profile-theme-picker');
+    const grid=el('div',null,'profile-theme-grid');
+    const status=el('p',null,'form-status');
+    status.setAttribute('role','status');
+    picker.append(el('p','Выберите тему для своего профиля','profile-theme-description'),grid,status);
+    let saving=false;
+    const choices=[
+      ['none','Без темы'],
+      ['hello-kitty-pink','Hello Kitty Pink']
+    ].map(([theme,label])=>{
+      const chosen=theme===(data.theme||'none');
+      const option=button('',()=>save(theme));
+      option.className='profile-theme-card';
+      option.dataset.theme=theme;
+      option.setAttribute('aria-pressed',String(chosen));
+      const sample=el('span',null,'profile-theme-sample');
+      sample.setAttribute('aria-hidden','true');
+      const header=el('span',null,'theme-sample-header');
+      header.append(el('span',null,'theme-sample-avatar'),el('span',null,'theme-sample-lines'));
+      const actions=el('span',null,'theme-sample-actions');
+      actions.append(el('span'),el('span'));
+      const stats=el('span',null,'theme-sample-stats');
+      stats.append(el('span'),el('span'));
+      sample.append(header,actions,stats);
+      const marker=el('span',null,'profile-theme-marker');
+      if(chosen) marker.append(icon('check'),el('span','Выбрана'));
+      option.append(sample,el('strong',label),marker);
+      return option;
+    });
+
+    async function save(theme) {
+      if(saving) return;
+      if(theme===(data.theme||'none')){modal.close();return}
+      saving=true;
+      trigger.disabled=true;
+      choices.forEach(choice=>choice.disabled=true);
+      status.textContent='Сохраняем…';
+      try {
+        const saved=await api('/api/profile/theme',{method:'PATCH',body:{theme}});
+        data.theme=saved.theme;
+        applyProfileTheme(saved.theme);
+        if(modal.open&&picker.isConnected) modal.close();
+      } catch(error) {
+        status.textContent=error.message;
+      } finally {
+        saving=false;
+        trigger.disabled=false;
+        choices.forEach(choice=>choice.disabled=false);
+        if(!modal.open&&trigger.isConnected) trigger.focus({preventScroll:true});
+      }
+    }
+
+    grid.append(...choices);
+    showModal('Оформление профиля',picker);
+    choices.find(choice=>choice.getAttribute('aria-pressed')==='true')?.focus({preventScroll:true});
+  }
+
+  modal.addEventListener('click',event=>{
+    if(event.target!==modal||!detail.querySelector('.profile-theme-picker')) return;
+    const rect=modal.getBoundingClientRect();
+    if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom) modal.close();
+  });
 
   function displayMovieTitle(item) {
     const title=item.movie_title?.trim();
@@ -365,7 +452,7 @@
 
   function profileHistory(items,loadPage,options,reopen) {
     const section=el('section',null,'profile-section');
-    const title=el('h2','История просмотров');
+    const title=profileHeading('История просмотров');
     if(!items.length){
       section.append(title,paginatedHistory(items,loadPage));
       return section;
@@ -423,6 +510,7 @@
     const query=preview?'?view=friend'+(friend?'&friend='+encodeURIComponent(friend):''):'';
     const data=await api('/api/profiles/'+id+query);
     const {person}=data;
+    applyProfileTheme(data.theme);
     const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
     const isHidden=data.profileHidden===true;
     document.title=person.nickname+' · REMEDIUM CINEMA';
@@ -438,6 +526,10 @@
       crown.setAttribute('aria-label','Создатель');
       name.append(crown);
     }
+    const heart=el('span',null,'profile-name-heart');
+    heart.setAttribute('aria-hidden','true');
+    heart.append(icon('heart'));
+    name.append(heart);
     info.append(name,el('p','@'+person.login,'muted'));
     if(person.registeredAt) info.append(el('p','С '+new Date(person.registeredAt).toLocaleDateString('ru-RU',{dateStyle:'long'}),'muted'));
     if(Object.hasOwn(person,'online') || data.self){
@@ -449,18 +541,28 @@
     }
     if(Number.isInteger(data.friendCount))info.append(el('p','Друзья · '+data.friendCount,'muted'));
     if(person.bio) info.append(el('p',person.bio));
-    hero.append(avatar(person,true),info);
+    const avatarFrame=el('div',null,'profile-avatar-frame');
+    avatarFrame.append(avatar(person,true));
+    hero.append(avatarFrame,info);
     header.append(hero);
     if(data.self){
       CinemaNav.setUser(person);
+      const tools=el('div',null,'profile-tools');
       const edit=button('',()=>settings(data));
       edit.className='profile-edit';
       edit.setAttribute('aria-label','Редактировать профиль');
       edit.setAttribute('aria-haspopup','dialog');
       edit.title='Редактировать профиль';
       edit.append(icon('edit'));
+      const theme=button('',()=>showThemePicker(data,theme));
+      theme.className='profile-edit profile-theme-toggle';
+      theme.setAttribute('aria-label','Оформление профиля');
+      theme.setAttribute('aria-haspopup','dialog');
+      theme.title='Оформление профиля';
+      theme.append(icon('brush'));
+      tools.append(edit,theme);
       card.classList.add('own-profile-card');
-      header.append(edit);
+      header.append(tools);
     } else {
       const buttons=el('div',null,'profile-actions');
       buttons.append(isFriend?messageButton(person,data.preview):friendRequestButton(data));
@@ -481,7 +583,7 @@
       header.append(buttons);
     }
     if(data.preview) header.append(link('Вернуться в свой профиль','/profile','btn preview-return'));
-    card.append(header);
+    card.append(header,profileBow('profile-card-bow'));
     if(isHidden){
       const notice=panel(null,'profile-card profile-locked');
       const copy=el('div');
@@ -502,12 +604,12 @@
     }
     if(!data.personalHidden && Object.keys(data.personal).length) {
       const personal=el('section',null,'profile-section');
-      personal.append(el('h2','Личная статистика'),profileStats(data.personal));
+      personal.append(profileHeading('Личная статистика'),profileStats(data.personal));
       profile.append(personal);
     }
     if(data.shared!==null){
       const shared=el('section',null,'profile-section profile-shared');
-      shared.append(el('h2','Совместная статистика'));
+      shared.append(profileHeading('Совместная статистика'));
       if(!data.shared.length && !data.sharedTotal?.sessions)shared.append(empty('Пока нет совместных просмотров.'));
       for(const {person:companion,...metrics} of data.shared) {
         const ownHistory=data.self||data.preview;
