@@ -377,9 +377,7 @@ $('shareMovie').onclick = async () => {
           const sent = shareAsHost ? 'Приглашение отправлено.' : 'Ссылка на видео отправлена.';
           toast(sent);
           if (!movieInvite.open || version !== invitePickerVersion) return;
-          const openDialog = RC.link('Открыть диалог', '/messages/' + dialog.id, 'btn message-dialog-link');
-          openDialog.prepend(CinemaNav.messageIcon());
-          movieInviteStatus.replaceChildren(sent + ' ', openDialog);
+          movieInviteStatus.replaceChildren(sent + ' ', RC.link('Открыть диалог', '/messages/' + dialog.id));
           movieInviteFriends.replaceChildren();
         } catch (error) {
           if (!movieInvite.open || version !== invitePickerVersion) return;

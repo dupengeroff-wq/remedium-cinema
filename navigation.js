@@ -46,7 +46,7 @@
   */
   const lucideIcons={
     send:{
-      transform:'translate(.6 .6) scale(.95)',
+      transform:'translate(1.68 1.68) scale(.86)',
       paths:[
         'M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z',
         'm21.854 2.147-10.94 10.939'
@@ -74,13 +74,12 @@
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');
     const lucide=lucideIcons[name];
-    const isMessage=name==='send';
     svg.setAttribute('viewBox','0 0 24 24');
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('fill','none');
     svg.setAttribute('stroke','currentColor');
     // Slightly finer lines balance the denser Lucide shapes at menu size.
-    svg.setAttribute('stroke-width',isMessage?'1.7':lucide?'1.45':'1.65');
+    svg.setAttribute('stroke-width',lucide?'1.45':'1.65');
     svg.setAttribute('stroke-linecap','round');
     svg.setAttribute('stroke-linejoin','round');
     const shape=lucide?.transform?document.createElementNS(ns,'g'):svg;
@@ -93,12 +92,7 @@
       path.setAttribute('d',data);
       shape.append(path);
     }
-    if(isMessage){
-      svg.setAttribute('class','message-icon');
-      svg.setAttribute('width','20');
-      svg.setAttribute('height','20');
-    }
-    if(!lucide||isMessage)return svg;
+    if(!lucide)return svg;
     const box=el('span',null,'remedium-nav-icon');
     box.setAttribute('aria-hidden','true');
     box.append(svg);
