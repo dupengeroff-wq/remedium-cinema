@@ -15,6 +15,7 @@ import argon2 from 'argon2';
 import sharp from 'sharp';
 import {advanceEvidence} from '../lib/watch.js';
 import {parseMedia} from '../media.js';
+import {catalogPoster,movieKey} from '../lib/watch-media.js';
 
 test('confirmed clock intervals reject frozen playback, jumps and repeated slots',()=>{
   const sample=(at,position,epoch=0)=>({at,position,epoch,mediaId:'film'});
@@ -83,7 +84,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
       CINEMA_CREATOR_SETUP_CODE:setupCode,UPSTASH_REDIS_REST_URL:'',UPSTASH_REDIS_REST_TOKEN:'',
       CINEMA_ADMIN_LOGIN:'',CINEMA_ADMIN_SECRET:legacySecret,CINEMA_DATA_DIR:legacy,CINEMA_LEGACY_ROOM_ID:'',
       SUPABASE_URL:'https://cinema-avatar-fixture.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_fixture-only',
-      TEST_AVATAR_DIR:avatars,TMDB_READ_TOKEN:'tmdb-test-only'
+      TEST_AVATAR_DIR:avatars,TMDB_READ_TOKEN:'tmdb-test-only',VK_VIDEO_READ_TOKEN:'vk-test-only'
     },stdio:['ignore','pipe','pipe']});
     proc.stdout.on('data',d=>logs+=d);
     proc.stderr.on('data',d=>logs+=d);
@@ -208,6 +209,39 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.deepEqual(cleanRoom.state,{letters:[{id:'old-letter'}]});
   await db.query(`UPDATE cinema_rooms SET state=state||'{"messages":[{"text":"Старая запись"}]}'::jsonb WHERE id=$1`,[oldRoom]);
   assert.equal((await db.query('SELECT state FROM cinema_rooms WHERE id=$1',[oldRoom])).rows[0].state.messages,undefined);
+
+  const archived=[
+    {url:'https://m.vkvideo.ru/video-100_200',title:'Интерстеллар',expected:'posters/interstellar-157336.webp'},
+    {url:'https://youtu.be/LegacySrc01',title:'YouTube',expected:catalogPoster('Выход 8')},
+    {url:'https://vkvideo.ru/video-987_654',title:'VK Видео',expected:'https://images.example.org/vk-thumbnail.jpg'},
+    {url:'https://vkvideo.ru/video-101_201',title:'VK Видео',expected:null},
+  ];
+  await db.query('UPDATE cinema_rooms SET history=$2 WHERE id=$1',[oldRoom,JSON.stringify(archived)]);
+  for(const entry of archived){
+    const source=parseMedia(entry.url);
+    entry.id=crypto.randomUUID();
+    await db.query(`INSERT INTO watch_sessions(id,room_id,movie_id,movie_title,media_type,
+      started_at,updated_at,status) VALUES($1,$2,$3,$4,$5,now(),now(),'interrupted')`,
+      [entry.id,oldRoom,movieKey(source),source.type==='vk'?'VK Видео':'YouTube',source.type]);
+    await db.query(`INSERT INTO watch_participants(watch_session_id,user_id,credited_seconds) VALUES($1,$2,5)`,
+      [entry.id,priorOwner]);
+  }
+  const restored=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json.history;
+  for(const entry of archived){
+    const watch=restored.find(item=>item.id===entry.id);
+    assert.equal(watch.poster_key,entry.expected);
+    assert.equal(watch.status,'interrupted');
+    assert.equal(watch.can_edit_cover,true);
+    assert.deepEqual(watch.participants,[]);
+  }
+  assert.equal(restored.find(item=>item.id===archived[0].id).movie_title,'Интерстеллар');
+  assert.equal(restored.find(item=>item.id===archived[1].id).movie_title,'Выход 8');
+  assert.equal(restored.find(item=>item.id===archived[3].id).movie_title,null);
+  const legacyCover='/api/watch-history/'+archived[3].id+'/cover';
+  const legacyPoster='posters/interstellar-157336.webp';
+  await request(legacyCover,{token:ownProfile.token,method:'PATCH',body:{poster:legacyPoster,revision:null}});
+  const restoredEdit=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json.history;
+  assert.equal(restoredEdit.find(item=>item.id===archived[3].id).poster_key,legacyPoster);
 
   const photo=await sharp({create:{width:40,height:40,channels:3,background:'#222'}}).png().toBuffer();
   await request('/api/profile/avatar',{method:'PUT',token:b.token,body:Buffer.from('not image'),expect:400});
@@ -404,15 +438,22 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert(!JSON.stringify((await request('/api/export',{token:a.token})).json).includes('password_hash'));
 
   const visitor=await connect(c);
-  await send(visitor,'join',{});
+  const visitorRoom=await send(visitor,'join',{});
   await send(visitor,'media',{url:'https://youtu.be/abcdefghijk'});
-  await assert.rejects(send(visitor,'watch-finish',{mediaId:'x'}),/только администратор/);
+  const {state:{mediaId:visitorMovieId}}=await send(visitor,'join',{});
+  assert(visitorMovieId);
+  const visitorInvite=await send(visitor,'invite',{});
+  const creatorGuest=await connect(a);
+  await send(creatorGuest,'join',{room:visitorRoom.state.room,invite:visitorInvite.invite});
+  await assert.rejects(send(creatorGuest,'watch-finish',{mediaId:visitorMovieId}),/только владелец/);
+  await assert.rejects(send(visitor,'watch-finish',{mediaId:'x'}),/Фильм уже сменился/);
+  await send(visitor,'watch-finish',{mediaId:visitorMovieId});
 
   const nextMovie=once(bs,'room-state');
   await send(as,'media',{url:'https://media.example/other.mp4',title:'Интерстеллар'});
   const [next]=await nextMovie;
   const nextId=next.mediaId;
-  await assert.rejects(send(bs,'watch-finish',{mediaId:nextId}),/только администратор/);
+  await assert.rejects(send(bs,'watch-finish',{mediaId:nextId}),/только владелец/);
   await assert.rejects(send(as,'watch-finish',{mediaId}),/Фильм уже сменился/);
   as.emit('sync',{mediaId:nextId,time:0,duration:600,playing:true});
   const second=Date.now();
