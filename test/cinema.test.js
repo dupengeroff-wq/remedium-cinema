@@ -176,6 +176,14 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const before=(await request('/api/profiles/'+b.id,{token:a.token})).json;
   assert.equal(before.person.nickname,'Новый ник');
   assert.equal(before.person.id,b.id);
+  assert.equal(before.theme,'none');
+  await request('/api/profile/theme',{method:'PATCH',body:{theme:'hello-kitty-pink'},expect:401});
+  await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'other'},expect:400});
+  await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},from:'https://unrelated.example',expect:403});
+  await request('/api/profiles/'+a.id+'/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},expect:404});
+  const appearance=await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'}});
+  assert.deepEqual(appearance.json,{theme:'hello-kitty-pink'});
+  assert.equal((await request('/api/profiles/'+a.id,{token:b.token})).json.theme,'none');
   assert.equal(before.personal.seconds,0);
   assert.deepEqual(before.history,[]);assert.equal(before.canSeeFriends,true);
   assert.equal(before.friendCount,0);assert.deepEqual(before.shared,[]);assert.equal(before.sharedTotal.sessions,0);
@@ -189,6 +197,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/friends/'+a.id,{method:'PATCH',token:b.token,body:{action:'accept'}});
   assert.equal((await request('/api/friends',{token:b.token})).json.people[0].relationship,'friend');
   assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.friendCount,1);
+  assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.theme,'hello-kitty-pink');
 
   const migrated=(await request('/api/profiles/'+priorOwner,{token:a.token})).json;
   assert.equal(migrated.personal.seconds,10);assert.equal(migrated.personal.shared_count,1);
@@ -200,6 +209,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const ownProfile=await login('remedium_cavus');
   const partnerProfile=await login('stanislav');
   const ownOverview=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json;
+  assert.equal(ownOverview.theme,'none');
   assert.deepEqual(ownOverview.shared.map(item=>item.person.id),[priorPrivate]);
   assert.deepEqual(ownOverview.history.find(item=>item.id===oldWatch).participants,[{id:priorPartner,nickname:'stanislav'}]);
   assert.deepEqual(ownOverview.history.find(item=>item.id===otherWatch).participants,[]);
@@ -366,6 +376,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.equal((await db.query('SELECT movie_title,poster_key FROM watch_sessions WHERE id=$1',[visit.id])).rows[0].poster_key,visit.poster_key);
 
   await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Друг после переименования',bio:''}});
+  assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.theme,'hello-kitty-pink');
   assert.deepEqual((await request('/api/profiles/'+a.id,{token:a.token})).json.history[0].participants,
     [{id:b.id,nickname:'Друг после переименования'}]);
   await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Новый ник',bio:'Космический вечер'}});
@@ -406,6 +417,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/friends/'+c.id,{method:'POST',token:b.token});
   await request('/api/friends/'+b.id,{method:'PATCH',token:c.token,body:{action:'accept'}});
   const allowed={...rules,history:true,friends:true,shared:true,hideProfile:false};
+  await request('/api/profile/theme',{method:'PATCH',token:a.token,body:{theme:'hello-kitty-pink'}});
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
   const open=(await request('/api/profiles/'+a.id,{token:b.token})).json;
   assert.deepEqual(open.mutualFriends.map(friend=>friend.id),[c.id]);
@@ -416,6 +428,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   for(const [token,relationship] of [[b.token,'friend'],[outsider.token,'none']]){
     const privateView=(await request('/api/profiles/'+a.id+'?offset=3',{token})).json;
     assert.equal(privateView.profileHidden,true);
+    assert.equal(privateView.theme,'hello-kitty-pink');
     assert.equal(privateView.relationship,relationship);
     assert.deepEqual(Object.keys(privateView.person).sort(),['avatar','id','login','nickname']);
     for(const key of ['personal','shared','sharedTotal','history','mutualFriends','friendCount','friendCode','privacy'])
@@ -483,6 +496,10 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await start();
   const aNew=await login('cinema-owner'),bNew=await login('cinema-guest');
   assert.equal(aNew.id,a.id);assert.equal(bNew.id,b.id);assert.equal(bNew.user.nickname,'Новый ник');
+  assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'hello-kitty-pink');
+  await request('/api/profile/theme',{method:'PATCH',token:bNew.token,body:{theme:'none'}});
+  assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'none');
+  assert.equal((await request('/api/profiles/'+a.id,{token:bNew.token})).json.theme,'hello-kitty-pink');
   const savedHistory=(await request('/api/profiles/'+a.id,{token:aNew.token})).json.history;
   assert.equal(savedHistory.find(item=>item.id===visit.id).poster_key,manual);
   assert.equal(savedHistory.find(item=>item.id===running.id).status,'completed');
