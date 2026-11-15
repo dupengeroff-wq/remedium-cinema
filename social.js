@@ -319,7 +319,7 @@
       const state={running:'Идёт',interrupted:'Прерван',completed:'Завершён'}[item.status];
       const year=item.release_year?' ('+item.release_year+')':'';
       const title=el('strong',(displayMovieTitle(item)||'Без названия')+year);
-      if(editCover){
+      if(editCover&&item.can_edit_cover){
         const label=item.poster_key?'Заменить обложку':'Добавить обложку';
         const edit=button('',()=>editCover(item));
         edit.classList.add('history-cover-edit');
@@ -383,10 +383,18 @@
     header.append(title,all);
     const gallery=el('div',null,'profile-history-gallery');
     for(const item of items.slice(0,4)){
-      const tile=el('div',null,'profile-history-tile');
+      const editable=options&&item.can_edit_cover;
+      const label=displayMovieTitle(item)||'Обложка просмотра';
+      const tile=editable?button('',()=>coverEditor(item,options,showHistory)):el('div');
+      tile.className='profile-history-tile';
       tile.append(historyPoster(item));
-      tile.setAttribute('role','img');
-      tile.setAttribute('aria-label',displayMovieTitle(item)||'Обложка просмотра');
+      if(editable){
+        tile.setAttribute('aria-haspopup','dialog');
+        tile.setAttribute('aria-label',(item.poster_key?'Изменить обложку: ':'Добавить обложку: ')+label);
+      }else{
+        tile.setAttribute('role','img');
+        tile.setAttribute('aria-label',label);
+      }
       gallery.append(tile);
     }
     section.append(header,gallery);

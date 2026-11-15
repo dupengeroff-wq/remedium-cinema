@@ -338,6 +338,8 @@ body.social-page.profile-page{isolation:isolate;background:#020203}
 .profile-history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .profile-history-heading h2{margin:0}
 .profile-history-gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+button.profile-history-tile{padding:0;width:100%;color:inherit;cursor:pointer}
+button.profile-history-tile:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .profile-history-tile{
   position:relative;isolation:isolate;display:grid;align-items:end;min-width:0;aspect-ratio:4/5;
   overflow:hidden;border:1px solid #ffffff29;border-radius:12px;background:#121218;

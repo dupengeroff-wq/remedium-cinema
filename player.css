@@ -49,13 +49,13 @@ body.cinema-open .wrap,body.cinema-open .layout,body.cinema-open .stage{transfor
 }
 @media(prefers-reduced-motion:reduce){#playerShell .controls,#playerShell .controls .iconbtn{transition:none}}
 
-#playerShell .screen-top{align-items:center}
-#playerShell .share-movie{margin-inline-start:auto}
-#playerShell .share-movie:not([hidden]){
+#playerShell .screen-top{align-items:center;gap:6px;flex-wrap:wrap}
+#playerShell .movie-actions{display:flex;gap:6px;margin-inline-start:auto}
+#playerShell .movie-actions .iconbtn:not([hidden]){
   display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;
   background:#151515e8;border:1px solid #ffffff4d;color:#fff;pointer-events:auto;cursor:pointer;
 }
-#playerShell .share-movie:focus-visible,#playerShell .vk-recovery button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#playerShell .movie-actions .iconbtn:focus-visible,#playerShell .vk-recovery button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 #playerShell.controls-hidden .share-movie:not([hidden]){pointer-events:none}
 #playerShell .vk-recovery{display:flex;align-items:center;gap:6px}
 #playerShell .vk-recovery button{
@@ -72,12 +72,7 @@ body.cinema-open .wrap,body.cinema-open .layout,body.cinema-open .stage{transfor
 .guest-view #playerShell .controls .time + .time{margin-left:-3px}
 #playerShell.is-fullscreen.is-fallback .controls{padding-bottom:max(14px,env(safe-area-inset-bottom))}
 
-#playerShell .finish-movie:not([hidden]){
-  display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;
-  background:#151515e8;border:1px solid #ffffff4d;color:#fff;pointer-events:auto;cursor:pointer;
-}
 #playerShell.is-fullscreen .finish-movie{display:none!important}
-#playerShell .finish-movie:focus-visible{outline:2px solid #fff;outline-offset:2px}
 #finishMovieDialog{
   position:fixed;inset:0;margin:auto;width:min(390px,calc(100% - 32px));
   max-height:calc(100dvh - 32px);overflow:auto;padding:22px;

@@ -405,7 +405,7 @@ function playerIsFullscreen(){
 }
 
 function canFinishMovie(){
-  return inRoom&&isHost&&viewer?.role==='creator'&&Boolean(mediaId);
+  return inRoom&&isHost&&Boolean(mediaId);
 }
 
 $('finishMovie').onclick=()=>{

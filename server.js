@@ -243,7 +243,8 @@ function roomHistory(room) {
 }
 function recordPlayback(room) {
   if(room.historyRecorded) return;
-  room.history.push({room:room.id,id:room.mediaId,title:room.title,url:room.media.url,at:new Date().toISOString()});
+  room.history.push({room:room.id,id:room.mediaId,title:room.title,url:room.media.url,
+    poster:room.watchPoster,at:new Date().toISOString()});
   room.history=room.history.slice(-100);
   room.historyRecorded=true;
   saveSoon(room);
@@ -435,8 +436,8 @@ io.on('connection', socket => {
 
   on('watch-finish', 5, async (payload,reply,fail)=>{
     const room=roomFor(socket);
-    if(!member(socket)?.isHost || socket.data.auth.role!=='creator')
-      return fail('Завершить фильм может только администратор своей комнаты.');
+    if(!member(socket)?.isHost)
+      return fail('Завершить фильм может только владелец комнаты.');
     const id=payload?.mediaId;
     if(isToken(id) && id===room.lastFinishedMediaId) return reply({ok:true});
     if(!room.media || id!==room.mediaId) return fail('Фильм уже сменился.');

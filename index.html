@@ -331,7 +331,7 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .planet{flex:0 0 105px!important;width:105px!important;height:105px!important;min-width:105px!important;min-height:105px!important;aspect-ratio:1 / 1!important}
 .planet-core{width:100%;height:100%;aspect-ratio:1 / 1}
 </style>
-<link rel="stylesheet" href="/player.css?v=watch-history-1"><link rel="stylesheet" href="/social.css?v=final-interface-1">
+<link rel="stylesheet" href="/player.css?v=watch-history-2"><link rel="stylesheet" href="/social.css?v=final-interface-1">
 </head>
 <body class="cinema-page">
 <canvas id="cosmos" aria-hidden="true"></canvas><div class="nebula"></div>
@@ -349,8 +349,10 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <button id="vkDismiss" class="iconbtn" type="button" aria-label="Закрыть рекомендации" title="Закрыть рекомендации">×</button>
     <button id="vkContinue" class="iconbtn" type="button">▶ Продолжить</button>
   </div>
-  <button id="shareMovie" class="iconbtn share-movie" type="button" aria-label="Пригласить друга на фильм" aria-haspopup="dialog" aria-controls="movieInvite" title="Пригласить друга на фильм" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 5l8 7-8 7v-5c-5 0-8 1-10 5 0-6 3-10 10-10z"/></svg></button>
-  <button id="finishMovie" class="iconbtn finish-movie" type="button" hidden aria-label="Завершить фильм" aria-haspopup="dialog" aria-controls="finishMovieDialog" title="Завершить фильм"><span class="menu-dots" aria-hidden="true"></span></button>
+  <div class="movie-actions">
+    <button id="finishMovie" class="iconbtn finish-movie" type="button" hidden aria-label="Завершить фильм" aria-haspopup="dialog" aria-controls="finishMovieDialog" title="Завершить фильм"><span class="menu-dots" aria-hidden="true"></span></button>
+    <button id="shareMovie" class="iconbtn share-movie" type="button" aria-label="Пригласить друга на фильм" aria-haspopup="dialog" aria-controls="movieInvite" title="Пригласить друга на фильм" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 5l8 7-8 7v-5c-5 0-8 1-10 5 0-6 3-10 10-10z"/></svg></button>
+  </div>
 </div>
 <div id="playerStatus" class="player-status hidden" role="status" aria-live="polite"></div><button id="soundPrompt" class="sound-prompt hidden" type="button">▶ Присоединиться к просмотру</button><div id="nativePlaybackHint" class="native-playback-hint hidden" role="status"></div></div><div class="controls" role="group" aria-label="Управление видео"><button id="play" class="iconbtn" disabled>▶</button><button id="back" class="iconbtn" disabled>↶</button><button id="forward" class="iconbtn" disabled>↷</button><span id="elapsed" class="time">0:00</span><input id="progress" aria-label="Позиция воспроизведения" class="seek" type="range" min="0" max="100" value="0" disabled><span id="duration" class="time">0:00</span><button id="sound" class="iconbtn" title="Звук">🔊</button><button id="full" class="iconbtn" title="Полный экран">⛶</button></div></div>
 <aside id="cinemaChat" class="chat" aria-labelledby="cinemaChatTitle">
@@ -453,7 +455,7 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 <script src="/account.js"></script>
 <script src="/navigation.js?v=final-interface-1"></script>
 <script src="/catalog-posters.js?v=watch-history-1"></script>
-<script src="/app.js?v=watch-history-1"></script>
+<script src="/app.js?v=watch-history-2"></script>
 
 </body>
 </html>
