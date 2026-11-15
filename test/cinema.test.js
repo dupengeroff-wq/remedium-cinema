@@ -181,6 +181,10 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'other'},expect:400});
   await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},from:'https://unrelated.example',expect:403});
   await request('/api/profiles/'+a.id+'/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},expect:404});
+  for(const theme of ['cosmos','sakura','clouds','lavender','cyberpunk','icy-night','none']){
+    assert.deepEqual((await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme}})).json,{theme});
+    assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.theme,theme);
+  }
   const appearance=await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'}});
   assert.deepEqual(appearance.json,{theme:'hello-kitty-pink'});
   assert.equal((await request('/api/profiles/'+a.id,{token:b.token})).json.theme,'none');
@@ -252,6 +256,11 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request(legacyCover,{token:ownProfile.token,method:'PATCH',body:{poster:legacyPoster,revision:null}});
   const restoredEdit=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json.history;
   assert.equal(restoredEdit.find(item=>item.id===archived[3].id).poster_key,legacyPoster);
+  const restoredPoster=restoredEdit.find(item=>item.id===archived[3].id);
+  await request(legacyCover,{token:ownProfile.token,method:'PATCH',body:{revision:restoredPoster.poster_revision,poster:''}});
+  const clearedCover=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json.history.find(item=>item.id===archived[3].id);
+  assert.equal(clearedCover.poster_key,null);
+  assert.equal(clearedCover.custom_poster_url,null);
 
   const photo=await sharp({create:{width:40,height:40,channels:3,background:'#222'}}).png().toBuffer();
   await request('/api/profile/avatar',{method:'PUT',token:b.token,body:Buffer.from('not image'),expect:400});
@@ -356,7 +365,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const coverRoute='/api/watch-history/'+visit.id+'/cover';
   const searchRoute='/api/watch-history/'+visit.id+'/cover-search?title=';
   const title=encodeURIComponent('Проверяемый фильм');
-  await request(searchRoute+title,{token:b.token,expect:403});
+  await request(searchRoute+title,{token:b.token});
+  await request(searchRoute+title,{token:c.token,expect:404});
   const localResult=(await request(searchRoute+encodeURIComponent('Интерстеллар'),{token:a.token})).json;
   assert.equal(localResult.films[0].poster_key,'posters/interstellar-157336.webp');
   const choices=(await request(searchRoute+title,{token:a.token})).json;
@@ -373,6 +383,9 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request(searchRoute+title,{token:a.token});
   const saved=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
   assert.equal(saved.poster_key,manual);assert.equal(saved.release_year,2019);
+  const guestHistory=(await request('/api/profiles/'+b.id,{token:b.token})).json.history[0];
+  assert.equal(guestHistory.poster_key,visit.poster_key);
+  assert.equal(guestHistory.movie_title,'Космический фильм');
   assert.equal((await db.query('SELECT movie_title,poster_key FROM watch_sessions WHERE id=$1',[visit.id])).rows[0].poster_key,visit.poster_key);
 
   await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Друг после переименования',bio:''}});
@@ -442,7 +455,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const owner=(await request('/api/profiles/'+a.id,{token:a.token})).json;
   assert.equal(owner.privacy.hideProfile,true);
   assert.equal(owner.history[0].movie_title,'Проверяемый фильм');
-  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Проверяемый фильм');
+  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Космический фильм');
+  assert.equal((await request('/api/profile/shared/'+b.id,{token:a.token})).json.history[0].movie_title,'Проверяемый фильм');
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
   const reopened=(await request('/api/profiles/'+a.id,{token:b.token})).json;
   assert.equal(reopened.profileHidden,false);
@@ -492,6 +506,50 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.equal(completedGuest.poster_key,'posters/interstellar-157336.webp');
   assert.equal((await db.query('SELECT count(*) AS total FROM watch_sessions WHERE room_id=$1',[room])).rows[0].total,2);
 
+  const repeatedId=crypto.randomUUID();
+  const repeatedOriginal='posters/repeated-source.webp';
+  await db.query(`INSERT INTO watch_sessions(id,room_id,movie_id,movie_title,media_type,poster_key,started_at,updated_at,ended_at,status)
+    SELECT $1,room_id,movie_id,'Исходное название повтора',media_type,$2,started_at+interval '1 second',
+      updated_at,ended_at,status FROM watch_sessions WHERE id=$3`,[repeatedId,repeatedOriginal,visit.id]);
+  await db.query('INSERT INTO watch_participants(watch_session_id,user_id,credited_seconds) VALUES($1,$2,5)',[repeatedId,a.id]);
+  const previousCover='https://images.example.org/legacy-room.webp';
+  await db.query(`INSERT INTO watch_room_movie_details(room_id,movie_id,poster_url,title,revision)
+    SELECT room_id,movie_id,$1,'Сохранённое старое название',$2 FROM watch_sessions WHERE id=$3`,
+  [previousCover,crypto.randomUUID(),visit.id]);
+  const loadProfile=async (account,token=account.token)=>(await request('/api/profiles/'+account.id,{token})).json;
+  const loadRepeat=async ()=>(await loadProfile(a)).history.find(item=>item.id===repeatedId);
+  assert.equal((await loadRepeat()).movie_title,'Сохранённое старое название');
+  assert.equal((await loadRepeat()).custom_poster_url,previousCover);
+  const repeatCoverRoute='/api/watch-history/'+repeatedId+'/cover';
+  const repeatedTitle='Моё название повторного просмотра';
+  await request(repeatCoverRoute,{method:'PATCH',token:a.token,body:{revision:null,title:repeatedTitle}});
+  assert.equal((await loadRepeat()).poster_key,previousCover);
+  const repeatCover='https://images.example.org/other-view.webp';
+  await request(repeatCoverRoute,{method:'PATCH',token:a.token,body:{revision:(await loadRepeat()).poster_revision,poster:repeatCover}});
+  assert.equal((await loadRepeat()).poster_key,repeatCover);
+  assert.equal((await loadProfile(a)).history.find(item=>item.id===visit.id).poster_key,manual);
+  await request(repeatCoverRoute,{method:'PATCH',token:a.token,body:{revision:(await loadRepeat()).poster_revision,poster:''}});
+  const resetCover=await loadRepeat();
+  assert.equal(resetCover.movie_title,repeatedTitle);
+  assert.equal(resetCover.poster_key,repeatedOriginal);
+  assert.equal(resetCover.custom_poster_url,null);
+
+  await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:{...allowed,watchTime:true,sessions:true}});
+  const previousPersonal=(await loadProfile(a)).personal;
+  const previousGuest=(await loadProfile(b)).personal;
+  const deleteRoute='/api/watch-history/'+running.id;
+  await request(deleteRoute,{method:'DELETE',token:c.token,expect:404});
+  await Promise.all([1,2].map(()=>request(deleteRoute,{method:'DELETE',token:a.token})));
+  const afterDelete=await loadProfile(a);
+  assert.equal(afterDelete.personal.seconds,previousPersonal.seconds-running.credited_seconds);
+  assert.equal(afterDelete.personal.sessions,previousPersonal.sessions-1);
+  assert.equal(afterDelete.personal.films,previousPersonal.films-1);
+  assert(!afterDelete.history.some(item=>item.id===running.id));
+  assert.equal((await loadProfile(b)).history.find(item=>item.id===running.id).status,'completed');
+  assert.deepEqual((await loadProfile(b)).personal,previousGuest);
+  await request(deleteRoute+'/cover',{method:'PATCH',token:a.token,body:{poster:manual,revision:null},expect:404});
+  assert(!(await request('/api/export',{token:a.token})).json.history.some(item=>item.id===running.id));
+
   await stop();
   await start();
   const aNew=await login('cinema-owner'),bNew=await login('cinema-guest');
@@ -502,7 +560,10 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.equal((await request('/api/profiles/'+a.id,{token:bNew.token})).json.theme,'hello-kitty-pink');
   const savedHistory=(await request('/api/profiles/'+a.id,{token:aNew.token})).json.history;
   assert.equal(savedHistory.find(item=>item.id===visit.id).poster_key,manual);
-  assert.equal(savedHistory.find(item=>item.id===running.id).status,'completed');
+  assert.equal(savedHistory.find(item=>item.id===running.id),undefined);
+  assert.equal(savedHistory.find(item=>item.id===repeatedId).poster_key,repeatedOriginal);
+  assert.equal(savedHistory.find(item=>item.id===repeatedId).movie_title,repeatedTitle);
+  assert.equal((await loadProfile(bNew)).history.find(item=>item.id===running.id).status,'completed');
   assert.equal((await request('/api/dialogs/'+dialog+'/messages',{token:bNew.token})).json.messages[0].body,body.body);
   const guestFirst=await connect(bNew);
   const recovered=await send(guestFirst,'join',{room});
