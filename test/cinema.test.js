@@ -78,12 +78,12 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   let proc,logs='';
   const sockets=[];
   async function start(){
-    proc=spawn(process.execPath,['--import','./test/avatar-storage-fixture.js','server.js'],{env:{
+    proc=spawn(process.execPath,['--import','./test/avatar-storage-fixture.js','--import','./test/watch-cover-fixture.js','server.js'],{env:{
       ...process.env,NODE_ENV:'test',PORT:String(port),APP_ORIGIN:origin,DATABASE_URL:database,
       CINEMA_CREATOR_SETUP_CODE:setupCode,UPSTASH_REDIS_REST_URL:'',UPSTASH_REDIS_REST_TOKEN:'',
       CINEMA_ADMIN_LOGIN:'',CINEMA_ADMIN_SECRET:legacySecret,CINEMA_DATA_DIR:legacy,CINEMA_LEGACY_ROOM_ID:'',
       SUPABASE_URL:'https://cinema-avatar-fixture.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_fixture-only',
-      TEST_AVATAR_DIR:avatars
+      TEST_AVATAR_DIR:avatars,TMDB_READ_TOKEN:'tmdb-test-only'
     },stdio:['ignore','pipe','pipe']});
     proc.stdout.on('data',d=>logs+=d);
     proc.stderr.on('data',d=>logs+=d);
@@ -200,8 +200,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const partnerProfile=await login('stanislav');
   const ownOverview=(await request('/api/profiles/'+priorOwner,{token:ownProfile.token})).json;
   assert.deepEqual(ownOverview.shared.map(item=>item.person.id),[priorPrivate]);
-  assert.deepEqual(ownOverview.history.find(item=>item.id===oldWatch).participants,[]);
-  assert.equal(ownOverview.history.find(item=>item.id===otherWatch).participants[0].id,priorPrivate);
+  assert.deepEqual(ownOverview.history.find(item=>item.id===oldWatch).participants,[{id:priorPartner,nickname:'stanislav'}]);
+  assert.deepEqual(ownOverview.history.find(item=>item.id===otherWatch).participants,[]);
   assert.deepEqual((await request('/api/shared/'+priorPartner,{token:ownProfile.token})).json.history,[]);
   assert.equal((await request('/api/shared/'+priorOwner,{token:partnerProfile.token})).json.history[0].id,oldWatch);
   const {rows:[cleanRoom]}=await db.query('SELECT state FROM cinema_rooms WHERE id=$1',[oldRoom]);
@@ -288,16 +288,17 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await assert.rejects(send(as,'chat',{...outgoing,chatId:returned.state.chatId}),/Чат зала обновился/);
   await send(as,'chat',{...outgoing,chatId:loaded.chatId});
   const synced=once(bs,'sync');
-  as.emit('sync',{mediaId,time:0,playing:true});
+  as.emit('sync',{mediaId,time:0,duration:13,playing:true});
   assert.equal((await synced)[0].playing,true);
   const started=Date.now();
   for(let i=0;i<7;i++){
     const pos=(Date.now()-started)/1000;
+    if(i===3)as.emit('sync',{mediaId,time:pos,duration:13,playing:true});
     for(const s of [as,as2,bs])s.emit('watch-heartbeat',{mediaId,position:pos,playing:true});
     if(i<6)await delay(2050);
   }
   await delay(400);
-  as.emit('sync',{mediaId,time:13,playing:false,ended:true});
+  as.emit('sync',{mediaId,time:13,duration:13,playing:false,ended:true});
   await delay(300);
   const profile=(await request('/api/profiles/'+a.id,{token:a.token})).json;
   assert(profile.personal.seconds>=5 && profile.personal.seconds<=15,JSON.stringify(profile.personal));
@@ -305,10 +306,54 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert(profile.shared[0].seconds>0);
   assert.equal(profile.history[0].movie_title,'Космический фильм');
   assert.equal(profile.history[0].status,'completed');
+  const visit=profile.history[0];
+  assert.deepEqual(visit.participants,[{id:b.id,nickname:'Новый ник'}]);
+  assert.equal(visit.poster_key,'posters/demo.webp');
+  const coverRoute='/api/watch-history/'+visit.id+'/cover';
+  const searchRoute='/api/watch-history/'+visit.id+'/cover-search?title=';
+  const title=encodeURIComponent('Проверяемый фильм');
+  await request(searchRoute+title,{token:b.token,expect:403});
+  const localResult=(await request(searchRoute+encodeURIComponent('Интерстеллар'),{token:a.token})).json;
+  assert.equal(localResult.films[0].poster_key,'posters/interstellar-157336.webp');
+  const choices=(await request(searchRoute+title,{token:a.token})).json;
+  assert.deepEqual(choices.films,[{id:42,title:'Проверяемый фильм',release_year:2019,poster_key:'https://image.tmdb.org/t/p/w500/fixture.jpg'}]);
+  assert.equal((await request('/api/profiles/'+a.id,{token:a.token})).json.history[0].poster_key,visit.poster_key);
+  await request(coverRoute,{token:a.token,method:'PATCH',body:{filmId:42,revision:null}});
+  const chosen=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
+  assert.equal(chosen.release_year,2019);
+  assert.equal(chosen.poster_key,choices.films[0].poster_key);
+  assert.equal(chosen.movie_title,'Проверяемый фильм');
+  await request(coverRoute,{token:a.token,method:'PATCH',body:{filmId:42,revision:null},expect:409});
+  const manual='https://images.example.org/manual-cover.webp';
+  await request(coverRoute,{token:a.token,method:'PATCH',body:{poster:manual,revision:chosen.poster_revision}});
+  await request(searchRoute+title,{token:a.token});
+  const saved=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
+  assert.equal(saved.poster_key,manual);assert.equal(saved.release_year,2019);
+  assert.equal((await db.query('SELECT movie_title,poster_key FROM watch_sessions WHERE id=$1',[visit.id])).rows[0].poster_key,visit.poster_key);
+
+  await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Друг после переименования',bio:''}});
+  assert.deepEqual((await request('/api/profiles/'+a.id,{token:a.token})).json.history[0].participants,
+    [{id:b.id,nickname:'Друг после переименования'}]);
+  await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Новый ник',bio:'Космический вечер'}});
   const visible=(await request('/api/profiles/'+a.id,{token:c.token})).json;
   assert.equal(visible.personalHidden,false);assert.equal(visible.friendCount,1);
   assert.equal(visible.sharedTotal.sessions,1);assert.deepEqual(visible.shared,[]);
-  assert.equal(visible.history[0].movie_title,'Космический фильм');
+  assert.equal(visible.history[0].movie_title,'Проверяемый фильм');
+  assert.equal(Object.hasOwn(visible.history[0],'participants'),false);
+  await db.query('INSERT INTO watch_participants(watch_session_id,user_id,credited_seconds) VALUES ($1,$2,5)',[visit.id,c.id]);
+  const withoutOverlap=(await request('/api/profiles/'+c.id,{token:c.token})).json.history[0];
+  assert.deepEqual(withoutOverlap.participants,[]);
+  await db.query(`INSERT INTO shared_watch_intervals(watch_session_id,user_a_id,user_b_id,slot)
+    SELECT DISTINCT ON (slot) $1,least($2::uuid,$3::uuid),greatest($2::uuid,$3::uuid),slot
+    FROM shared_watch_intervals WHERE watch_session_id=$1 ORDER BY slot LIMIT 1`,[visit.id,a.id,c.id]);
+  const several=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
+  assert.deepEqual(new Set(several.participants.map(person=>person.id)),new Set([b.id,c.id]));
+  const cSettings=(await request('/api/profiles/'+c.id,{token:c.token})).json.privacy;
+  await request('/api/profile/privacy',{method:'PATCH',token:c.token,body:{...cSettings,shared:false}});
+  assert.deepEqual((await request('/api/profiles/'+a.id,{token:a.token})).json.history[0].participants,
+    [{id:b.id,nickname:'Новый ник'}]);
+  await request('/api/profile/privacy',{method:'PATCH',token:c.token,body:cSettings});
+
   const rules={watchTime:false,films:true,sessions:false,shared:false,registration:true,history:false,friends:false,presence:false,hideStats:false};
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:rules});
   const filtered=(await request('/api/profiles/'+a.id,{token:c.token})).json;
@@ -349,19 +394,57 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/profiles/'+a.id+'/friends?view=friend&friend='+b.id,{token:a.token,expect:404});
   const owner=(await request('/api/profiles/'+a.id,{token:a.token})).json;
   assert.equal(owner.privacy.hideProfile,true);
-  assert.equal(owner.history[0].movie_title,'Космический фильм');
-  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Космический фильм');
+  assert.equal(owner.history[0].movie_title,'Проверяемый фильм');
+  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Проверяемый фильм');
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
   const reopened=(await request('/api/profiles/'+a.id,{token:b.token})).json;
   assert.equal(reopened.profileHidden,false);
-  assert.equal(reopened.history[0].movie_title,'Космический фильм');
+  assert.equal(reopened.history[0].movie_title,'Проверяемый фильм');
   assert.equal((await request('/api/export',{token:a.token})).json.history[0].movie_title,'Космический фильм');
   assert(!JSON.stringify((await request('/api/export',{token:a.token})).json).includes('password_hash'));
+
+  const visitor=await connect(c);
+  await send(visitor,'join',{});
+  await send(visitor,'media',{url:'https://youtu.be/abcdefghijk'});
+  await assert.rejects(send(visitor,'watch-finish',{mediaId:'x'}),/только администратор/);
+
+  const nextMovie=once(bs,'room-state');
+  await send(as,'media',{url:'https://media.example/other.mp4',title:'Интерстеллар'});
+  const [next]=await nextMovie;
+  const nextId=next.mediaId;
+  await assert.rejects(send(bs,'watch-finish',{mediaId:nextId}),/только администратор/);
+  await assert.rejects(send(as,'watch-finish',{mediaId}),/Фильм уже сменился/);
+  as.emit('sync',{mediaId:nextId,time:0,duration:600,playing:true});
+  const second=Date.now();
+  for(let i=0;i<7;i++){
+    const position=(Date.now()-second)/1000;
+    for(const s of [as,bs])s.emit('watch-heartbeat',{mediaId:nextId,position,playing:true});
+    if(i<6)await delay(2030);
+  }
+  as.emit('sync',{mediaId:nextId,time:12,duration:600,playing:false,ended:true});
+  await until(async()=>{
+    const record=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
+    return record?.movie_title==='Интерстеллар';
+  });
+  const running=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
+  assert.equal(running.status,'running');assert.equal(running.ended_at,null);
+  const finished=once(bs,'room-state');
+  await Promise.all([send(as,'watch-finish',{mediaId:nextId}),send(as2,'watch-finish',{mediaId:nextId})]);
+  assert.equal((await finished)[0].media,null);
+  const completedGuest=(await request('/api/profiles/'+b.id,{token:b.token})).json.history[0];
+  assert.equal(completedGuest.id,running.id);
+  assert.equal(completedGuest.status,'completed');
+  assert(completedGuest.ended_at);
+  assert.equal(completedGuest.poster_key,'posters/interstellar-157336.webp');
+  assert.equal((await db.query('SELECT count(*) AS total FROM watch_sessions WHERE room_id=$1',[room])).rows[0].total,2);
 
   await stop();
   await start();
   const aNew=await login('cinema-owner'),bNew=await login('cinema-guest');
   assert.equal(aNew.id,a.id);assert.equal(bNew.id,b.id);assert.equal(bNew.user.nickname,'Новый ник');
+  const savedHistory=(await request('/api/profiles/'+a.id,{token:aNew.token})).json.history;
+  assert.equal(savedHistory.find(item=>item.id===visit.id).poster_key,manual);
+  assert.equal(savedHistory.find(item=>item.id===running.id).status,'completed');
   assert.equal((await request('/api/dialogs/'+dialog+'/messages',{token:bNew.token})).json.messages[0].body,body.body);
   const guestFirst=await connect(bNew);
   const recovered=await send(guestFirst,'join',{room});
