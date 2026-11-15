@@ -321,6 +321,40 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:{...rules,hideStats:true}});
   const hidden=(await request('/api/profiles/'+a.id,{token:c.token})).json;
   assert.deepEqual(hidden.personal,{});assert.equal(hidden.personalHidden,true);
+  assert.equal(hidden.profileHidden,false);
+  await request('/api/friends/'+c.id,{method:'POST',token:a.token});
+  await request('/api/friends/'+a.id,{method:'PATCH',token:c.token,body:{action:'accept'}});
+  await request('/api/friends/'+c.id,{method:'POST',token:b.token});
+  await request('/api/friends/'+b.id,{method:'PATCH',token:c.token,body:{action:'accept'}});
+  const allowed={...rules,history:true,friends:true,shared:true,hideProfile:false};
+  await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
+  const open=(await request('/api/profiles/'+a.id,{token:b.token})).json;
+  assert.deepEqual(open.mutualFriends.map(friend=>friend.id),[c.id]);
+  assert.deepEqual((await request('/api/profiles/'+a.id+'/friends',{token:b.token})).json.friends.map(friend=>friend.id),[c.id]);
+  await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:{...allowed,hideProfile:true}});
+  await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:rules});
+  const outsider=await login('legacy-private');
+  for(const [token,relationship] of [[b.token,'friend'],[outsider.token,'none']]){
+    const privateView=(await request('/api/profiles/'+a.id+'?offset=3',{token})).json;
+    assert.equal(privateView.profileHidden,true);
+    assert.equal(privateView.relationship,relationship);
+    assert.deepEqual(Object.keys(privateView.person).sort(),['avatar','id','login','nickname']);
+    for(const key of ['personal','shared','sharedTotal','history','mutualFriends','friendCount','friendCode','privacy'])
+      assert.equal(Object.hasOwn(privateView,key),false,key);
+    await request('/api/profiles/'+a.id+'/friends',{token,expect:404});
+    await request('/api/shared/'+a.id,{token,expect:404});
+  }
+  const hiddenPreview=(await request('/api/profiles/'+a.id+'?view=friend&friend='+b.id,{token:a.token})).json;
+  assert.equal(hiddenPreview.profileHidden,true);
+  await request('/api/profiles/'+a.id+'/friends?view=friend&friend='+b.id,{token:a.token,expect:404});
+  const owner=(await request('/api/profiles/'+a.id,{token:a.token})).json;
+  assert.equal(owner.privacy.hideProfile,true);
+  assert.equal(owner.history[0].movie_title,'Космический фильм');
+  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Космический фильм');
+  await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
+  const reopened=(await request('/api/profiles/'+a.id,{token:b.token})).json;
+  assert.equal(reopened.profileHidden,false);
+  assert.equal(reopened.history[0].movie_title,'Космический фильм');
   assert.equal((await request('/api/export',{token:a.token})).json.history[0].movie_title,'Космический фильм');
   assert(!JSON.stringify((await request('/api/export',{token:a.token})).json).includes('password_hash'));
 
