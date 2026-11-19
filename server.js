@@ -328,6 +328,8 @@ io.on('connection', socket => {
   let checking;
   socket.join('user:'+socket.data.auth.id);
   socket.join('session:'+socket.data.auth.session_id);
+  const profile=socket.handshake.auth?.historyProfile;
+  if(uuid(profile)) socket.join('history-profile:'+profile.toLowerCase());
   let expiry;
   function scheduleExpiry() {
     const remaining=new Date(socket.data.auth.expires_at).getTime()-Date.now();
@@ -674,7 +676,7 @@ mountAuth(app,session=>io.in('session:'+session).disconnectSockets(true));
 mountProfiles(app,io);
 mountMessages(app,io);
 mountAvatars(app);
-mountFilmCovers(app);
+mountFilmCovers(app,io);
 app.use(apiErrors);
 app.get('/health',(_,res)=>res.json({ok:true}));
 app.get('/ready',async (_,res)=>{

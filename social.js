@@ -469,7 +469,38 @@
     actions.firstElementChild.focus();
   }
 
-  function historyList(items,actions=null) {
+  // Refresh only visible history blocks, through the same privacy-checked route
+  // that supplied them. An open cover editor keeps its draft and original revision.
+  function bindHistoryUpdates(node,items,load,draw) {
+    node.classList.add('live-watch-history');
+    let generation=0;
+    node.addEventListener('watch-history-refresh',async event=>{
+      if(event.detail && !items.some(item=>item.id===event.detail))return;
+      const request=++generation;
+      try{
+        const value=await load();
+        if(request!==generation||!node.isConnected)return;
+        items=value.history||[];
+        draw(items);
+      }catch(error){
+        if(request===generation&&node.isConnected&&[401,403,404].includes(error.status))draw([]);
+      }
+    });
+  }
+
+  function refreshVisibleHistory(id=null) {
+    for(const node of document.querySelectorAll('.live-watch-history')){
+      node.dispatchEvent(new CustomEvent('watch-history-refresh',{detail:id}));
+    }
+  }
+
+  if(segment[0]==='profile'){
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden&&socket?.connected)refreshVisibleHistory();
+    });
+  }
+
+  function historyList(items,actions=null,load=null) {
     const list=el('div',null,'history-list');
     if(!items.length) list.append(empty('Пока нет просмотров.'));
     for(const item of items) {
@@ -509,19 +540,23 @@
       row.append(historyPoster(item),info);
       list.append(row);
     }
+    if(load)bindHistoryUpdates(list,items,load,rows=>{
+      list.replaceChildren(...historyList(rows,actions).children);
+    });
     return list;
   }
 
   function paginatedHistory(items,loadPage,actions) {
     const content=el('div',null,'history-list profile-history-details');
-    content.append(historyList(items,actions));
+    content.append(historyList(items,actions,()=>loadPage(0)));
     let offset=items.length;
     if(offset===50){
       const more=button('Показать ещё');
       more.onclick=run(more,()=>loadPage(offset),({history})=>{
         if(history?.length){
+          const start=offset;
           offset+=history.length;
-          content.insertBefore(historyList(history,actions),more);
+          content.insertBefore(historyList(history,actions,()=>loadPage(start)),more);
         }
         if(history?.length!==50)more.remove();
       });
@@ -534,15 +569,13 @@
     const section=el('section',null,'profile-section');
     const title=profileHeading('История просмотров');
     const header=el('div',null,'profile-history-heading');
-    let historyContent;
     const back=()=>openProfileHistory?.();
     const actions=options?{
       edit:item=>coverEditor(item,options,back),
       remove:item=>confirmWatchDeletion(item,back)
     }:null;
     const showHistory=()=>{
-      historyContent??=paginatedHistory(items,loadPage,actions);
-      showModal('История просмотров',historyContent);
+      showModal('История просмотров',paginatedHistory(items,loadPage,actions));
     };
     openProfileHistory=showHistory;
     if(!items.length){
@@ -556,7 +589,7 @@
     all.append(icon('chevron'));
     header.append(title,all);
     const gallery=el('div',null,'profile-history-gallery');
-    for(const item of items.slice(0,4)){
+    function makeTile(item){
       const editable=options&&item.can_edit_cover;
       const label=displayMovieTitle(item)||'Обложка просмотра';
       const tile=editable?button('',()=>actions.edit(item)):el('div');
@@ -569,8 +602,14 @@
         tile.setAttribute('role','img');
         tile.setAttribute('aria-label',label);
       }
-      gallery.append(tile);
+      return tile;
     }
+    const draw=rows=>{
+      items=rows;
+      gallery.replaceChildren(...items.slice(0,4).map(makeTile));
+    };
+    draw(items);
+    bindHistoryUpdates(gallery,items,()=>loadPage(0),draw);
     section.append(header,gallery);
     if(reopen)showHistory();
     return section;
@@ -708,7 +747,9 @@
         const ownHistory=data.self||data.preview;
         const partner=ownHistory?companion.id:person.id;
         const historyPath=ownHistory?'/api/profile/shared/':'/api/shared/';
-        const inspect=action('Совместные сеансы',()=>api(historyPath+partner),value=>showModal('Совместные сеансы',historyList(value.history)));
+        const loadHistory=()=>api(historyPath+partner);
+        const inspect=action('Совместные сеансы',loadHistory,value=>
+          showModal('Совместные сеансы',historyList(value.history,null,loadHistory)));
         inspect.classList.add('profile-shared-history');
         inspect.setAttribute('aria-label','Совместные сеансы');
         inspect.replaceChildren(icon('chevron'));
@@ -1098,7 +1139,8 @@
   async function start(user) {
     viewer=user;
     socket?.disconnect();
-    socket=io({autoConnect:false});
+    const onProfile=segment[0]==='profile';
+    socket=io({autoConnect:false,auth:onProfile?{historyProfile:segment[1]||viewer.id}:{}});
     CinemaNav.setUser(user);
     CinemaNav.show(true);
     CinemaNav.watchUnread(socket);
@@ -1109,6 +1151,10 @@
       status.textContent=socket.connected?'В сети':'Не в сети';
     }
     socket.on('connect',refreshPresence);
+    if(onProfile){
+      socket.on('watch-history-updated',event=>refreshVisibleHistory(event.id));
+      socket.on('connect',()=>refreshVisibleHistory());
+    }
     socket.on('disconnect',refreshPresence);
     socket.on('direct-update',event=>{directRefresh?.(event).catch(error=>failure(error))});
     socket.on('direct-read',event=>{directRefresh?.(event).catch(error=>failure(error))});
