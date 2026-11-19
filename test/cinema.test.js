@@ -181,7 +181,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'other'},expect:400});
   await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},from:'https://unrelated.example',expect:403});
   await request('/api/profiles/'+a.id+'/theme',{method:'PATCH',token:b.token,body:{theme:'hello-kitty-pink'},expect:404});
-  for(const theme of ['cosmos','sakura','clouds','lavender','cyberpunk','icy-night','none']){
+  for(const theme of ['cosmos','sakura','clouds','lavender','cyberpunk','icy-night','nefertiti','sakura-night','none']){
     assert.deepEqual((await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme}})).json,{theme});
     assert.equal((await request('/api/profiles/'+b.id,{token:a.token})).json.theme,theme);
   }
@@ -315,11 +315,15 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   secondaryDevice.disconnect();
   assert.equal((await otherDeviceLeft)[0].chatId,firstChatId);
   const guestLeft=once(as,'room-state');
-  await send(bs,'join',{});
-  const [cleared]=await guestLeft;
-  assert.notEqual(cleared.chatId,firstChatId);assert.deepEqual(cleared.messages,[]);
+  const separate=await send(bs,'join',{});
+  assert.notEqual(separate.state.room,room);
+  assert.deepEqual(separate.state.messages,[]);
+  const [remaining]=await guestLeft;
+  assert.equal(remaining.chatId,firstChatId);
   const returned=await send(bs,'join',{room});
-  assert.deepEqual(returned.state.messages,[]);
+  assert.equal(returned.state.messages.length,1);
+  assert.equal(returned.state.messages[0].id,received.id);
+  assert.equal(returned.state.messages[0].reactions["❤️"].length,1);
   await send(as,'chat',{...outgoing,chatId:returned.state.chatId});
   const poll=once(bs,'room-state');
   await send(as,'poll-create',['Начало','Интерстеллар']);
@@ -550,11 +554,18 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request(deleteRoute+'/cover',{method:'PATCH',token:a.token,body:{poster:manual,revision:null},expect:404});
   assert(!(await request('/api/export',{token:a.token})).json.history.some(item=>item.id===running.id));
 
+  const beforeRestart=await send(as,'join',{room});
+  const restartChat=beforeRestart.state.chatId;
+  const retained=once(bs,'chat');
+  await send(as,'chat',{room,chatId:restartChat,id:crypto.randomBytes(16).toString('hex'),text:'До перезапуска'});
+  const [beforeMessage]=await retained;
+  await send(bs,'react',{id:beforeMessage.id,emoji:'🔥'});
+  await request('/api/profile/theme',{method:'PATCH',token:b.token,body:{theme:'sakura-night'}});
   await stop();
   await start();
   const aNew=await login('cinema-owner'),bNew=await login('cinema-guest');
   assert.equal(aNew.id,a.id);assert.equal(bNew.id,b.id);assert.equal(bNew.user.nickname,'Новый ник');
-  assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'hello-kitty-pink');
+  assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'sakura-night');
   await request('/api/profile/theme',{method:'PATCH',token:bNew.token,body:{theme:'none'}});
   assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'none');
   assert.equal((await request('/api/profiles/'+a.id,{token:bNew.token})).json.theme,'hello-kitty-pink');
@@ -569,7 +580,9 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const recovered=await send(guestFirst,'join',{room});
   assert.equal(recovered.isHost,false);
   assert.notEqual(recovered.state.chatId,loaded.chatId);
-  assert.deepEqual(recovered.state.messages,[]);
+  assert.equal(recovered.state.chatId,restartChat);
+  assert.equal(recovered.state.messages.at(-1).id,beforeMessage.id);
+  assert.equal(recovered.state.messages.at(-1).reactions['🔥'].length,1);
   const ownerNew=await connect(aNew);
   assert.equal((await send(ownerNew,'join',{})).state.room,room);
   await request('/api/friends/'+b.id,{method:'DELETE',token:aNew.token});
