@@ -30,8 +30,8 @@
 
   const empty=text=>el('p',text,'social-note');
   const profileThemes={
-    none:'Минимал','hello-kitty-pink':'Hello Kitty',cosmos:'Космос',sakura:'Сакура',
-    clouds:'Облака',lavender:'Лавандовый сон',cyberpunk:'Киберпанк','icy-night':'Ледяная ночь'
+    none:'Минимал','hello-kitty-pink':'Hello Kitty',cosmos:'Космос',sakura:'Сакура · цветы',
+    clouds:'Облака',lavender:'Лавандовый сон',cyberpunk:'Киберпанк','icy-night':'Ледяная ночь',nefertiti:'Нефертити','sakura-night':'Сакура'
   };
   const sharedVideoPrefix='Видео из кинозала\n';
   function sharedVideoUrl(body) {
@@ -48,7 +48,7 @@
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
     people:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2',
     edit:'M14 5l5 5M4 20l1.1-5L16.5 3.6a2 2 0 0 1 2.8 0l1.1 1.1a2 2 0 0 1 0 2.8L9 19Z',
-    brush:'m9 13 7.5-9.3a2.7 2.7 0 1 1 3.8 3.8L11 15m-3-2a3.5 3.5 0 1 1 0 7H3c1.3-1 1.5-2.1 1.5-3.5A3.5 3.5 0 0 1 8 13Z',
+    brush:'M11.6 11.8C14.7 7.7 18.5 3.4 21 2.1c.8-.4 1.3.2.9 1.1-1.2 2.9-4.4 7.8-7.5 11.2Z M10.3 13.8c-2.3-.7-4.3.7-4.9 3.2-.4 1.8-1.4 3.3-3.4 3.9 4.3 1.4 8.9.6 10.1-2.2.7-1.7.1-3.4-1.8-4.9Z',
     bow:'M9 9.5 4.8 6.8A2.4 2.4 0 0 0 1 8.8v6.4a2.4 2.4 0 0 0 3.8 2L9 14.5m6-5 4.2-2.7a2.4 2.4 0 0 1 3.8 2v6.4a2.4 2.4 0 0 1-3.8 2L15 14.5M9 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z',
     heart:'M12 20.5 3.8 12.3a4.8 4.8 0 0 1 6.8-6.8L12 7l1.4-1.5a4.8 4.8 0 0 1 6.8 6.8Z',
     check:'m5 12 4 4L19 6',
@@ -650,7 +650,16 @@
       if(data.self)presence.id='ownProfilePresence';
       info.append(presence);
     }
-    if(Number.isInteger(data.friendCount))info.append(el('p','Друзья · '+data.friendCount,'muted'));
+    if(data.self){
+      const actions=el('div',null,'profile-actions own-friends');
+      const friends=link('Друзья','/friends','btn profile-friend-status');
+      friends.prepend(icon('userPlus'));
+      if(Number.isInteger(data.friendCount))friends.append(' · '+data.friendCount);
+      actions.append(friends);
+      info.append(actions);
+    }else if(Number.isInteger(data.friendCount)){
+      info.append(el('p','Друзья · '+data.friendCount,'muted'));
+    }
     if(person.bio) info.append(el('p',person.bio));
     const avatarFrame=el('div',null,'profile-avatar-frame');
     avatarFrame.append(avatar(person,true));

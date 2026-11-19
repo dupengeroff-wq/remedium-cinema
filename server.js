@@ -13,6 +13,7 @@ import {ownRoom,getRoomRecord,admitGuest,newInvite,saveRoom} from './lib/rooms.j
 import {mountProfiles} from './lib/profiles.js';
 import {mountMessages} from './lib/messages.js';
 import {mountAvatars} from './lib/avatars.js';
+import {openChat,changeChat,maintainChatLeases} from './lib/room-chat.js';
 import {createWatchTracker} from './lib/watch.js';
 import {catalogPoster,catalogPosters,posterUrl,sourcePoster} from './lib/watch-media.js';
 import {mountFilmCovers} from './lib/film-covers.js';
@@ -275,21 +276,28 @@ function makeCards(items) {
   return cards;
 }
 
-function resetRoomChat(room) {
-  room.messages.length=0;
-  room.chatId=uid();
+// Serialize joins, chat commits and film boundaries in the same room.
+const roomQueues=new Map();
+function inRoomOrder(room,work){
+  const previous=roomQueues.get(room.id)||Promise.resolve();
+  const next=previous.catch(()=>{}).then(work);
+  roomQueues.set(room.id,next);
+  return next.finally(()=>{if(roomQueues.get(room.id)===next)roomQueues.delete(room.id)});
 }
+const leaseTimer=setInterval(()=>{
+  const active=[...rooms.values()].filter(r=>r.users.size).map(r=>r.id);
+  const onlineUsers=[...new Set([...io.sockets.sockets.values()].map(socket=>socket.data.auth.id))];
+  maintainChatLeases(active,onlineUsers).catch(error=>console.warn('Chat expiry:',error.code||error.name));
+},5*60*1000);
+leaseTimer.unref();
 
 function leave(socket) {
   tracker.forget(socket);
   const room=roomFor(socket);
   if(!room) return;
-  const departed=room.users.delete(socket.id);
+  room.users.delete(socket.id);
   socket.data.room=null;
   socket.leave(channel(room.id));
-  const otherDevice=[...room.users.values()].some(user=>user.accountId===socket.data.auth.id);
-  const chatReset=departed && !otherDevice;
-  if(chatReset) resetRoomChat(room);
   if(!room.users.size){
     if(room.playing) room.time=currentTime(room);
     room.playing=false;
@@ -298,7 +306,7 @@ function leave(socket) {
     if(!room.finishing)tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
     saveSoon(room);
   }
-  broadcast(room,chatReset);
+  broadcast(room);
 }
 
 let shuttingDown=false;
@@ -365,6 +373,17 @@ io.on('connection', socket => {
     });
   }
 
+  function onSession(event,limit,handle){
+    on(event,limit,(payload,reply,fail)=>{
+      const room=roomFor(socket);
+      if(!room)return fail('Сначала войди в комнату');
+      return inRoomOrder(room,()=>{
+        if(!socket.connected||roomFor(socket)!==room||!member(socket))return fail('Комната сменилась');
+        return handle(payload,reply,fail);
+      });
+    });
+  }
+
   on('join', 5, async (payload, reply, fail) => {
     if (joining) return fail('Вход уже выполняется');
     const auth=socket.data.auth;
@@ -374,29 +393,33 @@ io.on('connection', socket => {
       const record=payload?.room?await getRoomRecord(payload.room):await ownRoom(auth);
       if(!record) return fail('Комната не найдена. Попроси создателя прислать ссылку.');
       if(rooms.size>=maxRooms && !rooms.has(record.id)) {
-        const free=[...rooms.values()].find(r=>!r.users.size&&!dirtyRooms.has(r));
+        const free=[...rooms.values()].find(r=>!r.users.size&&!dirtyRooms.has(r)&&!roomQueues.has(r.id));
         if(free) rooms.delete(free.id);
         else return fail('Сервер пока не может открыть ещё одну комнату.');
       }
       const room=hydrateRoom(record,record.owner_id===auth.id?auth.nickname:null);
-      const access=await admitGuest(record.id,auth.id,payload?.invite,
-        ()=>[...room.users.values()].some(user=>!user.isHost && user.accountId!==auth.id));
-      if(!socket.connected) return;
-      const isHost=access.owner_id===auth.id;
-      room.guestId=access.guest_id;
-      room.guestToken=access.guest_id?.replaceAll('-','')||null;
-      for(const guest of room.users.values()) {
-        if(!guest.isHost && guest.accountId!==room.guestId) leave(guest.socket);
-      }
-      if(isHost) room.hostName=auth.nickname;
-      const token=isHost?room.hostToken:room.guestToken;
-      if(socket.data.room!==room.id) leave(socket);
-      socket.data.room=room.id;
-      socket.join(channel(room.id));
-      room.users.set(socket.id,{socket,name:auth.nickname,token,isHost,accountId:auth.id});
-      reply({ok:true,id:publicId(room,token),isHost,
-        state:{...sharedState(room,true),poll:publicPoll(room.poll,token)},inbox:inbox(room,token),history:roomHistory(room)});
-      broadcast(room);
+      await inRoomOrder(room,async ()=>{
+        const access=await admitGuest(record.id,auth.id,payload?.invite,
+          ()=>[...room.users.values()].some(user=>!user.isHost && user.accountId!==auth.id));
+        if(!socket.connected)return;
+        await openChat(room,access.guest_id);
+        if(!socket.connected)return;
+        const isHost=access.owner_id===auth.id;
+        room.guestId=access.guest_id;
+        room.guestToken=access.guest_id?.replaceAll('-','')||null;
+        for(const guest of room.users.values()) {
+          if(!guest.isHost && guest.accountId!==room.guestId) leave(guest.socket);
+        }
+        if(isHost) room.hostName=auth.nickname;
+        const token=isHost?room.hostToken:room.guestToken;
+        if(socket.data.room!==room.id) leave(socket);
+        socket.data.room=room.id;
+        socket.join(channel(room.id));
+        room.users.set(socket.id,{socket,name:auth.nickname,token,isHost,accountId:auth.id});
+        reply({ok:true,id:publicId(room,token),isHost,
+          state:{...sharedState(room,true),poll:publicPoll(room.poll,token)},inbox:inbox(room,token),history:roomHistory(room)});
+        broadcast(room);
+      });
     } finally { joining=false; }
   });
 
@@ -411,15 +434,17 @@ io.on('connection', socket => {
     if(member(socket)&&!room.finishing) await tracker.report(socket,room,payload);
   });
 
-  on('media', 4, (payload, reply, fail) => {
+  onSession('media', 4, async (payload, reply, fail) => {
     const room = roomFor(socket);
     if (!member(socket)?.isHost) return fail('Менять фильм может только создатель');
     if(room.finishing) return fail('Завершаем текущий фильм.');
     const media = parseMedia(payload?.url);
     if (!media) return fail('Поддерживаются YouTube, VK Видео и прямые HTTPS-ссылки MP4/WebM');
+    const nextMediaId=uid();
+    await openChat(room,room.guestId,{mediaId:nextMediaId,renew:true});
     tracker.finish(room).catch(error=>console.warn('Watch close:',error.code||error.name));
     room.media = media;
-    room.mediaId = uid();
+    room.mediaId = nextMediaId;
     room.title = clean(payload?.title, 120) || defaultTitle(media);
     room.watchPoster=posterUrl(payload?.poster)||catalogPoster(room.title)||sourcePoster(media);
     room.historyRecorded = false;
@@ -428,13 +453,13 @@ io.on('connection', socket => {
     room.playbackDuration = 0;
     room.updated = Date.now();
     room.syncVersion++;
-    resetRoomChat(room);
-    broadcast(room,true);
     saveSoon(room);
+    await flushSaves();
+    broadcast(room,true);
     reply({ok: true});
   });
 
-  on('watch-finish', 5, async (payload,reply,fail)=>{
+  onSession('watch-finish', 5, async (payload,reply,fail)=>{
     const room=roomFor(socket);
     if(!member(socket)?.isHost)
       return fail('Завершить фильм может только владелец комнаты.');
@@ -443,6 +468,7 @@ io.on('connection', socket => {
     if(!room.media || id!==room.mediaId) return fail('Фильм уже сменился.');
     room.finishing ||= (async ()=>{
       await tracker.finish(room,true);
+      await openChat(room,room.guestId,{mediaId:null,renew:true});
       room.lastFinishedMediaId=id;
       room.media=null;
       room.mediaId=null;
@@ -454,7 +480,8 @@ io.on('connection', socket => {
       room.updated=Date.now();
       room.syncVersion++;
       saveSoon(room);
-      broadcast(room);
+      await flushSaves();
+      broadcast(room,true);
     })().finally(()=>{room.finishing=null});
     await room.finishing;
     reply({ok:true});
@@ -495,57 +522,49 @@ io.on('connection', socket => {
     if (member(socket)) socket.emit('sync', playbackState(roomFor(socket)));
   });
 
-  on('chat', 8, (payload, reply, fail) => {
-    const room = roomFor(socket);
-    const user = member(socket);
-    if (!user || payload?.room !== room.id) return fail('Сначала войди в комнату');
-    if (payload.chatId !== room.chatId) return fail('Чат зала обновился. Напиши сообщение заново.');
-    const text = clean(payload.text, 1000);
-    if (!text || !isToken(payload.id)) return fail('Сообщение не отправлено');
-    const prior = room.messages.find(message => message.author === user.token && message.clientId === payload.id);
-    if (prior) return reply({ok:true});
-    const message = {
-      id: uid(), clientId: payload.id, name: user.name, author: user.token,
-      isHost: user.isHost, badge: user.isHost ? '👑' : room.badges[user.token] || '🎀',
-      text, at: Date.now(), reactions: {}
-    };
-    room.messages.push(message);
-    if (room.messages.length > 250) room.messages.shift();
-    io.to(channel(room.id)).emit('chat', {room: room.id, chatId: room.chatId, ...publicMessage(room, message)});
+  onSession('chat',8,async (payload,reply,fail)=>{
+    const room=roomFor(socket),user=member(socket);
+    if(payload?.room!==room.id||payload.chatId!==room.chatId)return fail('Чат зала обновился. Напиши сообщение заново.');
+    const text=clean(payload.text,1000);
+    if(!text||!isToken(payload.id))return fail('Сообщение не отправлено');
+    const message=await changeChat(room,messages=>{
+      if(messages.some(item=>item.author===user.token&&item.clientId===payload.id))return null;
+      const item={id:uid(),clientId:payload.id,name:user.name,author:user.token,isHost:user.isHost,
+        badge:user.isHost?'👑':room.badges[user.token]||'🎀',text,at:Date.now(),reactions:{}};
+      messages.push(item);
+      return item;
+    });
+    if(message)io.to(channel(room.id)).emit('chat',{room:room.id,chatId:room.chatId,...publicMessage(room,message)});
     reply({ok:true});
   });
 
-  on('set-badge', 6, (badge, reply, fail) => {
-    const user = member(socket);
-    if (!user || user.isHost || !badges.has(badge)) return fail('Недоступный значок');
-    const room = roomFor(socket);
-    room.badges[user.token] = badge;
-    for (const message of room.messages) {
-      if (message.author === user.token) message.badge = badge;
-    }
-    broadcast(room, true);
+  onSession('set-badge',6,async (badge,reply,fail)=>{
+    const user=member(socket),room=roomFor(socket);
+    if(user.isHost||!badges.has(badge))return fail('Недоступный значок');
+    await changeChat(room,messages=>{
+      for(const item of messages)if(item.author===user.token)item.badge=badge;
+    });
+    room.badges[user.token]=badge;
+    broadcast(room,true);
     saveSoon(room);
-    reply({ok: true});
+    reply({ok:true});
   });
 
-  on('react', 12, (payload, reply, fail) => {
-    const user = member(socket);
-    if (!user || !reactions.has(payload?.emoji)) return fail('Реакция недоступна');
-    const room = roomFor(socket);
-    const message = room.messages.find(item => item.id === payload.id);
-    if (!message) return fail('Сообщение недоступно');
-    const previous = message.reactions || {};
-    const selected = Array.isArray(previous[payload.emoji]) && previous[payload.emoji].includes(user.token);
-    const updated = {};
-    for (const [emoji, users] of Object.entries(previous)) {
-      if (reactions.has(emoji) && Array.isArray(users)) updated[emoji] = users.filter(token => token !== user.token);
-    }
-    if (!selected) (updated[payload.emoji] ||= []).push(user.token);
-    message.reactions = updated;
-    io.to(channel(room.id)).emit('reaction-update', {
-      room: room.id, chatId: room.chatId, id: message.id, reactions: publicReactions(room, updated)
+  onSession('react',12,async (payload,reply,fail)=>{
+    const user=member(socket),room=roomFor(socket);
+    if(!reactions.has(payload?.emoji))return fail('Реакция недоступна');
+    const updated=await changeChat(room,messages=>{
+      const message=messages.find(item=>item.id===payload.id);
+      if(!message)throw new HttpError(404,'Сообщение недоступно');
+      const current=message.reactions;
+      const selected=current[payload.emoji]?.includes(user.token);
+      for(const emoji of Object.keys(current))current[emoji]=current[emoji].filter(token=>token!==user.token);
+      if(!selected)(current[payload.emoji]||=[]).push(user.token);
+      return current;
     });
-    reply({ok: true});
+    io.to(channel(room.id)).emit('reaction-update',{room:room.id,chatId:room.chatId,
+      id:payload.id,reactions:publicReactions(room,updated)});
+    reply({ok:true});
   });
 
   on('wish', 4, (value, reply, fail) => {
@@ -680,6 +699,7 @@ for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.cs
     res.sendFile(path.join(projectDir, asset));
   });
 }
+app.use('/assets/auth',express.static(path.join(projectDir,'assets','auth'),{index:false,dotfiles:'deny',maxAge:0}));
 app.use('/assets/profile-themes',express.static(path.join(projectDir,'assets','profile-themes'),{
   index:false,dotfiles:'deny',maxAge:'1d'
 }));
@@ -697,6 +717,8 @@ http.listen(port, '0.0.0.0', () => console.log('REMEDIUM CINEMA COSMOS listening
 async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(leaseTimer);
+  await Promise.allSettled([...roomQueues.values()]);
   for(const room of rooms.values()) {
     await room.finishing?.catch(()=>{});
     await tracker.finish(room).catch(()=>{});

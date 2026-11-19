@@ -279,3 +279,58 @@ body.profile-page:is([data-profile-theme="sakura"],[data-profile-theme="cyberpun
   color:rgb(var(--profile-accent-light-rgb));
 }
 .profile-themed:not(.profile-kitty) .profile-history-details .history-row{border-color:var(--profile-line)}
+
+[data-profile-theme="nefertiti"],.profile-theme-card[data-theme="nefertiti"]{
+  --profile-accent-rgb:233 176 86;--profile-accent-light-rgb:255 228 177;
+  --profile-theme-base:#100b06;--profile-theme-panel:#150e09bf;--profile-theme-mark:"☥";
+  --profile-theme-art:url('/assets/profile-themes/nefertiti-night.webp');
+  --avatar-trim:url('/assets/profile-themes/nefertiti-frame.webp');
+}
+[data-profile-theme="sakura-night"],.profile-theme-card[data-theme="sakura-night"]{
+  --profile-accent-rgb:245 146 194;--profile-accent-light-rgb:255 218 237;
+  --profile-theme-base:#130b13;--profile-theme-panel:#1a0d17bf;--profile-theme-mark:"✿";
+  --profile-theme-art:url('/assets/profile-themes/sakura-night.webp');
+  --avatar-trim:url('/assets/profile-themes/sakura-frame.webp');
+}
+body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{display:none}
+body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before{
+  inset:0;background:radial-gradient(ellipse at 50% 20%,rgb(var(--profile-accent-rgb) / .13),transparent 65%);
+}
+body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view{
+  position:relative;isolation:isolate;border-radius:18px;
+  background:linear-gradient(90deg,rgb(var(--profile-accent-rgb) / .12),transparent 6% 94%,rgb(var(--profile-accent-rgb) / .12)),var(--profile-theme-base);
+  padding:clamp(32px,9vw,72px) clamp(14px,4vw,28px) clamp(115px,30vw,220px);
+}
+/* Keep the top and foot of the illustration in proportion when history expands. */
+body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::before,
+body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::after{
+  content:"";position:absolute;pointer-events:none;z-index:-1;inset:0 0 auto;
+  width:100%;height:auto;aspect-ratio:1.24;max-height:60%;opacity:1;border-radius:18px 18px 0 0;
+  background:var(--profile-theme-art) center top / 100% auto no-repeat;
+  mask-image:linear-gradient(#000 78%,transparent);
+}
+body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::after{
+  inset:auto 0 0;max-height:48%;border-radius:0 0 18px 18px;background-position:center bottom;
+  mask-image:linear-gradient(transparent,#000 22%);
+}
+body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-section{
+  border:1px solid var(--profile-line);border-radius:15px;background:var(--profile-surface);
+  padding:12px;box-shadow:var(--profile-shine)
+}
+body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-avatar-frame{
+  position:relative;display:block;align-self:start;flex:none
+}
+body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-avatar-frame::after{
+  content:"";position:absolute;inset:-4%;pointer-events:none;background:var(--avatar-trim) center/contain no-repeat
+}
+body[data-profile-theme="sakura-night"] .profile-view .profile-card-bow{
+  width:42px;height:32px;inset:auto 0 0 auto;background:var(--avatar-trim) bottom right/110px 110px no-repeat
+}
+body[data-profile-theme="sakura-night"] .profile-card-bow>*{visibility:hidden}
+body.profile-page .profile-tools .profile-theme-toggle,
+body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-tools .profile-edit{
+  color:#fff;background:transparent;border:0;box-shadow:none;filter:none
+}
+
+.profile-view .profile-actions.own-friends{display:flex;flex-wrap:wrap;margin:6px 0}
+.profile-view .own-friends .btn{min-width:0;max-width:100%}

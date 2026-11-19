@@ -18,7 +18,7 @@ let vkPauseTime = null, vkRestoring = false;
 let vkRecommendationsDismissed = false;
 let chatAttempt = null, sendingChat = null;
 const playerScripts = new Map();
-let badge = '🎀', pickerMessage = null;
+let badge = '🎀';
 const BADGES = ['🎀', '🐈', '🦊', '💖', '🐒'];
 const REACTIONS = ['🔥', '🥹', '😍', '🤤', '❤️'];
 const params = new URLSearchParams(location.search);
@@ -262,6 +262,7 @@ function enterRoom() {
 function showAccountForm() {
   document.querySelector('.cinema-tool[open]')?.close();
   viewer=null;
+  resetChat();
   $('entry').classList.remove('hidden');
   CinemaNav.show(false);
   CinemaNav.clearUnread();
@@ -860,18 +861,105 @@ $('sound').onclick=()=>{
 $('soundPrompt').onclick=resumeLocalPlayback;
 function isMine(msg){return !!selfPublicId&&msg.author===selfPublicId}
 function badgeFor(msg){return msg.isHost?'👑':msg.badge||'🎀'}
-function openPicker(kind,msg=null){pickerMessage=msg;$('pickerTitle').textContent=kind==='badge'?'Твой космический знак':'Реакция на сообщение';$('pickerHint').textContent=kind==='badge'?'Нажми, чтобы заменить бантик':'Выбери эмоцию — она появится у обоих';const choices=$('pickerChoices');choices.replaceChildren();for(const emoji of(kind==='badge'?BADGES:REACTIONS)){const b=document.createElement('button');b.className='choice';b.type='button';b.textContent=emoji;b.onclick=()=>{closePicker();if(kind==='badge'){request('set-badge',emoji).then(res=>{if(!res.ok)toast(res.error||'Не удалось изменить значок')})}else if(msg?.id){request('react',{id:msg.id,emoji}).then(res=>{if(!res.ok)toast(res.error||'Не удалось поставить реакцию')})}};choices.append(b)}$('pickerOverlay').classList.remove('hidden')}
-$('myBadge').onclick=()=>{if(!isHost)openPicker('badge')};
-function closePicker(){$('pickerOverlay').classList.add('hidden');pickerMessage=null}$('pickerClose').onclick=closePicker;$('pickerOverlay').onclick=e=>{if(e.target===$('pickerOverlay'))closePicker()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closePicker()});
-function nameElement(msg){const stack=document.createElement('div');stack.className='name-stack';const badgeEl=document.createElement(!msg.isHost&&isMine(msg)?'button':'span');badgeEl.className='badge-icon'+(!msg.isHost&&isMine(msg)?' editable':'');badgeEl.textContent=badgeFor(msg);if(badgeEl.tagName==='BUTTON'){badgeEl.type='button';badgeEl.title='Изменить значок';badgeEl.onclick=()=>openPicker('badge')}stack.append(badgeEl);const name=document.createElement('span');name.className='msgname';name.textContent=msg.name;stack.append(name);return stack}
+function openBadgePicker(){
+  $('pickerTitle').textContent='Твой космический знак';
+  $('pickerHint').textContent='Нажми, чтобы заменить бантик';
+  const choices=$('pickerChoices');
+  choices.replaceChildren();
+  for(const emoji of BADGES){
+    const option=RC.button(emoji,async ()=>{
+      closePicker();
+      const result=await request('set-badge',emoji);
+      if(!result.ok)toast(result.error||'Не удалось изменить значок');
+    });
+    option.className='choice';
+    choices.append(option);
+  }
+  $('pickerOverlay').classList.remove('hidden');
+}
+$('myBadge').onclick=()=>{if(!isHost)openBadgePicker()};
+function closePicker(){$('pickerOverlay').classList.add('hidden')}
+$('pickerClose').onclick=closePicker;
+$('pickerOverlay').onclick=event=>{if(event.target===$('pickerOverlay'))closePicker()};
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closePicker()});
+function nameElement(msg){const stack=document.createElement('div');stack.className='name-stack';const badgeEl=document.createElement(!msg.isHost&&isMine(msg)?'button':'span');badgeEl.className='badge-icon'+(!msg.isHost&&isMine(msg)?' editable':'');badgeEl.textContent=badgeFor(msg);if(badgeEl.tagName==='BUTTON'){badgeEl.type='button';badgeEl.title='Изменить значок';badgeEl.onclick=openBadgePicker}stack.append(badgeEl);const name=document.createElement('span');name.className='msgname';name.textContent=msg.name;stack.append(name);return stack}
 function renderReactions(msg,container){container.replaceChildren();for(const emoji of REACTIONS){const tokens=msg.reactions?.[emoji]||[];if(!tokens.length)continue;const b=document.createElement('button');b.type='button';b.className='reaction-pill'+(tokens.includes(selfPublicId)?' mine':'');b.textContent=emoji+' '+tokens.length;b.title='Изменить реакцию';b.onclick=()=>request('react',{id:msg.id,emoji}).then(res=>{if(!res.ok)toast(res.error||'Не удалось поставить реакцию')});container.append(b)}}
-function attachLongPress(el,msg){let timer=null,x=0,y=0,opened=false;const cancel=()=>{clearTimeout(timer);timer=null};el.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;opened=false;x=e.clientX;y=e.clientY;cancel();timer=setTimeout(()=>{opened=true;openPicker('reaction',msg)},480)});el.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)cancel()});for(const ev of ['pointerup','pointercancel','pointerleave'])el.addEventListener(ev,cancel);el.addEventListener('contextmenu',e=>{e.preventDefault();cancel();if(!opened)openPicker('reaction',msg)});el.addEventListener('click',e=>{if(opened){e.preventDefault();opened=false}})}
-function appendMessage(msg){const list=$('messages');list.querySelector('.empty')?.remove();const row=document.createElement('div');row.className='msg '+(msg.isHost?'host':'guest')+(isMine(msg)?' mine':'');row.dataset.messageId=msg.id||'';const content=document.createElement('div');content.className='msg-content';const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=msg.text;attachLongPress(bubble,msg);const reactionRow=document.createElement('div');reactionRow.className='reaction-row';renderReactions(msg,reactionRow);const time=document.createElement('div');time.className='msgtime';time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});content.append(nameElement(msg),bubble,reactionRow,time);row.append(content);list.append(row);list.scrollTop=list.scrollHeight}
+let reactionPanel=null,reactionAnchor=null;
+function hideReactions(restore=false){
+  reactionPanel?.remove();
+  reactionAnchor?.setAttribute('aria-expanded','false');
+  if(restore&&reactionAnchor?.isConnected)reactionAnchor.focus({preventScroll:true});
+  reactionPanel=reactionAnchor=null;
+}
+function showReactions(anchor,msg){
+  const same=anchor===reactionAnchor;
+  hideReactions();
+  if(same||!inRoom)return;
+  reactionAnchor=anchor;
+  reactionPanel=RC.el('div',null,'room-reactions');
+  reactionPanel.setAttribute('role','group');
+  reactionPanel.setAttribute('aria-label','Реакция на сообщение');
+  for(const emoji of REACTIONS){
+    const option=RC.button(emoji,async()=>{
+      hideReactions(true);
+      const result=await request('react',{id:msg.id,emoji});
+      if(!result.ok)toast(result.error||'Не удалось поставить реакцию');
+    });
+    option.setAttribute('aria-pressed',String(!!msg.reactions?.[emoji]?.includes(selfPublicId)));
+    reactionPanel.append(option);
+  }
+  document.body.append(reactionPanel);
+  const box=anchor.getBoundingClientRect(),panel=reactionPanel.getBoundingClientRect();
+  const v=window.visualViewport,top=v?.offsetTop||0,left=v?.offsetLeft||0;
+  const right=left+(v?.width||innerWidth),bottom=top+(v?.height||innerHeight);
+  reactionPanel.style.left=Math.max(left+8,Math.min(box.left,right-panel.width-8))+'px';
+  reactionPanel.style.top=Math.max(top+8,Math.min(bottom-panel.height-8,
+    box.top-panel.height-6>=top+8?box.top-panel.height-6:box.bottom+6))+'px';
+  anchor.setAttribute('aria-expanded','true');
+  reactionPanel.firstElementChild.focus({preventScroll:true});
+}
+document.addEventListener('pointerdown',event=>{
+  if(reactionPanel&&!reactionPanel.contains(event.target)&&!reactionAnchor.contains(event.target))hideReactions();
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&reactionPanel)hideReactions(true)});
+document.addEventListener('focusin',event=>{
+  if(reactionPanel&&!reactionPanel.contains(event.target)&&!reactionAnchor.contains(event.target))hideReactions();
+});
+window.addEventListener('resize',()=>hideReactions());
+window.visualViewport?.addEventListener('resize',()=>hideReactions());
+document.addEventListener('scroll',()=>hideReactions(),{capture:true,passive:true});
+function messageBubble(msg){
+  const bubble=RC.el('div',null,'bubble');
+  // Construct links as DOM nodes so message text never becomes markup.
+  for(const part of msg.text.split(/(https?:\/\/[^\s<>"']+)/ig)){
+    if(!/^https?:\/\//i.test(part)){bubble.append(part);continue}
+    try{
+      const match=part.match(/^(.*?)([.,!?;:]*)$/);
+      const url=new URL(match[1]);
+      const link=RC.link(match[1],url.href,'room-chat-link');
+      link.target='_blank';link.rel='noopener noreferrer';
+      bubble.append(link,match[2]);
+    }catch{bubble.append(part)}
+  }
+  bubble.tabIndex=0;
+  bubble.setAttribute('role','button');
+  bubble.setAttribute('aria-label',msg.text+' — выбрать реакцию');
+  bubble.setAttribute('aria-expanded','false');
+  bubble.addEventListener('click',event=>{if(!event.target.closest('a'))showReactions(bubble,msg)});
+  bubble.addEventListener('keydown',event=>{
+    if(event.target===bubble&&(event.key==='Enter'||event.key===' ')){
+      event.preventDefault();showReactions(bubble,msg);
+    }
+  });
+  return bubble;
+}
+function appendMessage(msg){const list=$('messages');list.querySelector('.empty')?.remove();const row=document.createElement('div');row.className='msg '+(msg.isHost?'host':'guest')+(isMine(msg)?' mine':'');row.dataset.messageId=msg.id||'';const content=document.createElement('div');content.className='msg-content';const bubble=messageBubble(msg);const reactionRow=document.createElement('div');reactionRow.className='reaction-row';renderReactions(msg,reactionRow);const time=document.createElement('div');time.className='msgtime';time.textContent=new Date(msg.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});content.append(nameElement(msg),bubble,reactionRow,time);row.append(content);list.append(row);list.scrollTop=list.scrollHeight}
 function renderAllMessages(){
+  hideReactions();
   const list=$('messages');
   list.replaceChildren();
   for(const msg of messages)appendMessage(msg);
-  if(!messages.length)list.append(RC.el('div','Чат очищается при выходе из комнаты или смене видео.','empty'));
+  if(!messages.length)list.append(RC.el('div','Чат очищается после завершения сеанса или смены видео.','empty'));
 }
 
 function resetChat(nextId=null) {
@@ -879,7 +967,6 @@ function resetChat(nextId=null) {
   messages=[];
   chatAttempt=sendingChat=null;
   $('message').value='';
-  if(pickerMessage)closePicker();
   renderAllMessages();
 }
 
@@ -977,7 +1064,7 @@ socket.on('sync', snapshot => {
 socket.on('connect',()=>enterRoom());
 socket.on('disconnect',reason=>{
   inRoom=false;
-  resetChat();
+  hideReactions();
   clearPlaybackAttempt();
   joinFlight=0;
   $('status').textContent='Переподключение…';
@@ -1031,7 +1118,7 @@ setInterval(() => {
 }, 1000);
 
 // Lightweight star field with meteors; stops moving for reduced-motion users.
-(()=>{const canvas=$('cosmos'),ctx=canvas.getContext('2d');if(!ctx)return;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let w=0,h=0,dpr=1,stars=[],meteors=[],last=0,nextMeteor=0;function resize(){dpr=Math.min(devicePixelRatio||1,2);w=innerWidth;h=innerHeight;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);stars=Array.from({length:Math.min(200,Math.floor(w*h/5700))},()=>({x:Math.random()*w,y:Math.random()*h,r:.35+Math.random()*1.15,a:.18+Math.random()*.7,p:Math.random()*6.28,s:.0003+Math.random()*.001}))}function draw(t){ctx.clearRect(0,0,w,h);for(const s of stars){const a=reduced?s.a:s.a*(.7+.3*Math.sin(t*s.s+s.p));ctx.fillStyle=`rgba(225,225,225,${a})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}if(!reduced){if(t>nextMeteor){meteors.push({x:Math.random()*w*.8+w*.1,y:-40,v:4+Math.random()*3,len:75+Math.random()*110,a:1});nextMeteor=t+2500+Math.random()*5000}for(const m of meteors){m.x-=m.v*1.3;m.y+=m.v;m.a-=.007;const grad=ctx.createLinearGradient(m.x,m.y,m.x+m.len*.8,m.y-m.len*.6);grad.addColorStop(0,`rgba(245,245,245,${Math.max(0,m.a)})`);grad.addColorStop(1,'rgba(230,230,230,0)');ctx.strokeStyle=grad;ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+m.len*.8,m.y-m.len*.6);ctx.stroke()}meteors=meteors.filter(m=>m.a>0&&m.y<h+120)}last=t;if(!reduced)requestAnimationFrame(draw)}resize();addEventListener('resize',resize,{passive:true});requestAnimationFrame(draw)})();
+(()=>{const canvas=$('cosmos'),ctx=canvas.getContext('2d');if(!ctx)return;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;let w=0,h=0,dpr=1,stars=[],meteors=[],last=0,nextMeteor=0;function resize(){dpr=Math.min(devicePixelRatio||1,2);w=innerWidth;h=innerHeight;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);stars=Array.from({length:Math.min(200,Math.floor(w*h/5700))},()=>({x:Math.random()*w,y:Math.random()*h,r:.35+Math.random()*1.15,a:.18+Math.random()*.7,p:Math.random()*6.28,s:.0003+Math.random()*.001}))}function draw(t){if(document.querySelector('.auth-universe[open]')){setTimeout(()=>requestAnimationFrame(draw),1000);return}ctx.clearRect(0,0,w,h);for(const s of stars){const a=reduced?s.a:s.a*(.7+.3*Math.sin(t*s.s+s.p));ctx.fillStyle=`rgba(225,225,225,${a})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}if(!reduced){if(t>nextMeteor){meteors.push({x:Math.random()*w*.8+w*.1,y:-40,v:4+Math.random()*3,len:75+Math.random()*110,a:1});nextMeteor=t+2500+Math.random()*5000}for(const m of meteors){m.x-=m.v*1.3;m.y+=m.v;m.a-=.007;const grad=ctx.createLinearGradient(m.x,m.y,m.x+m.len*.8,m.y-m.len*.6);grad.addColorStop(0,`rgba(245,245,245,${Math.max(0,m.a)})`);grad.addColorStop(1,'rgba(230,230,230,0)');ctx.strokeStyle=grad;ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x+m.len*.8,m.y-m.len*.6);ctx.stroke()}meteors=meteors.filter(m=>m.a>0&&m.y<h+120)}last=t;if(!reduced)requestAnimationFrame(draw)}resize();addEventListener('resize',resize,{passive:true});requestAnimationFrame(draw)})();
 
 // Personal movie list. Entirely local, not shared through Socket.IO.
 const WATCH_KEY='remediumCinemaPersonalWatchV1';

@@ -330,8 +330,16 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 /* Keep the planet perfectly round on all screen sizes; no other layout changes. */
 .planet{flex:0 0 105px!important;width:105px!important;height:105px!important;min-width:105px!important;min-height:105px!important;aspect-ratio:1 / 1!important}
 .planet-core{width:100%;height:100%;aspect-ratio:1 / 1}
+.messages .bubble{touch-action:pan-y;-webkit-user-select:none;user-select:none;cursor:pointer}
+.room-chat-link{color:inherit;text-decoration:underline}
+.room-reactions{position:fixed;z-index:100;display:flex;align-items:center;max-width:calc(100vw - 16px);padding:3px;
+ background:#121214f5;border:1px solid #ffffff40;border-radius:15px;box-shadow:0 4px 14px #0009}
+.room-reactions .btn{display:grid;place-items:center;min-width:0;width:44px;height:44px;padding:0;
+ font-size:21px;background:none!important;box-shadow:none!important;border:0}
+.room-reactions .btn[aria-pressed=true]{background:#ffffff21!important}
 </style>
 <link rel="stylesheet" href="/player.css?v=watch-history-2"><link rel="stylesheet" href="/social.css?v=final-interface-1">
+<link rel="stylesheet" href="/assets/auth/auth.css">
 </head>
 <body class="cinema-page">
 <canvas id="cosmos" aria-hidden="true"></canvas><div class="nebula"></div>
@@ -362,7 +370,7 @@ button,.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <button id="myBadge" type="button" class="my-badge hidden" title="Изменить свой значок">🎀</button>
       <span id="online" class="small connection-state">0 онлайн</span>
     </div>
-  </div><div id="messages" class="messages"><div class="empty">Чат очищается при выходе из комнаты или смене видео.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn chat-send" type="submit" aria-label="Отправить сообщение" disabled>➤</button></form></aside>
+  </div><div id="messages" class="messages"><div class="empty">Чат очищается после завершения сеанса или смены видео.</div></div><form id="chatForm" class="chatinput"><input id="message" class="field" maxlength="1000" placeholder="Написать сообщение..." disabled><button id="send" class="btn chat-send" type="submit" aria-label="Отправить сообщение" disabled>➤</button></form></aside>
 <div id="movieSetup" hidden><div class="sectionhead"><h2>Сейчас смотрим</h2><span id="role" class="role room-identity" hidden><span id="roleName"></span><span id="roleCrown" aria-hidden="true" hidden>♛</span></span></div><div class="movieform"><input id="url" class="field" inputmode="url" autocapitalize="off" spellcheck="false" aria-label="Ссылка на видео" placeholder="Ссылка YouTube, VK Видео или MP4"><button id="load" class="btn primary" disabled>▶ Включить фильм</button></div></div>
 <section class="cosmos-features" aria-label="Наш космос">
  <div class="twin-stars" id="twinStars"><span class="star-point">✦</span><span class="star-bridge"></span><span class="star-point">✦</span><small id="starsLabel">Ждём вторую звезду</small></div>
