@@ -209,11 +209,10 @@
 
   function showThemePicker(data,trigger) {
     const picker=el('div',null,'profile-theme-picker');
-    const carousel=el('div',null,'profile-theme-carousel');
     const grid=el('div',null,'profile-theme-grid');
     const status=el('p',null,'form-status');
     status.setAttribute('role','status');
-    picker.append(el('p','Выберите тему для своего профиля','profile-theme-description'),carousel,status);
+    picker.append(el('p','Выберите тему для своего профиля','profile-theme-description'),grid,status);
     let saving=false;
     const choices=Object.entries(profileThemes).map(([theme,label])=>{
       const chosen=theme===(data.theme||'none');
@@ -252,23 +251,6 @@
       }
     }
 
-    const previous=themeArrow('Предыдущие темы',-1);
-    const next=themeArrow('Следующие темы',1);
-    function themeArrow(label,direction) {
-      const arrow=button('',()=>{
-        const step=Math.max(choices[0].offsetWidth,grid.clientWidth-choices[0].offsetWidth);
-        grid.scrollBy({left:direction*step,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
-      });
-      arrow.classList.add('profile-theme-arrow');
-      arrow.setAttribute('aria-label',label);
-      arrow.append(icon('chevron'));
-      return arrow;
-    }
-    function updateArrows() {
-      previous.disabled=grid.scrollLeft<1;
-      next.disabled=grid.scrollLeft+grid.clientWidth>=grid.scrollWidth-1;
-    }
-    grid.addEventListener('scroll',updateArrows,{passive:true});
     grid.addEventListener('keydown',event=>{
       const index=choices.indexOf(event.target);
       if(index<0)return;
@@ -278,14 +260,12 @@
       choices[Math.max(0,Math.min(choices.length-1,target))].focus();
     });
     grid.append(...choices);
-    carousel.append(previous,grid,next);
     showModal('Выбор темы профиля',picker);
     const selected=choices.find(choice=>choice.getAttribute('aria-pressed')==='true');
     if(selected){
       grid.scrollLeft=selected.offsetLeft-(grid.clientWidth-selected.offsetWidth)/2;
       selected.focus({preventScroll:true});
     }
-    updateArrows();
   }
 
   modal.addEventListener('click',event=>{
@@ -650,14 +630,7 @@
       if(data.self)presence.id='ownProfilePresence';
       info.append(presence);
     }
-    if(data.self){
-      const actions=el('div',null,'profile-actions own-friends');
-      const friends=link('Друзья','/friends','btn profile-friend-status');
-      friends.prepend(icon('userPlus'));
-      if(Number.isInteger(data.friendCount))friends.append(' · '+data.friendCount);
-      actions.append(friends);
-      info.append(actions);
-    }else if(Number.isInteger(data.friendCount)){
+    if(!data.self&&Number.isInteger(data.friendCount)){
       info.append(el('p','Друзья · '+data.friendCount,'muted'));
     }
     if(person.bio) info.append(el('p',person.bio));

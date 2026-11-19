@@ -28,13 +28,6 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   font-size:clamp(17px,4.3vw,20px);line-height:1.2;
 }
 .profile-theme-picker .profile-theme-description{margin:1px 0 14px;color:#ccc1cd;font-size:14px}
-.profile-theme-carousel{
-  display:grid;grid-template-columns:34px minmax(0,1fr) 34px;align-items:center;gap:5px;
-}
-.profile-theme-carousel .profile-theme-arrow{
-  width:34px;height:44px;padding:0;border:0;background:none;
-}
-.profile-theme-arrow:first-child .social-icon{transform:rotate(180deg)}
 .profile-theme-grid{
   display:flex;gap:8px;position:relative;min-width:0;overflow-x:auto;overflow-y:hidden;
   overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:4px 3px 9px;
@@ -292,30 +285,27 @@ body.profile-page:is([data-profile-theme="sakura"],[data-profile-theme="cyberpun
   --profile-theme-art:url('/assets/profile-themes/sakura-night.webp');
   --avatar-trim:url('/assets/profile-themes/sakura-frame.webp');
 }
-body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{display:none}
-body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before{
-  inset:0;background:radial-gradient(ellipse at 50% 20%,rgb(var(--profile-accent-rgb) / .13),transparent 65%);
-}
-body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view{
-  position:relative;isolation:isolate;border-radius:18px;
-  background:linear-gradient(90deg,rgb(var(--profile-accent-rgb) / .12),transparent 6% 94%,rgb(var(--profile-accent-rgb) / .12)),var(--profile-theme-base);
-  padding:clamp(32px,9vw,72px) clamp(14px,4vw,28px) clamp(115px,30vw,220px);
-}
-/* Keep the top and foot of the illustration in proportion when history expands. */
-body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::before,
-body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::after{
-  content:"";position:absolute;pointer-events:none;z-index:-1;inset:0 0 auto;
-  width:100%;height:auto;aspect-ratio:1.24;max-height:60%;opacity:1;border-radius:18px 18px 0 0;
-  background:var(--profile-theme-art) center top / 100% auto no-repeat;
+/* Anchor the portrait artwork to the viewport, independently of profile width or history length. */
+.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before,
+.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{
+  inset:0 0 auto;width:auto;height:57%;aspect-ratio:auto;border-radius:0;box-shadow:none;
+  background:linear-gradient(#09070930,#09070930),var(--profile-theme-art) center top / cover no-repeat;
   mask-image:linear-gradient(#000 78%,transparent);
 }
-body.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::after{
-  inset:auto 0 0;max-height:48%;border-radius:0 0 18px 18px;background-position:center bottom;
+.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{
+  inset:auto 0 0;background-position:center bottom;
   mask-image:linear-gradient(transparent,#000 22%);
 }
-body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-section{
-  border:1px solid var(--profile-line);border-radius:15px;background:var(--profile-surface);
-  padding:12px;box-shadow:var(--profile-shine)
+/* Keep portrait scenes continuous and at their original proportions. */
+@media (max-aspect-ratio:1/1){
+  .profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before{
+    inset:0;height:auto;background-position:center;mask-image:none;
+  }
+  .profile-page[data-profile-theme="sakura-night"]::before{background-position:70% center}
+  .profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{content:none}
+}
+.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::before{
+  content:none;
 }
 body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-avatar-frame{
   position:relative;display:block;align-self:start;flex:none
@@ -331,6 +321,3 @@ body.profile-page .profile-tools .profile-theme-toggle,
 body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-tools .profile-edit{
   color:#fff;background:transparent;border:0;box-shadow:none;filter:none
 }
-
-.profile-view .profile-actions.own-friends{display:flex;flex-wrap:wrap;margin:6px 0}
-.profile-view .own-friends .btn{min-width:0;max-width:100%}
