@@ -701,7 +701,12 @@ for (const asset of ['app.js','cinema-ui.js','player.css','social.js','social.cs
     res.sendFile(path.join(projectDir, asset));
   });
 }
-app.use('/assets/auth',express.static(path.join(projectDir,'assets','auth'),{index:false,dotfiles:'deny',maxAge:0}));
+// Some existing checkouts have four leading spaces in the auth directory name.
+for (const directory of ['auth', '    auth']) {
+  app.use('/assets/auth', express.static(path.join(projectDir, 'assets', directory), {
+    index: false, dotfiles: 'deny', maxAge: 0
+  }));
+}
 app.use('/assets/profile-themes',express.static(path.join(projectDir,'assets','profile-themes'),{
   index:false,dotfiles:'deny',maxAge:'1d'
 }));
