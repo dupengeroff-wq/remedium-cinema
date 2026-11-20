@@ -18,6 +18,7 @@
     {label:'Наш список фильмов',panel:'watchlist',icon:'films'}
   ];
   const icons={
+    logout:'M10 4H5v16h5 M9 12h12 M16 7l5 5-5 5',
     home:'M3 10.5 12 3l9 7.5 M5 9.5V21h14V9.5 M10 21v-6h4v6',
     profile:'M15.2 8a3.2 3.2 0 1 1-6.4 0 3.2 3.2 0 0 1 6.4 0ZM5 20v-1.5a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5V20',
     friends:'M14 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM4 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M17 5a3 3 0 0 1 0 6m3 4a4 4 0 0 1 2 4v1',
@@ -154,6 +155,32 @@
     item.append(row);
     list.append(item);
   }
+
+  const logoutGroup=el('div',null,'cinema-menu-logout');
+  const logout=el('button',null,'cinema-nav-row');
+  logout.type='button';
+  logout.append(icon('logout'),el('span','Выход','cinema-nav-label'));
+  const logoutError=el('p');
+  logoutError.setAttribute('role','alert');
+  logoutError.hidden=true;
+  logoutGroup.append(logout,logoutError);
+  menu.append(logoutGroup);
+  logout.onclick=async()=>{
+    logout.disabled=true;
+    logoutError.hidden=true;
+    try {
+      await api('/api/auth/logout',{method:'POST'});
+    } catch(error) {
+      if(error.status!==401) {
+        logoutError.textContent='Не удалось выйти. Попробуй ещё раз.';
+        logoutError.hidden=false;
+        logout.disabled=false;
+        return;
+      }
+    }
+    window.CinemaNav.setRoom(null);
+    location.replace('/');
+  };
 
   function setRoom(id) {
     const roomUrl=id?'/?room='+encodeURIComponent(id):'/';
