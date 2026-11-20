@@ -120,8 +120,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
     const {json,response}=await request('/api/auth/login',{method:'POST',body:{login:name,password}});
     return {id:json.user.id,user:json.user,token:response.headers.get('set-cookie').split(';')[0]};
   };
-  async function connect(user){
-    const socket=io(origin,{extraHeaders:{Cookie:user.token,Origin:origin},transports:['websocket'],forceNew:true,reconnection:false});
+  async function connect(user,historyProfile){
+    const socket=io(origin,{auth:{historyProfile},extraHeaders:{Cookie:user.token,Origin:origin},transports:['websocket'],forceNew:true,reconnection:false});
     sockets.push(socket);
     await Promise.race([once(socket,'connect'),once(socket,'connect_error').then(([error])=>{throw error}),delay(6000,null,{ref:false}).then(()=>{throw new Error('Socket timeout')})]);
     return socket;
@@ -159,7 +159,20 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
       VALUES($1,least($2::uuid,$3::uuid),greatest($2::uuid,$3::uuid),$4)`,[id,priorOwner,partner,slot]);
   }
 
+  // The old release allowed two participants to set different names and covers.
+  await db.exec(await fs.readFile(new URL('../migrations/006_personal_watch_history.sql',import.meta.url),'utf8'));
+  await db.query(`UPDATE watch_participants SET history_title=$3
+    WHERE watch_session_id=$1 AND user_id=$2`,[oldWatch,priorOwner,'Название от владельца']);
+  await db.query(`UPDATE watch_participants SET history_title='Другое название',
+    history_cover_set=true,history_poster_url='posters/interstellar-157336.webp'
+    WHERE watch_session_id=$1 AND user_id=$2`,[oldWatch,priorPartner]);
+
   await start();
+  for (const [file, type] of Object.entries({'auth.css':'text/css','moon.webp':'image/webp','clouds.webp':'image/webp','water.webp':'image/webp'})) {
+    const {response}=await request('/assets/auth/'+file);
+    assert.equal(response.headers.get('content-type').split(';')[0],type);
+    assert((await response.arrayBuffer()).byteLength>0);
+  }
   const a=await create('cinema-owner','Создатель',setupCode);
   const b=await create('cinema-guest','Гость');
   const c=await create('cinema-other','Третий');
@@ -218,6 +231,12 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   assert.deepEqual(ownOverview.history.find(item=>item.id===oldWatch).participants,[{id:priorPartner,nickname:'stanislav'}]);
   assert.deepEqual(ownOverview.history.find(item=>item.id===otherWatch).participants,[]);
   assert.deepEqual((await request('/api/shared/'+priorPartner,{token:ownProfile.token})).json.history,[]);
+  for(const [person,token] of [[priorOwner,ownProfile.token],[priorPartner,partnerProfile.token]]){
+    const entry=(await request('/api/profiles/'+person,{token})).json.history.find(item=>item.id===oldWatch);
+    assert.equal(entry.movie_title,'Название от владельца');
+    assert.equal(entry.poster_key,'posters/interstellar-157336.webp');
+    assert(entry.poster_revision);
+  }
   assert.equal((await request('/api/shared/'+priorOwner,{token:partnerProfile.token})).json.history[0].id,oldWatch);
   const {rows:[cleanRoom]}=await db.query('SELECT state FROM cinema_rooms WHERE id=$1',[oldRoom]);
   assert.deepEqual(cleanRoom.state,{letters:[{id:'old-letter'}]});
@@ -376,20 +395,27 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const choices=(await request(searchRoute+title,{token:a.token})).json;
   assert.deepEqual(choices.films,[{id:42,title:'Проверяемый фильм',release_year:2019,poster_key:'https://image.tmdb.org/t/p/w500/fixture.jpg'}]);
   assert.equal((await request('/api/profiles/'+a.id,{token:a.token})).json.history[0].poster_key,visit.poster_key);
+  const profileVisitor=await connect(c,b.id);
+  const notices=Promise.all([once(bs,'watch-history-updated'),once(profileVisitor,'watch-history-updated')]);
   await request(coverRoute,{token:a.token,method:'PATCH',body:{filmId:42,revision:null}});
+  for(const [notice] of await notices)assert.deepEqual(notice,{id:visit.id});
+  profileVisitor.disconnect();
   const chosen=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
   assert.equal(chosen.release_year,2019);
   assert.equal(chosen.poster_key,choices.films[0].poster_key);
   assert.equal(chosen.movie_title,'Проверяемый фильм');
   await request(coverRoute,{token:a.token,method:'PATCH',body:{filmId:42,revision:null},expect:409});
   const manual='https://images.example.org/manual-cover.webp';
-  await request(coverRoute,{token:a.token,method:'PATCH',body:{poster:manual,revision:chosen.poster_revision}});
+  await request(coverRoute,{token:b.token,method:'PATCH',body:{poster:manual,revision:chosen.poster_revision}});
+  await request(coverRoute,{token:a.token,method:'PATCH',body:{title:'Устаревшая правка',revision:chosen.poster_revision},expect:409});
+  await request(coverRoute,{token:c.token,method:'PATCH',body:{title:'Посторонний',revision:null},expect:404});
   await request(searchRoute+title,{token:a.token});
   const saved=(await request('/api/profiles/'+a.id,{token:a.token})).json.history[0];
   assert.equal(saved.poster_key,manual);assert.equal(saved.release_year,2019);
   const guestHistory=(await request('/api/profiles/'+b.id,{token:b.token})).json.history[0];
-  assert.equal(guestHistory.poster_key,visit.poster_key);
-  assert.equal(guestHistory.movie_title,'Космический фильм');
+  assert.equal(guestHistory.poster_key,manual);
+  assert.equal(guestHistory.poster_revision,saved.poster_revision);
+  assert.equal(guestHistory.movie_title,'Проверяемый фильм');
   assert.equal((await db.query('SELECT movie_title,poster_key FROM watch_sessions WHERE id=$1',[visit.id])).rows[0].poster_key,visit.poster_key);
 
   await request('/api/profile',{method:'PATCH',token:b.token,body:{nickname:'Друг после переименования',bio:''}});
@@ -405,6 +431,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await db.query('INSERT INTO watch_participants(watch_session_id,user_id,credited_seconds) VALUES ($1,$2,5)',[visit.id,c.id]);
   const withoutOverlap=(await request('/api/profiles/'+c.id,{token:c.token})).json.history[0];
   assert.deepEqual(withoutOverlap.participants,[]);
+  assert.equal(withoutOverlap.poster_key,manual);
   await db.query(`INSERT INTO shared_watch_intervals(watch_session_id,user_a_id,user_b_id,slot)
     SELECT DISTINCT ON (slot) $1,least($2::uuid,$3::uuid),greatest($2::uuid,$3::uuid),slot
     FROM shared_watch_intervals WHERE watch_session_id=$1 ORDER BY slot LIMIT 1`,[visit.id,a.id,c.id]);
@@ -459,7 +486,8 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   const owner=(await request('/api/profiles/'+a.id,{token:a.token})).json;
   assert.equal(owner.privacy.hideProfile,true);
   assert.equal(owner.history[0].movie_title,'Проверяемый фильм');
-  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Космический фильм');
+  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].movie_title,'Проверяемый фильм');
+  assert.equal((await request('/api/profile/shared/'+a.id,{token:b.token})).json.history[0].poster_key,manual);
   assert.equal((await request('/api/profile/shared/'+b.id,{token:a.token})).json.history[0].movie_title,'Проверяемый фильм');
   await request('/api/profile/privacy',{method:'PATCH',token:a.token,body:allowed});
   const reopened=(await request('/api/profiles/'+a.id,{token:b.token})).json;
@@ -569,6 +597,7 @@ test('real HTTP + Socket.IO + PostgreSQL engine across restart', {timeout:90000}
   await request('/api/profile/theme',{method:'PATCH',token:bNew.token,body:{theme:'none'}});
   assert.equal((await request('/api/profiles/'+b.id,{token:aNew.token})).json.theme,'none');
   assert.equal((await request('/api/profiles/'+a.id,{token:bNew.token})).json.theme,'hello-kitty-pink');
+  assert.equal((await loadProfile(bNew)).history.find(item=>item.id===visit.id).poster_key,manual);
   const savedHistory=(await request('/api/profiles/'+a.id,{token:aNew.token})).json.history;
   assert.equal(savedHistory.find(item=>item.id===visit.id).poster_key,manual);
   assert.equal(savedHistory.find(item=>item.id===running.id),undefined);
