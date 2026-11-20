@@ -92,7 +92,7 @@ html:has(.auth-universe[open]){overflow:hidden}
  .auth-universe:not([data-mode=login]) .auth-guide{order:2}
  .auth-guide{padding:0 4px}.auth-guide h1{font-size:32px;margin:7px 0}.auth-guide h2{font-size:20px}
  .auth-perks{margin-top:15px}.auth-perks>span{font-size:12px;gap:4px}.auth-perks .auth-icon{width:21px;height:21px}
- .auth-moon{width:clamp(180px,61vw,340px);right:-3%;top:8%}
+ .auth-moon{width:clamp(180px,61vw,340px);right:-3%;top:32%;opacity:.64}
  .auth-tabs{gap:4px;margin:15px 0}.auth-top{padding-bottom:4px}
 }
 @media(max-width:355px){.auth-layout{padding-inline:10px}.auth-panel{padding:15px}.auth-tabs .btn{font-size:11px}}
