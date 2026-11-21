@@ -1,0 +1,209 @@
+/* The profile follows its owner's palette. Only the drawer follows the signed-in
+   viewer on cinema and social routes. All illustration layers are non-interactive. */
+[data-profile-theme="zero-two"], .profile-theme-card[data-theme="zero-two"], .cinema-menu[data-theme="zero-two"] {
+  --profile-accent-rgb: 255 78 146;
+  --profile-accent-light-rgb: 255 205 229;
+  --profile-theme-base: #080409;
+  --profile-theme-panel: #140812e6;
+  --profile-theme-mark: "Ⅲ";
+  --zero-line: #ff619b;
+  --zero-ink: #fff0f6;
+  --zero-muted: #ddbac9;
+  --zero-cut: 14px;
+  --zero-outline: polygon(0 var(--zero-cut),var(--zero-cut) 0,calc(100% - var(--zero-cut)) 0,100% var(--zero-cut),100% calc(100% - var(--zero-cut)),calc(100% - var(--zero-cut)) 100%,var(--zero-cut) 100%,0 calc(100% - var(--zero-cut)));
+}
+.profile-theme-card[data-theme="zero-two"] .profile-theme-sample {
+  background: #10050d url('./zero-two-sample.webp') center / contain no-repeat;
+}
+body.social-page.profile-page[data-profile-theme="zero-two"] {
+  background: radial-gradient(ellipse at 82% 5%,#2d0a1d,transparent 42%),#080409;
+  color: var(--zero-ink);color-scheme:dark;
+}
+.profile-page[data-profile-theme="zero-two"]::before {
+  opacity:.82;
+  background: radial-gradient(circle at 21% 16%,#ffd6e9 0 .6px,transparent 1.5px) 0 0/173px 181px,
+    radial-gradient(circle at 70% 63%,#c784a5 0 .6px,transparent 1.6px) 0 0/137px 233px;
+}
+.profile-page[data-profile-theme="zero-two"]::after {
+  inset:auto -1% 0;width:auto;height:clamp(55px,8vh,94px);aspect-ratio:auto;border-radius:0;
+  background:url('./zero-two-water.webp') center bottom/100% 100% no-repeat;box-shadow:none;
+  -webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%);
+}
+[data-profile-theme="zero-two"] .social-top {
+  max-width:none;border:0;min-height:62px;background:transparent;position:relative;z-index:1;
+}
+[data-profile-theme="zero-two"] .social-brand {font-size:clamp(13px,1.65vw,23px);letter-spacing:.13em}
+[data-profile-theme="zero-two"] .social-main {max-width:1580px;padding-top:0;padding-bottom:max(72px,env(safe-area-inset-bottom))}
+[data-profile-theme="zero-two"] .profile-view {max-width:none}
+body[data-profile-theme="zero-two"] .profile-view::before {
+  content:"";position:fixed;z-index:-1;inset:0 0 auto;height:clamp(270px,42vh,510px);
+  background:url('./zero-two-sky.webp') right top / auto 100% no-repeat;
+  opacity:.98;mask-image:linear-gradient(#000 86%,transparent);pointer-events:none;
+}
+body[data-profile-theme="zero-two"] .profile-view::after {
+  content:"";position:fixed;z-index:-1;pointer-events:none;inset:0;
+  background:url('./zero-two-branch.webp') left top / clamp(150px,21vw,350px) auto no-repeat;
+}
+body[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
+  position:relative;max-width:none;padding:clamp(10px,1.55vw,24px) 0 16px;margin:0;border:0;box-shadow:none;background:none;
+}
+[data-profile-theme="zero-two"] .profile-hero {align-items:center;gap:clamp(12px,2vw,30px)}
+[data-profile-theme="zero-two"] .profile-avatar-frame {display:block;flex:none;width:clamp(106px,17vw,270px);aspect-ratio:1}
+[data-profile-theme="zero-two"] .zero-portrait {display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen}
+[data-profile-theme="zero-two"] .profile-details {min-width:0;max-width:630px;text-shadow:0 2px 8px #000,0 1px 3px #000}
+[data-profile-theme="zero-two"] .profile-details h1 {font-size:clamp(23px,3vw,48px);line-height:1.1;overflow-wrap:anywhere}
+[data-profile-theme="zero-two"] .profile-details .muted {color:var(--zero-muted)}
+[data-profile-theme="zero-two"] .profile-details .profile-crown {color:#ff90ba}
+body[data-profile-theme="zero-two"] .profile-view .profile-card-bow {display:none}
+[data-profile-theme="zero-two"] .profile-tools {right:0;top:4px;gap:4px}
+body[data-profile-theme="zero-two"] .profile-tools .profile-edit {
+  color:white;border:1px solid #e85b9399;border-radius:9px;background:#14050fc9;filter:none;
+}
+[data-profile-theme="zero-two"] .profile-view .profile-actions {width:fit-content;max-width:100%;grid-template-columns:auto auto}
+body[data-profile-theme="zero-two"] .profile-actions .btn,body[data-profile-theme="zero-two"] .profile-actions .btn.primary {
+  background:linear-gradient(165deg,#420f28bd,#10070ce8 55%,#320d20e3);
+  border:1px solid #f56c9d;color:var(--zero-ink);font-size:clamp(12px,1vw,16px);
+  border-radius:10px;box-shadow:inset 0 0 9px #fb2e7c30,0 0 12px #ff458244;padding-inline:clamp(10px,1.8vw,24px);
+}
+[data-profile-theme="zero-two"] .profile-view .profile-section {
+  position:relative;isolation:isolate;--zero-cut:12px;
+  margin:12px 0 0;padding:clamp(13px,1.1vw,17px);border:0!important;min-width:0;
+  filter:drop-shadow(0 0 4px #fa267548);
+}
+/* Two concentric cut-corner layers preserve the diagonal line at every width. */
+[data-profile-theme="zero-two"] .profile-section::before,[data-profile-theme="zero-two"] .profile-section::after {
+  content:"";position:absolute;z-index:-1;inset:0;pointer-events:none;clip-path:var(--zero-outline);
+  background:linear-gradient(120deg,#ff9ac0,#e64789 40%,#ffbbd7);
+}
+[data-profile-theme="zero-two"] .profile-section::after {
+  inset:1px;z-index:-2;background:linear-gradient(170deg,#200813e8,#0b050aef 47%,#180912ed);box-shadow:inset 0 0 17px #ed327940;
+}
+[data-profile-theme="zero-two"] .profile-view .profile-section h2 {font-size:clamp(16px,1.5vw,23px)}
+[data-profile-theme="zero-two"] .profile-section h2::before {content:"";display:inline-block;flex:none;width:22px;height:.72em;transform:skewX(-32deg);background:repeating-linear-gradient(90deg,#ed5893 0 3px,transparent 3px 5px)}
+[data-profile-theme="zero-two"] .profile-heading-ribbon .profile-theme-glyph {visibility:hidden}
+body[data-profile-theme="zero-two"] .profile-section .stat {
+  background:none;box-shadow:none;border:0;border-inline-start:1px solid #c6517f79;border-radius:0;min-width:0;
+}
+[data-profile-theme="zero-two"] .profile-history-gallery {display:flex;gap:12px;overflow-x:auto;padding:4px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#9d4269 transparent}
+[data-profile-theme="zero-two"] .profile-history-tile {flex:0 0 clamp(83px,11vw,166px);scroll-snap-align:start}
+[data-profile-theme="zero-two"] .profile-more-stats summary,[data-profile-theme="zero-two"] .social-note {color:var(--zero-muted)}
+[data-profile-theme="zero-two"] .form-status:not(:empty) {color:#ffd9b2}
+.cinema-menu[data-theme="zero-two"] {
+  --zero-cut:15px;
+  color:var(--zero-ink);border:0;background:#fa6e9f;clip-path:var(--zero-outline);
+  width:min(296px,calc(100% - 20px));inset:8px auto 8px max(6px,env(safe-area-inset-left));
+  padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));
+  isolation:isolate;scrollbar-width:thin;scrollbar-color:#883053 #120610;
+}
+.cinema-menu[data-theme="zero-two"]::before {
+  content:"";inset:1px;position:absolute;min-height:calc(100% - 2px);z-index:-1;
+  clip-path:var(--zero-outline);pointer-events:none;
+  background:linear-gradient(160deg,#170914,#080408 62%,#29091a);box-shadow:inset 0 0 18px #f14e8f42;
+}
+.cinema-menu[data-theme="zero-two"] nav {min-height:0;flex:1 1 auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#913351 transparent}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-head {order:-1;border:0;padding:1px 0 12px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-head::before {content:"✦  REMEDIUM CINEMA";font-weight:760;color:#ffe3ef;letter-spacing:.075em;font-size:14px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-head h2 {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-account {border-block:1px solid #ef72972b;padding:8px 0;margin:0 0 7px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-avatar {width:40px;border-radius:8px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-identity {gap:1px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-identity strong {font-size:15px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-login,.cinema-menu[data-theme="zero-two"] .connection-state {font-size:11px}
+.cinema-menu[data-theme="zero-two"] .cinema-nav-row {min-height:44px;border-radius:0;transition:background-color .18s,color .18s}
+.cinema-menu[data-theme="zero-two"] .cinema-nav-row:is(:hover,[aria-current="page"],[aria-expanded="true"]) {
+  color:#fff;background:linear-gradient(90deg,#7b193fd9,transparent 69%,#88214f92);
+  box-shadow:inset 2px 0 #ff84b0,inset 0 0 10px #ff4e8c59;clip-path:polygon(0 0,95% 0,100% 18%,100% 82%,95% 100%,0 100%);
+}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-logout::before {border-color:#ec5b9380}
+.cinema-menu[data-theme="zero-two"]::after {
+  content:"002 ///";text-align:right;font:italic 750 24px/1 system-ui;color:#ff77a9;letter-spacing:.04em;
+  margin-top:10px;padding:4px 8px 12px;background:url('./zero-two-water.webp') bottom / 100% 7px no-repeat;pointer-events:none;
+}
+@media(min-width:720px){
+  [data-profile-theme="zero-two"] .profile-section .stat-grid {grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+  [data-profile-theme="zero-two"] .profile-card:first-child > section {
+    display:grid;grid-template-columns:clamp(106px,17vw,270px) minmax(0,1fr);column-gap:clamp(12px,2vw,30px);
+  }
+  [data-profile-theme="zero-two"] .profile-hero {display:contents}
+  [data-profile-theme="zero-two"] .profile-avatar-frame {grid-column:1;grid-row:1/span 2;align-self:center}
+  [data-profile-theme="zero-two"] .profile-details {grid-column:2;grid-row:1;align-self:end}
+  [data-profile-theme="zero-two"] .profile-view .profile-actions {grid-column:2;grid-row:2;align-self:start;position:relative;margin-top:12px}
+  [data-profile-theme="zero-two"] .preview-return {grid-column:2}
+}
+@media(min-width:1100px){
+  .cinema-menu-pinned {--zero-rail:clamp(210px,18vw,292px)}
+  .cinema-menu.is-pinned {left:15px;top:clamp(42px,5.6vh,62px);bottom:clamp(34px,6vh,68px);width:var(--zero-rail);visibility:visible;transform:none;transition:none}
+  .cinema-menu-pinned #cinemaMenuToggle {display:none}
+  .cinema-menu-pinned #cinemaContent {margin-inline-start:calc(var(--zero-rail) + 26px);margin-inline-end:clamp(9px,2.5vw,50px)}
+}
+@media(max-width:719px){
+  body[data-profile-theme="zero-two"] .profile-view::before {height:220px;background-position:right -60px top;opacity:.57}
+  [data-profile-theme="zero-two"] .profile-actions {margin:12px auto 0}
+  [data-profile-theme="zero-two"] .profile-view .profile-section {padding:13px}
+  [data-profile-theme="zero-two"] .profile-view .profile-details {padding-inline-end:38px}
+}
+@media(prefers-reduced-motion:no-preference){
+  .profile-page[data-profile-theme="zero-two"]::before {animation:zero-stars 9s ease-in-out infinite alternate}
+  .profile-page[data-profile-theme="zero-two"]::after {animation:zero-ripple 7s ease-in-out infinite alternate}
+  [data-profile-theme="zero-two"] .profile-section::before {animation:zero-edge 8s ease-in-out infinite alternate}
+}
+@keyframes zero-stars {to{opacity:.52}}
+@keyframes zero-ripple {to{transform:translateX(.7%) scaleX(1.012)}}
+@keyframes zero-edge {to{opacity:.74}}
+@media(prefers-reduced-motion:reduce){
+  .cinema-menu[data-theme="zero-two"] .cinema-nav-row {transition:none}
+}
+.zero-atmosphere{display:none}
+[data-profile-theme="zero-two"] .zero-atmosphere {
+  display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+}
+[data-profile-theme="zero-two"] .zero-atmosphere::before,
+[data-profile-theme="zero-two"] .zero-atmosphere::after {
+  content:"";position:absolute;inset:0;
+  background:url('./zero-two-petal.webp') 2% 23% / 19px auto no-repeat,
+             url('./zero-two-petal.webp') 98% 62% / 14px auto no-repeat;
+}
+[data-profile-theme="zero-two"] .zero-atmosphere::after {
+  background-position:94% 33%,5% 78%;background-size:13px auto,16px auto;opacity:.6;
+}
+.cinema-menu[data-theme="zero-two"]::before {
+  background:url('./zero-two-petal.webp') 93% 36% / 16px auto no-repeat,
+    url('./zero-two-petal.webp') 9% 96% / 11px auto no-repeat,linear-gradient(160deg,#170914,#080408 62%,#29091a);
+}
+@media(prefers-reduced-motion:no-preference){
+  [data-profile-theme="zero-two"] .zero-atmosphere::before {animation:zero-petals 14s -6s linear infinite}
+  [data-profile-theme="zero-two"] .zero-atmosphere::after {animation:zero-petals 21s -13s linear infinite}
+}
+@keyframes zero-petals {
+  0%{opacity:0;transform:translate(-7px,-8vh)}
+  22%,74%{opacity:.7}
+  100%{opacity:0;transform:translate(9px,13vh)}
+}
+@media(min-width:800px){
+  [data-profile-theme="zero-two"] .profile-view > .profile-card:first-child::after {
+    content:"";position:absolute;right:0;bottom:12px;width:clamp(105px,12vw,208px);aspect-ratio:214/81;
+    background:url('./zero-two-insignia.webp') center/contain no-repeat;pointer-events:none;
+  }
+}
+body.social-page.profile-page[data-profile-theme="zero-two"] {
+  background:radial-gradient(ellipse at 72% 28%,#210817,transparent 45%),#090409;
+}
+[data-profile-theme="zero-two"] .zero-portrait {
+  mask-image:linear-gradient(to right,transparent,#000 8% 92%,transparent),linear-gradient(to bottom,transparent,#000 7% 94%,transparent);
+  mask-composite:intersect;
+}
+[data-profile-theme="zero-two"] .profile-section h2 {display:flex;align-items:center;gap:9px}
+@media(min-width:720px){
+  [data-profile-theme="zero-two"] .profile-section .stat {
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;
+  }
+  [data-profile-theme="zero-two"] .profile-section .stat:first-child {border:0}
+  [data-profile-theme="zero-two"] .profile-section .stat > .social-icon {width:23px;height:23px;color:#ffc6df}
+  [data-profile-theme="zero-two"] .profile-section .stat .grow {display:flex;flex-direction:column;gap:1px}
+  [data-profile-theme="zero-two"] .profile-section .stat .grow span {order:-1;color:#e9c8d7;font-size:12px}
+  [data-profile-theme="zero-two"] .profile-section .stat strong {font-size:clamp(17px,1.5vw,24px)}
+}
+
+[data-profile-theme="zero-two"] .profile-section::before {
+  clip-path:polygon(evenodd,0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px,1px 12.5px,1px calc(100% - 12.5px),12.5px calc(100% - 1px),calc(100% - 12.5px) calc(100% - 1px),calc(100% - 1px) calc(100% - 12.5px),calc(100% - 1px) 12.5px,calc(100% - 12.5px) 1px,12.5px 1px,1px 12.5px);
+}
