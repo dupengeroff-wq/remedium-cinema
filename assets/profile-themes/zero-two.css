@@ -22,8 +22,9 @@ html[data-site-theme="zero-two"], [data-profile-theme="zero-two"], .profile-them
   background: #10050d url('./zero-two-sample.webp') center / contain no-repeat;
 }
 body.social-page.profile-page[data-profile-theme="zero-two"] {
-  background: radial-gradient(ellipse at 82% 5%,#2d0a1d,transparent 42%),#080409;
-  color: var(--zero-ink);color-scheme:dark;
+  background:radial-gradient(ellipse at 82% 5%,#2d0a1d,transparent 42%),
+    url('./zero-two-sky.webp') right top / auto min(58vh,540px) no-repeat,#080409;
+  color:var(--zero-ink);color-scheme:dark;
 }
 .profile-page[data-profile-theme="zero-two"]::before {
   opacity:.82;
@@ -42,11 +43,19 @@ body[data-profile-theme="zero-two"] .profile-view::after {
   background:url('./zero-two-branch.webp') left top / clamp(150px,21vw,350px) auto no-repeat;
 }
 body.social-page[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
-  position:relative;max-width:none;padding:clamp(10px,1.55vw,24px) 0 16px;margin:0;border:0;box-shadow:none;background:none;
+  position:relative;box-sizing:border-box;max-width:none;margin:0;
+  padding:clamp(12px,2.2vw,24px);
+  border:1px solid #ff619b!important;border-radius:clamp(22px,3vw,32px);
+  background:linear-gradient(145deg,#210b18ed,#0b050beF 68%,#1a0915ed)!important;
+  box-shadow:0 0 18px #fa34764a,inset 0 0 16px #ef327b20!important;
+  overflow:visible;
 }
 [data-profile-theme="zero-two"] .profile-hero {align-items:center;gap:clamp(12px,2vw,30px)}
 [data-profile-theme="zero-two"] .profile-avatar-frame {display:block;flex:none;width:var(--zero-avatar-size);aspect-ratio:1}
-[data-profile-theme="zero-two"] .zero-portrait {display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen}
+[data-profile-theme="zero-two"] .zero-portrait {
+  display:block;width:100%;height:100%;object-fit:contain;
+  mix-blend-mode:normal;filter:none!important;box-shadow:none!important;
+}
 [data-profile-theme="zero-two"] .profile-details {min-width:0;max-width:630px;text-shadow:0 2px 8px #000,0 1px 3px #000}
 [data-profile-theme="zero-two"] .profile-details h1 {font-size:clamp(23px,3vw,48px);line-height:1.1;overflow-wrap:anywhere}
 [data-profile-theme="zero-two"] .profile-details .muted {color:var(--zero-muted)}
@@ -54,7 +63,9 @@ body.social-page[data-profile-theme="zero-two"] .profile-view > .profile-card:fi
 body[data-profile-theme="zero-two"] .profile-view .profile-card-bow {display:none}
 [data-profile-theme="zero-two"] .profile-tools {right:0;top:4px;gap:4px}
 body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools .profile-edit {
-  width:44px;height:44px;color:#ffe0ef;border:1px solid #ef70a3;border-radius:11px;background:#190a17df;box-shadow:inset 0 0 8px #fa448229,0 0 8px #fd428434;filter:none;
+  width:44px;height:44px;padding:0;color:#ffe0ef;
+  border:0!important;border-radius:0;background:transparent!important;
+  box-shadow:none!important;filter:none;
 }
 [data-profile-theme="zero-two"] .profile-view .profile-actions {width:fit-content;max-width:100%;grid-template-columns:auto auto}
 body[data-profile-theme="zero-two"] .profile-actions .btn,body[data-profile-theme="zero-two"] .profile-actions .btn.primary {
@@ -207,66 +218,18 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
 }
 [data-profile-theme="zero-two"] .profile-avatar-frame > .social-avatar.large img {object-fit:contain}
 
-/* Approved Zero Two profile composition: one shared header frame, icons without individual boxes. */
-html[data-site-theme="zero-two"] body.social-page.profile-page {
-  background-position:left top,left top!important;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
-  position:relative;max-width:none;margin:0;padding:clamp(12px,2.4vw,26px);
-  border:1px solid #ff6da6;border-radius:28px;
-  background:linear-gradient(145deg,#210b19e8,#090409f2 66%,#1a0814ed);
-  box-shadow:0 0 20px #ed34734a,inset 0 0 18px #f45b9630,inset 0 1px #ffd4e52b;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-card:first-child > section {
-  display:block;position:relative;min-width:0;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-hero {
-  display:grid;grid-template-columns:var(--zero-avatar-size) minmax(0,1fr);
-  align-items:center;gap:clamp(10px,2vw,26px);padding-right:48px;min-width:0;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-avatar-frame {
-  display:block;position:relative;isolation:isolate;flex:none;
-  width:var(--zero-avatar-size);aspect-ratio:1;min-width:0;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-details {
-  grid-column:2;grid-row:1;min-width:0;max-width:none;padding:0 0 0 2px;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools {
-  position:absolute;right:0;top:50%;transform:translateY(-50%);
-  display:flex;flex-direction:column;align-items:center;gap:22px;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools .profile-edit {
-  display:grid;place-items:center;width:38px;height:42px;min-width:38px;padding:0;
-  color:#ffe0ef;border:0!important;border-radius:0!important;background:transparent!important;
-  box-shadow:none!important;filter:drop-shadow(0 0 6px #ff5d9d66);
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools .profile-edit:hover {
-  border:0!important;background:transparent!important;color:#fff;
-  filter:drop-shadow(0 0 9px #ff5d9d);
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools .profile-edit .social-icon {
-  width:30px;height:30px;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-card:first-child .profile-card-bow {display:none}
 
-/* Personal photos sit beneath the original 002 frame artwork. */
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-avatar-frame.zero-two-custom-avatar > .social-avatar.large {
-  position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:0;
-  background:#09050a;box-shadow:none;overflow:hidden;
-  clip-path:polygon(18.74% 12.6%,81.18% 12.6%,81.18% 70.97%,76.55% 75.76%,67.78% 77.35%,63% 78.55%,36.68% 78.55%,31.9% 77.35%,23.9% 75.76%,18.74% 70.97%);
+/* Zero Two uses the approved themed portrait in both profile and sidebar.
+   The account's uploaded photo remains stored and is not overwritten. */
+.cinema-menu[data-theme="zero-two"] .cinema-menu-avatar {
+  position:relative;display:block;flex:none;width:clamp(60px,16vw,78px);aspect-ratio:1;
+  border:0!important;border-radius:0;background:url('./zero-two-portrait.webp') center/contain no-repeat;
+  box-shadow:none!important;filter:none!important;color:transparent;font-size:0;
 }
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-avatar-frame.zero-two-custom-avatar > .social-avatar.large img {
-  width:100%;height:100%;object-fit:cover;border:0;border-radius:0;
-}
-body.social-page.profile-page[data-profile-theme="zero-two"] .profile-avatar-frame.zero-two-custom-avatar::after {
-  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:url('./zero-two-frame-overlay.png') center/contain no-repeat;
-}
-@media(max-width:359px) {
-  body.social-page.profile-page[data-profile-theme="zero-two"] .own-profile-card .profile-hero {
-    display:grid;grid-template-columns:var(--zero-avatar-size) minmax(0,1fr);gap:8px;
-  }
-  body.social-page.profile-page[data-profile-theme="zero-two"] .own-profile-card .profile-details {
-    grid-column:2;grid-row:1;padding:0 38px 0 0;
-  }
+.cinema-menu[data-theme="zero-two"] .cinema-menu-avatar img {opacity:0}
+
+/* Keep the profile artwork clean: no extra avatar drop-shadow around the 002 art. */
+body[data-profile-theme="zero-two"] .profile-avatar-frame,
+body[data-profile-theme="zero-two"] .profile-avatar-frame .zero-portrait {
+  filter:none!important;box-shadow:none!important;
 }

@@ -149,3 +149,14 @@ html[data-site-theme] :is(.cinema-menu,.friends-panel,.dialogs-layout) {color:va
 html[data-site-theme]:not([data-site-theme="zero-two"]) .cinema-menu {background:var(--theme-panel)}
 html[data-site-theme]:not([data-site-theme="zero-two"]) .cinema-nav-row[aria-current="page"] {background:var(--theme-active)}
 html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.friends-panel,.dialogs-layout) {background:var(--theme-panel)}
+
+
+/* Zero Two profile composition: character stays on the right, moon/sakura on the left. */
+html[data-site-theme="zero-two"] body.social-page.profile-page,
+body.social-page.profile-page[data-profile-theme="zero-two"] {
+  background:
+    linear-gradient(180deg,transparent 0%,#0804092b 48%,#080409 100%) center top / 100% min(58vh,540px) no-repeat,
+    url('./zero-two-sky.webp') right top / auto min(58vh,540px) no-repeat,
+    radial-gradient(ellipse at 76% 0%,#2d0a1d,transparent 48%) left top / 100% 100% no-repeat,
+    #080409!important;
+}
