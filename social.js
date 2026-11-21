@@ -738,9 +738,9 @@
       const buttons=el('div',null,'profile-actions');
       buttons.append(isFriend?messageButton(person,data.preview):friendRequestButton(data));
       if(isFriend){
-        let friends=el('span','Друзья','btn');
+        let friends=el('span','В друзьях','btn');
         if(!isHidden){
-          friends=data.canSeeFriends?button('Друзья',()=>{
+          friends=data.canSeeFriends?button('В друзьях',()=>{
             const list=el('div',null,'person-list');
             list.append(...(data.mutualFriends?.length?data.mutualFriends.map(p=>personRow(p)):[empty('Общих друзей пока нет.')]));
             showModal('Общие друзья',list);
