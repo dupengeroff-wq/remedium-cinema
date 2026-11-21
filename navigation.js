@@ -23,7 +23,6 @@
     {label:'Мой профиль',href:'/profile',icon:'profile'},
     {label:'Друзья',href:'/friends',icon:'friends'},
     {label:'Сообщения',href:'/messages',icon:'send',id:'cinemaMessagesLink',badge:'directUnread'},
-    {label:'Кинозал',href:'/',icon:'films',id:'cinemaHomeLink'},
     {label:'Отправить послание',panel:'send-wish',icon:'mail-plus',id:'wishOpen'},
     {label:'Послания',panel:'wishInbox',icon:'book-heart',badge:'wishBadge'},
     {label:'Голосование за фильм',panel:'pollPanel',icon:'vote'},
@@ -135,26 +134,14 @@
   menu.append(scrollArea);
 
   const wide=window.matchMedia('(min-width:1100px)');
-  const preferenceKey='remediumAppearance';
+  const {key:preferenceKey,cached:lastTheme,apply:paintTheme}=CinemaAppearance;
   let accountId=null;
   let ownTheme=null;
   let revision=0;
 
-  function lastTheme() {
-    try {return localStorage.getItem(preferenceKey)} catch {return null}
-  }
-
-  function paintTheme(theme) {
-    const root=document.documentElement;
-    if(theme==='zero-two')root.dataset.siteTheme=theme;
-    else delete root.dataset.siteTheme;
-  }
-  paintTheme(lastTheme());
-
   function applyAccountTheme(theme) {
     ownTheme=theme;
-    paintTheme(theme);
-    try {if(theme && lastTheme()!==theme)localStorage.setItem(preferenceKey,theme)} catch {}
+    paintTheme(theme,true);
     updateMenuTheme();
   }
 
@@ -270,7 +257,6 @@
         if(row.tagName==='A') row.href=base+'#'+entry.panel;
       }
     }
-    document.getElementById('cinemaHomeLink').href=roomUrl;
   }
 
   function isOpen() { return menu.classList.contains('is-open'); }
@@ -318,7 +304,7 @@
   const route=location.pathname;
   for(const row of list.querySelectorAll('a[href]')) {
     if(row.dataset.openPanel || row.hash) continue;
-    if((row.pathname==='/' ? onCinema && row.id===(new URLSearchParams(location.search).has('room')?'cinemaHomeLink':'cinemaLandingLink') : row.pathname===route) ||
+    if((row.pathname==='/' ? onCinema && row.id==='cinemaLandingLink' : row.pathname===route) ||
       (row.pathname==='/profile' && /^\/profile(?:\/|$)/.test(route)) ||
       (row.pathname==='/messages' && /^\/messages(?:\/|$)/.test(route))) row.setAttribute('aria-current','page');
   }

@@ -585,7 +585,7 @@ button.profile-history-tile:focus-visible{outline:2px solid #fff;outline-offset:
 .movie-invite-friend .btn{min-height:44px}
 
 /* Universal profile header actions: layout shared by every profile theme. */
-.social-page .profile-view > .profile-card:first-child:not(.own-profile-card) {
+.social-page:not([data-profile-theme="zero-two"]) .profile-view > .profile-card:first-child:not(.own-profile-card) {
   position:relative;box-sizing:border-box;overflow:visible;
   border:1px solid var(--profile-accent, var(--kitty-soft-line, #ffffff62));
   border-radius:clamp(18px,3vw,32px);

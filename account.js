@@ -11,9 +11,9 @@
     node.onclick=fn;
     return node;
   }
-  // Native controls keep the platform appearance in the other themes.
+  // Use platform dialogs when there is no account palette.
   function question(kind,message,value='') {
-    if(document.documentElement.dataset.siteTheme!=='zero-two'){
+    if(!document.documentElement.dataset.siteTheme){
       if(kind==='input')return Promise.resolve(window.prompt(message,value));
       if(kind==='confirm')return Promise.resolve(window.confirm(message));
       window.alert(message);return Promise.resolve();
