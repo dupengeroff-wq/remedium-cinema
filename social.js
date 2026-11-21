@@ -11,6 +11,23 @@
   let refreshDialogList;
   let friendRefresh;
   let profileId;
+  let displayedProfile=null;
+  window.addEventListener('cinema-appearance',event=>{
+    if(!viewer)return;
+    viewer.theme=event.detail;
+    if(!displayedProfile)return;
+    if(displayedProfile.self)displayedProfile.theme=event.detail;
+    applyProfileTheme(displayedProfile.theme);
+    const frame=main.querySelector('.profile-avatar-frame');
+    if(frame)fillProfileAvatar(frame,displayedProfile.person,displayedProfile.theme);
+    for(const choice of detail.querySelectorAll('.profile-theme-card')){
+      const selected=choice.dataset.theme===displayedProfile.theme;
+      choice.setAttribute('aria-pressed',String(selected));
+      const marker=choice.querySelector('.profile-theme-marker');
+      marker.replaceChildren();
+      if(selected)marker.append(icon('check'),el('span','Выбрана'));
+    }
+  });
   let cancelCoverSearch;
   let openProfileHistory;
   let profileRender=0;
@@ -96,6 +113,7 @@
   function failure(error,node=main) {
     if(error.status===401){
       socket?.disconnect();
+      displayedProfile=null;viewer=null;
       document.body.classList.remove('profile-page');
       applyProfileTheme('none');
       CinemaNav.show(false);
@@ -202,7 +220,7 @@
   }
 
   function applyProfileTheme(theme) {
-    const selected=Object.hasOwn(profileThemes,theme)?theme:'none';
+    const selected=viewer?.theme==='zero-two'?'zero-two':Object.hasOwn(profileThemes,theme)?theme:'none';
     document.body.dataset.profileTheme=selected;
     CinemaNav.setProfileTheme(selected==='none'?null:selected);
     document.body.classList.toggle('profile-themed',selected!=='none' && selected!=='zero-two');
@@ -655,6 +673,8 @@
     const reopenHistory=historyView instanceof Element&&modal.open&&
       (detail.contains(historyView)||detail.querySelector('.profile-history-details'));
     const {person}=data;
+    displayedProfile=data;
+    if(data.self)viewer.theme=data.theme;
     applyProfileTheme(data.theme);
     const isFriend=data.preview?!!data.previewFriend:data.relationship==='friend';
     const isHidden=data.profileHidden===true;
@@ -711,13 +731,6 @@
       theme.setAttribute('aria-haspopup','dialog');
       theme.title='Выбор темы профиля';
       theme.append(icon('brush'));
-      const actions=el('div',null,'profile-actions own-profile-actions');
-      const editProfile=button('Редактировать профиль',()=>settings(data));
-      editProfile.prepend(icon('edit'));
-      const friendsLink=link('Друзья','/friends','btn profile-friend-status');
-      friendsLink.prepend(icon('userPlus'));
-      actions.append(editProfile,friendsLink);
-      header.append(actions);
       tools.append(edit,theme);
       card.classList.add('own-profile-card');
       header.append(tools);

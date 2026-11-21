@@ -11,6 +11,41 @@
     node.onclick=fn;
     return node;
   }
+  // Native controls keep the platform appearance in the other themes.
+  function question(kind,message,value='') {
+    if(document.documentElement.dataset.siteTheme!=='zero-two'){
+      if(kind==='input')return Promise.resolve(window.prompt(message,value));
+      if(kind==='confirm')return Promise.resolve(window.confirm(message));
+      window.alert(message);return Promise.resolve();
+    }
+    const dialog=el('dialog',null,'site-question');
+    dialog.setAttribute('aria-label',message);
+    const form=el('form');
+    form.method='dialog';
+    form.append(el('p',message));
+    const input=kind==='input'?el('input',null,'field'):null;
+    if(input){
+      input.value=value;
+      input.setAttribute('aria-label',message);
+      form.append(input);
+    }
+    const actions=el('div',null,'question-actions');
+    const accept=el('button','ОК','btn primary');
+    accept.type='submit';
+    accept.value='accept';
+    if(kind!=='notice')actions.append(button('Отмена',()=>dialog.close('cancel')));
+    actions.append(accept);form.append(actions);dialog.append(form);
+    document.body.append(dialog);
+    return new Promise(resolve=>{
+      dialog.addEventListener('close',()=>{
+        const accepted=dialog.returnValue==='accept';
+        dialog.remove();
+        resolve(input?(accepted?input.value:null):accepted);
+      },{once:true});
+      dialog.showModal();
+      if(input){input.focus();input.select()}
+    });
+  }
   function link(label,href,cls='btn') {
     const node=el('a',label,cls);
     node.href=href;
@@ -215,10 +250,10 @@
     }
     screen.addEventListener('click',e=>{if(!menu.contains(e.target)&&!dots.contains(e.target))setMenu(false)});
     screen.addEventListener('cancel',e=>{if(e.target===screen){e.preventDefault();setMenu(false);dots.focus()}});
-    function select(id){
+    async function select(id){
       if(busy||mode===id)return;
       loginValue=card.querySelector('[name=login]')?.value??loginValue;
-      if(issued && !confirm('Коды сохранены? При выходе с этого экрана их больше нельзя будет посмотреть.'))return;
+      if(issued && !await question('confirm','Коды сохранены? При выходе с этого экрана их больше нельзя будет посмотреть.'))return;
       issued=null;mode=id;draw();
     }
     function finish(user){ screen.close();screen.remove();onLogin(user) }
@@ -273,5 +308,5 @@
     }
     draw();screen.showModal();schedule();
   }
-  window.RC={el,button,link,field,api,date,duration,mount,codesPanel};
+  window.RC={el,button,question,link,field,api,date,duration,mount,codesPanel};
 })();

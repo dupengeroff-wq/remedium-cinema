@@ -6,6 +6,18 @@
   const toggle=document.getElementById('cinemaMenuToggle');
   const scrim=document.getElementById('cinemaMenuScrim');
   const onCinema=document.body.classList.contains('cinema-page');
+
+  // Mobile keyboards can resize the visual viewport without changing 100dvh.
+  const viewport=window.visualViewport;
+  if(viewport){
+    const resize=()=>{
+      const style=document.documentElement.style;
+      if(viewport.scale===1)style.setProperty('--cinema-visible-height',viewport.height+'px');
+      else style.removeProperty('--cinema-visible-height');
+    };
+    viewport.addEventListener('resize',resize,{passive:true});
+    resize();
+  }
   const entries=[
     {label:'Главная',href:'/',icon:'home',id:'cinemaLandingLink'},
     {label:'Мой профиль',href:'/profile',icon:'profile'},
@@ -112,14 +124,58 @@
   const presence=el('span',null,'connection-state');
   identity.append(nickname,login,presence);
   account.append(avatar,identity);
-  menu.prepend(account);
+  const head=menu.querySelector('.cinema-menu-head');
+  const close=el('button','×','cinema-tool-close cinema-menu-close');
+  close.type='button';
+  close.setAttribute('aria-label','Закрыть меню');
+  close.onclick=()=>setOpen(false,true);
+  head.append(close);
+  const scrollArea=el('div',null,'cinema-menu-scroll');
+  scrollArea.append(account,head,menu.querySelector('nav'));
+  menu.append(scrollArea);
 
   const wide=window.matchMedia('(min-width:1100px)');
+  const preferenceKey='remediumAppearance';
+  let accountId=null;
   let ownTheme=null;
+  let revision=0;
+
+  function lastTheme() {
+    try {return localStorage.getItem(preferenceKey)} catch {return null}
+  }
+
+  function paintTheme(theme) {
+    const root=document.documentElement;
+    if(theme==='zero-two')root.dataset.siteTheme=theme;
+    else delete root.dataset.siteTheme;
+  }
+  paintTheme(lastTheme());
+
+  function applyAccountTheme(theme) {
+    ownTheme=theme;
+    paintTheme(theme);
+    try {if(theme && lastTheme()!==theme)localStorage.setItem(preferenceKey,theme)} catch {}
+    updateMenuTheme();
+  }
+
+  async function refreshAppearance() {
+    if(!accountId){paintTheme(lastTheme());return}
+    const request=++revision;
+    try {
+      const {user}=await api('/api/auth/me');
+      if(request!==revision || !user || user.id!==accountId || user.theme===ownTheme)return;
+      applyAccountTheme(user.theme);
+      window.dispatchEvent(new CustomEvent('cinema-appearance',{detail:user.theme}));
+    } catch { /* Keep the current palette while disconnected. */ }
+  }
+  window.addEventListener('storage',event=>{
+    if(event.key===preferenceKey)refreshAppearance();
+  });
+  window.addEventListener('pageshow',event=>{if(event.persisted)refreshAppearance()});
   let pageTheme=null;
   function updateMenuTheme() {
-    menu.dataset.theme=pageTheme||ownTheme||'';
-    const pinned=pageTheme==='zero-two' && wide.matches && !menu.hidden;
+    menu.dataset.theme=ownTheme||pageTheme||'';
+    const pinned=menu.dataset.theme==='zero-two' && pageTheme==='zero-two' && wide.matches && !menu.hidden;
     if(pinned===menu.classList.contains('is-pinned')) return;
     menu.classList.toggle('is-pinned',pinned);
     document.body.classList.toggle('cinema-menu-pinned',pinned);
@@ -133,8 +189,10 @@
   }
 
   function setUser(user) {
-    ownTheme=user?.theme||null;
-    updateMenuTheme();
+    revision++;
+    accountId=user?.id||null;
+    if(user)applyAccountTheme(user.theme);
+    else {ownTheme=null;paintTheme(lastTheme());updateMenuTheme()}
     account.hidden=!user;
     const name=user?.nickname||'';
     nickname.textContent=name;
@@ -165,7 +223,7 @@
     }
     row.title=entry.label;
     row.append(icon(entry.icon),el('span',entry.label,'cinema-nav-label'));
-    const showsFilmCount=entry.icon==='films'&&onCinema;
+    const showsFilmCount=entry.panel==='watchlist'&&onCinema;
     if(entry.badge||showsFilmCount) {
       const count=el('span',null,showsFilmCount?'cinema-nav-count':'unread');
       count.id=entry.badge||'watchCount';
@@ -185,7 +243,7 @@
   logoutError.setAttribute('role','alert');
   logoutError.hidden=true;
   logoutGroup.append(logout,logoutError);
-  menu.append(logoutGroup);
+  scrollArea.append(logoutGroup);
   logout.onclick=async()=>{
     logout.disabled=true;
     logoutError.hidden=true;
@@ -218,6 +276,7 @@
   function isOpen() { return menu.classList.contains('is-open'); }
   function setOpen(open,restoreFocus=false) {
     menu.classList.toggle('is-open',open);
+    document.documentElement.classList.toggle('cinema-menu-open',open);
     document.body.classList.toggle('cinema-menu-open',open);
     menu.inert=!open && !menu.classList.contains('is-pinned');
     toggle.setAttribute('aria-expanded',String(open));
@@ -227,7 +286,7 @@
     if(open) {
       menu.setAttribute('role','dialog');
       menu.setAttribute('aria-modal','true');
-      menu.focus({preventScroll:true});
+      close.focus({preventScroll:true});
     } else {
       menu.removeAttribute('role');
       menu.removeAttribute('aria-modal');
@@ -301,6 +360,9 @@
     const refresh=()=>{if(observedSocket===socket) refreshUnread()};
     socket.on('connect',updatePresence);
     socket.on('disconnect',updatePresence);
+    const syncTheme=()=>{if(observedSocket===socket)refreshAppearance()};
+    socket.on('connect',syncTheme);
+    socket.on('appearance-changed',syncTheme);
     socket.on('connect',refresh);
     socket.on('direct-update',refresh);
     socket.on('direct-unread',refresh);
