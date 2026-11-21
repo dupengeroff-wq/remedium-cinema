@@ -30,27 +30,18 @@ body.social-page.profile-page[data-profile-theme="zero-two"] {
   background: radial-gradient(circle at 21% 16%,#ffd6e9 0 .6px,transparent 1.5px) 0 0/173px 181px,
     radial-gradient(circle at 70% 63%,#c784a5 0 .6px,transparent 1.6px) 0 0/137px 233px;
 }
-.profile-page[data-profile-theme="zero-two"]::after {
-  inset:auto -1% 0;width:auto;height:clamp(55px,8vh,94px);aspect-ratio:auto;border-radius:0;
-  background:url('./zero-two-water.webp') center bottom/100% 100% no-repeat;box-shadow:none;
-  -webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%);
-}
+.profile-page[data-profile-theme="zero-two"]::after {content:none}
 [data-profile-theme="zero-two"] .social-top {
   max-width:none;border:0;min-height:62px;background:transparent;position:relative;z-index:1;
 }
 [data-profile-theme="zero-two"] .social-brand {font-size:clamp(13px,1.65vw,23px);letter-spacing:.13em}
-[data-profile-theme="zero-two"] .social-main {max-width:1580px;padding-top:0;padding-bottom:max(72px,env(safe-area-inset-bottom))}
+[data-profile-theme="zero-two"] .social-main {max-width:1580px;padding-top:0;padding-bottom:max(16px,env(safe-area-inset-bottom))}
 [data-profile-theme="zero-two"] .profile-view {max-width:none}
-body[data-profile-theme="zero-two"] .profile-view::before {
-  content:"";position:fixed;z-index:-1;inset:0 0 auto;height:clamp(270px,42vh,510px);
-  background:url('./zero-two-sky.webp') right top / auto 100% no-repeat;
-  opacity:.98;mask-image:linear-gradient(#000 86%,transparent);pointer-events:none;
-}
 body[data-profile-theme="zero-two"] .profile-view::after {
   content:"";position:fixed;z-index:-1;pointer-events:none;inset:0;
   background:url('./zero-two-branch.webp') left top / clamp(150px,21vw,350px) auto no-repeat;
 }
-body[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
+body.social-page[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
   position:relative;max-width:none;padding:clamp(10px,1.55vw,24px) 0 16px;margin:0;border:0;box-shadow:none;background:none;
 }
 [data-profile-theme="zero-two"] .profile-hero {align-items:center;gap:clamp(12px,2vw,30px)}
@@ -62,8 +53,8 @@ body[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
 [data-profile-theme="zero-two"] .profile-details .profile-crown {color:#ff90ba}
 body[data-profile-theme="zero-two"] .profile-view .profile-card-bow {display:none}
 [data-profile-theme="zero-two"] .profile-tools {right:0;top:4px;gap:4px}
-body[data-profile-theme="zero-two"] .profile-tools .profile-edit {
-  color:white;border:1px solid #e85b9399;border-radius:9px;background:#14050fc9;filter:none;
+body.social-page.profile-page[data-profile-theme="zero-two"] .profile-tools .profile-edit {
+  width:44px;height:44px;color:#ffe0ef;border:1px solid #ef70a3;border-radius:11px;background:#190a17df;box-shadow:inset 0 0 8px #fa448229,0 0 8px #fd428434;filter:none;
 }
 [data-profile-theme="zero-two"] .profile-view .profile-actions {width:fit-content;max-width:100%;grid-template-columns:auto auto}
 body[data-profile-theme="zero-two"] .profile-actions .btn,body[data-profile-theme="zero-two"] .profile-actions .btn.primary {
@@ -135,7 +126,7 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
   [data-profile-theme="zero-two"] .profile-hero {display:contents}
   [data-profile-theme="zero-two"] .profile-avatar-frame {grid-column:1;grid-row:1/span 2;align-self:center}
   [data-profile-theme="zero-two"] .profile-details {grid-column:2;grid-row:1;align-self:end}
-  [data-profile-theme="zero-two"] .profile-view .profile-actions {grid-column:2;grid-row:2;align-self:start;position:relative;margin-top:12px}
+  [data-profile-theme="zero-two"] .profile-view .profile-actions {grid-column:1/-1;grid-row:3;align-self:start;position:relative;margin-top:12px}
   [data-profile-theme="zero-two"] .preview-return {grid-column:2}
 }
 @media(min-width:1100px){
@@ -145,18 +136,15 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
   .cinema-menu-pinned #cinemaContent {margin-inline-start:calc(var(--zero-rail) + 26px);margin-inline-end:clamp(9px,2.5vw,50px)}
 }
 @media(max-width:719px){
-  body[data-profile-theme="zero-two"] .profile-view::before {height:220px;background-position:right -60px top;opacity:.57}
   [data-profile-theme="zero-two"] .profile-actions {margin:12px auto 0}
   [data-profile-theme="zero-two"] .profile-view .profile-section {padding:13px}
   [data-profile-theme="zero-two"] .profile-view .profile-details {padding-inline-end:38px}
 }
 @media(prefers-reduced-motion:no-preference){
   .profile-page[data-profile-theme="zero-two"]::before {animation:zero-stars 9s ease-in-out infinite alternate}
-  .profile-page[data-profile-theme="zero-two"]::after {animation:zero-ripple 7s ease-in-out infinite alternate}
   [data-profile-theme="zero-two"] .profile-section::before {animation:zero-edge 8s ease-in-out infinite alternate}
 }
 @keyframes zero-stars {to{opacity:.52}}
-@keyframes zero-ripple {to{transform:translateX(.7%) scaleX(1.012)}}
 @keyframes zero-edge {to{opacity:.74}}
 @media(prefers-reduced-motion:reduce){
   .cinema-menu[data-theme="zero-two"] .cinema-nav-row {transition:none}
@@ -193,9 +181,7 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
     background:url('./zero-two-insignia.webp') center/contain no-repeat;pointer-events:none;
   }
 }
-body.social-page.profile-page[data-profile-theme="zero-two"] {
-  background:radial-gradient(ellipse at 72% 28%,#210817,transparent 45%),#090409;
-}
+
 [data-profile-theme="zero-two"] .zero-portrait {
   mask-image:linear-gradient(to right,transparent,#000 8% 92%,transparent),linear-gradient(to bottom,transparent,#000 7% 94%,transparent);
   mask-composite:intersect;
@@ -216,139 +202,7 @@ body.social-page.profile-page[data-profile-theme="zero-two"] {
   clip-path:polygon(evenodd,0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px,1px 12.5px,1px calc(100% - 12.5px),12.5px calc(100% - 1px),calc(100% - 12.5px) calc(100% - 1px),calc(100% - 1px) calc(100% - 12.5px),calc(100% - 1px) 12.5px,calc(100% - 12.5px) 1px,12.5px 1px,1px 12.5px);
 }
 
-/* The root is set from the signed-in account. Dialogs in the browser top layer
-   and panels mounted directly in body inherit the same controls and surfaces. */
-html[data-site-theme="zero-two"] {
-  color-scheme:dark;--bg:#0c050b;--accent:#ff91bb;--pink:var(--zero-line);--cyan:#ffd5e8;
-  --surface:#200d19;--surface2:#2d1021;--border:var(--zero-border);
-  --text:var(--zero-ink);--muted:var(--zero-muted);accent-color:var(--zero-line);
-}
-html[data-site-theme="zero-two"] body {
-  --glass-line:var(--zero-border);--glass-muted:var(--zero-muted);--glass-surface:var(--zero-panel);
-}
-html[data-site-theme="zero-two"] body:is(.cinema-page,.social-page:not(.profile-page)) {
-  background:url('./zero-two-water.webp') center bottom / 100% clamp(16px,4vh,48px) no-repeat,
-    linear-gradient(180deg,#1106118c,#100610ed 35rem,#0b050be8),
-    url('./zero-two-sky.webp') top right / auto clamp(240px,40vh,480px) no-repeat,
-    var(--bg)!important;color:var(--zero-ink);
-}
-html[data-site-theme="zero-two"] :is(.social-top,.cinema-header,.direct-head,.cinema-tool-head,.settings-section,.settings-form,.privacy-row,.chathead,.chatinput,.direct-compose,.dialog-row) {
-  border-color:color-mix(in srgb,var(--zero-line) 32%,transparent);
-}
-html[data-site-theme="zero-two"] :is(.social-dialog,.cinema-tool,#finishMovieDialog,.picker,.room-reactions,.toast,.site-question,.auth-panel,.auth-about,.auth-menu),
-html[data-site-theme="zero-two"] #entry .modal,
-html[data-site-theme="zero-two"] #watchlist.cinema-tool {
-  color:var(--zero-ink);border-color:var(--zero-border)!important;background:var(--zero-panel)!important;
-  box-shadow:var(--zero-glow),0 16px 45px #0008!important;
-}
-html[data-site-theme="zero-two"] :is(.cinema-tool,.social-dialog,.site-question,.friends-panel,.dialogs-layout,.auth-panel) {
-  background-image:
-    linear-gradient(135deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
-    linear-gradient(225deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
-    linear-gradient(315deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
-    linear-gradient(45deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
-    var(--zero-panel)!important;
-  clip-path:polygon(0 9px,9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px));border-radius:0;
-}
-html[data-site-theme="zero-two"] :is(.social-dialog,.cinema-tool,.site-question,.auth-about)::backdrop {
-  background:#12050ed4;
-}
-html[data-site-theme="zero-two"] :is(.person-row,.history-row,.feature-entry,.roulette-stage,.direct-bubble,.auth-input,.auth-code-box pre,#watchlist.cinema-tool .watch-item) {
-  color:var(--zero-ink);background:var(--zero-field)!important;border-color:var(--zero-border)!important;
-}
-html[data-site-theme="zero-two"] .direct-bubble.mine,
-html[data-site-theme="zero-two"] .dialog-row[aria-current="page"] {
-  background:#43152e!important;border-color:#d06491;
-}
-html[data-site-theme="zero-two"] :is(.direct-meta,.feature-note,.watch-note,.form-status,.account-field,.auth-panel p,.auth-guide dd,.muted) {color:var(--zero-muted)}
-html[data-site-theme="zero-two"] :is(.form-status:not(:empty),[role="alert"],#finishMovieStatus:not(:empty)) {color:#ffd7b3}
-html[data-site-theme="zero-two"] :is(.unread,.cinema-nav-count:not(:empty)) {background:#8b2453;color:#fff2f9}
-html[data-site-theme="zero-two"] :is(.accent,.eyebrow,.social-back,.profile-crown,#roleCrown,.auth-icon,.auth-panel small,.star-point) {color:#ffa6c9}
-html[data-site-theme="zero-two"] :is(.field,select,.profile-settings .field,#watchlist .watch-actions select) {
-  color:var(--zero-ink)!important;border-color:var(--zero-border)!important;background:var(--zero-field)!important;
-}
-html[data-site-theme="zero-two"] select option {background:#210b19;color:var(--zero-ink)}
-html[data-site-theme="zero-two"] :is(.field,.auth-input input)::placeholder {color:var(--zero-muted)}
-html[data-site-theme="zero-two"] :is(.btn:not(.profile-edit),.iconbtn,.cinema-tool-close,.cinema-menu-toggle,.choice,.my-badge,.picker-close,.sound-prompt,#watchlist .watch-actions button) {
-  color:var(--zero-ink)!important;border-color:var(--zero-border)!important;background:var(--zero-button)!important;
-}
-html[data-site-theme="zero-two"] :is(.btn.primary,#load,#send,.auth-submit,.auth-tabs .btn[aria-pressed="true"],.room-reactions .btn[aria-pressed="true"],.choice.active),
-html[data-site-theme="zero-two"] #playerShell .controls #play[aria-pressed="true"] {
-  background:var(--zero-active)!important;border-color:var(--zero-line)!important;color:#fff!important;box-shadow:var(--zero-glow)!important;
-}
-html[data-site-theme="zero-two"] .auth-universe .auth-input .btn,
-html[data-site-theme="zero-two"] .auth-universe .auth-menu .btn {background:transparent!important}
-html[data-site-theme="zero-two"] :is(.btn:not(:disabled),.iconbtn:not(:disabled),.dialog-row):hover {
-  border-color:#ff94c1!important;
-}
-html[data-site-theme="zero-two"] :focus-visible {outline-color:#ffb1d0}
-html[data-site-theme="zero-two"] .auth-input:focus-within,
-html[data-site-theme="zero-two"] .field:focus-visible {border-color:var(--zero-line)!important}
-html[data-site-theme="zero-two"] .profile-settings .privacy-row input:checked {background:#8c3059;border-color:#ff9dc4}
-html[data-site-theme="zero-two"] :is(.direct-room,#cinemaChat)::before,
-html[data-site-theme="zero-two"] .auth-sky {filter:sepia(.75) saturate(2.6) hue-rotate(282deg)}
-html[data-site-theme="zero-two"] #cinemaChat:not([hidden]),
-html[data-site-theme="zero-two"] #playerShell:not(.is-fullscreen) {
-  border-color:var(--zero-border)!important;background:var(--zero-panel)!important;box-shadow:var(--zero-glow)!important;
-}
-html[data-site-theme="zero-two"] #cinemaChat :is(.chathead,.chatinput),
-html[data-site-theme="zero-two"] :is(#playerShell:not(.is-fullscreen) .controls,.movieform) {
-  background:#200b18e8!important;border-color:var(--zero-border);
-}
-html[data-site-theme="zero-two"] #cinemaChat :is(.bubble,.chatinput .field) {
-  background:var(--zero-field)!important;border-color:var(--zero-border)!important;
-}
-html[data-site-theme="zero-two"] #cinemaChat .msg.mine .bubble {background:#40172e!important}
-html[data-site-theme="zero-two"] #cinemaChat #send {background:var(--zero-active)!important;border-color:var(--zero-line)!important}
-html[data-site-theme="zero-two"] #playerShell .controls .iconbtn {background:var(--zero-button)!important;border-color:var(--zero-border)!important}
-html[data-site-theme="zero-two"] #playerShell .controls .seek {accent-color:var(--zero-line)!important}
-html[data-site-theme="zero-two"] .roulette-card-winner {border-color:var(--zero-line)!important;box-shadow:0 0 16px #ff4886!important}
-html[data-site-theme="zero-two"] .site-question {
-  box-sizing:border-box;width:min(26rem,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:auto;
-  padding:18px;border:1px solid var(--zero-border);font:16px/1.45 system-ui,sans-serif;
-}
-.site-question form{display:grid;gap:14px}
-.site-question p{margin:0;overflow-wrap:anywhere}
-.site-question .field{width:100%;min-width:0;box-sizing:border-box;padding:10px;font:inherit;border:1px solid}
-.site-question .question-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
-.site-question .btn{min-height:44px;border:1px solid;padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
-@media(max-width:719px) {
-  html[data-site-theme="zero-two"] :is(input.field,textarea.field,select.field){font-size:16px}
-  [data-profile-theme="zero-two"] .own-profile-card .profile-details{padding-inline-end:44px}
-}
-@media(max-width:359px) {
-  [data-profile-theme="zero-two"] .own-profile-card .profile-hero {display:grid;grid-template-columns:auto 1fr;gap:8px}
-  [data-profile-theme="zero-two"] .own-profile-card .profile-details {grid-column:1/-1;padding:0}
-}
-
-html[data-site-theme="zero-two"] .auth-universe[open] {height:var(--cinema-visible-height,100dvh)}
-html[data-site-theme="zero-two"] :is(.cinema-tool,.social-dialog,.site-question,.auth-about,#finishMovieDialog) {
-  max-height:calc(var(--cinema-visible-height,100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-}
 [data-profile-theme="zero-two"] .profile-avatar-frame > .social-avatar.large {
   width:100%;height:100%;border-color:var(--zero-border);
 }
 [data-profile-theme="zero-two"] .profile-avatar-frame > .social-avatar.large img {object-fit:contain}
-
-html[data-site-theme="zero-two"] :is(.twin-stars,.roulette-card,.chip,.choice,.feature-entry,.history-poster,.wish-visual,.reaction) {border-color:var(--zero-border)}
-html[data-site-theme="zero-two"] :is(.twin-stars,.chip,.wish-visual) {background:var(--zero-field)!important}
-html[data-site-theme="zero-two"] .watch-actions :is(select,button):focus-visible {outline-color:var(--zero-line)}
-
-/* Keep the shared profile-card/button layout in Zero Two; only colors are theme-specific. */
-body[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child:not(.own-profile-card) {
-  border:2px solid #ff82b2!important;border-radius:clamp(18px,3vw,32px)!important;
-  padding:clamp(14px,3vw,26px)!important;
-  background:linear-gradient(150deg,#210915ed,#11050de8 65%,#260a1aeb)!important;
-  box-shadow:0 0 18px #ff458252,inset 0 0 20px #f64c8620!important;
-}
-body[data-profile-theme="zero-two"] .profile-view .profile-actions {
-  width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
-}
-html[data-site-theme="zero-two"] body[data-profile-theme="zero-two"] .profile-actions .btn.primary {
-  color:#210914!important;background:linear-gradient(165deg,#fff2f8,#ffafd1 55%,#f26ba4)!important;
-  border:1px solid #ff9dc4!important;box-shadow:0 0 18px #ff458252!important;
-}
-html[data-site-theme="zero-two"] body[data-profile-theme="zero-two"] .profile-actions .profile-friend-status {
-  color:#fff2f8!important;background:linear-gradient(165deg,#481329,#1b0814 60%,#51152d)!important;
-  border:1px solid #ff6ba5!important;box-shadow:inset 0 0 13px #ff4b8d32,0 0 10px #ff458230!important;
-}
