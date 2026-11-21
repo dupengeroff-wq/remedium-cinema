@@ -46,12 +46,11 @@
   background:#eee;box-shadow:0 0 7px #fffb
 }
 .cinema-menu-scrim{position:fixed;z-index:30;inset:0;border:0;border-radius:0;background:#0002;cursor:default}
-/* The drawer owns the visible viewport. Only its content scrolls. */
+/* Leave a tappable strip of the page beside the drawer. */
 .cinema-menu:not(.is-pinned){
-  inset:0 auto auto 0;inline-size:min(100%,26rem);
+  inset:0 auto auto 0;inline-size:min(26rem,max(14rem,60%),calc(100% - 44px));
   block-size:100vh;block-size:min(100dvh,var(--cinema-visible-height,100dvh));max-inline-size:100%;box-sizing:border-box;
 }
-@media(max-width:600px){.cinema-menu:not(.is-pinned){inline-size:100%}}
 .cinema-menu nav{
   flex:1 1 auto;min-height:44px;overflow-y:auto;overscroll-behavior:contain;
   scrollbar-width:thin;
