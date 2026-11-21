@@ -583,3 +583,32 @@ button.profile-history-tile:focus-visible{outline:2px solid #fff;outline-offset:
 .movie-invite-friend strong,.movie-invite-friend small{display:block}
 .movie-invite-friend small{color:#bbb}
 .movie-invite-friend .btn{min-height:44px}
+
+/* Universal profile header actions: layout shared by every profile theme. */
+.social-page .profile-view > .profile-card:first-child:not(.own-profile-card) {
+  position:relative;box-sizing:border-box;overflow:visible;
+  border:1px solid var(--profile-accent, var(--kitty-soft-line, #ffffff62));
+  border-radius:clamp(18px,3vw,32px);
+  padding:clamp(14px,3vw,26px);
+}
+.social-page .profile-view > .profile-card:first-child:not(.own-profile-card) .profile-actions {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:clamp(8px,1.5vw,16px);width:100%;max-width:none;
+  margin-top:clamp(16px,2.5vw,28px);
+}
+.social-page .profile-view > .profile-card:first-child:not(.own-profile-card) .profile-actions.single {grid-template-columns:minmax(0,1fr)}
+.social-page .profile-view .profile-actions .btn {
+  display:flex;align-items:center;justify-content:center;gap:clamp(7px,1.3vw,14px);
+  width:100%;min-width:0;min-height:clamp(48px,6vw,68px);
+  padding:10px 12px;border-radius:clamp(12px,1.8vw,22px);
+  font-size:clamp(13px,1.65vw,20px);font-weight:650;line-height:1.2;
+  text-align:center;white-space:normal;overflow-wrap:normal;
+}
+.social-page .profile-view .profile-actions .social-icon {width:clamp(18px,2.4vw,28px);height:clamp(18px,2.4vw,28px);flex-shrink:0}
+.social-page .profile-view .profile-actions .profile-friend-status {
+  background:linear-gradient(155deg,transparent,rgb(255 255 255 / .055));
+  border:1px solid currentColor;box-shadow:inset 0 0 14px rgb(255 255 255 / .04);
+}
+@media(max-width:420px) {
+ .social-page .profile-view .profile-actions .btn {font-size:clamp(12px,3.5vw,15px);padding-inline:6px;gap:6px}
+}
