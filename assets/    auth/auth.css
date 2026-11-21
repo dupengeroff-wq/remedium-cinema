@@ -13,7 +13,7 @@ html:has(.auth-universe[open]){overflow:hidden}
 .auth-moon{width:clamp(280px,35vw,670px);aspect-ratio:1;top:7%;right:11%;
  background:url('./moon.webp') center/contain no-repeat;mix-blend-mode:screen}
 .auth-clouds{inset:auto -3% 13%;height:min(40vh,410px);background:url('./clouds.webp') bottom/100% 100% no-repeat;
- mix-blend-mode:screen;animation:auth-drift 70s ease-in-out infinite alternate}
+ mix-blend-mode:screen;animation:auth-drift 45s ease-in-out infinite alternate}
 .auth-water{inset:auto -1% 0;height:15.2%;background:url('./water.webp') center/100% 100% no-repeat;
  animation:auth-ripple 11s ease-in-out infinite alternate;transform-origin:70% top}
 .auth-stars{inset:0 0 16%;background-repeat:repeat;animation:auth-twinkle 8s ease-in-out infinite alternate}
@@ -28,7 +28,19 @@ html:has(.auth-universe[open]){overflow:hidden}
 .auth-stars.three{background-image:radial-gradient(ellipse at 74% 37%,#fff 0 1px,#fff5 1.5px,transparent 4px);background-size:591px 379px;animation-duration:17s;animation-delay:-10s}
 .auth-meteor{width:70px;height:1px;background:linear-gradient(90deg,white,#fff0);opacity:0}
 @keyframes auth-twinkle{0%{opacity:.3}42%{opacity:.68}72%{opacity:.45}100%{opacity:.85}}
-@keyframes auth-drift{to{transform:translateX(2.1%)}}
+@keyframes auth-drift{to{transform:translateX(2.8%)}}
+@media(prefers-reduced-motion:no-preference){
+ .auth-water::before,.auth-water::after{
+   content:"";position:absolute;inset:0;background:inherit;
+   mask-image:repeating-linear-gradient(0deg,transparent 0 3px,#000 5px,transparent 8px);
+   animation:auth-reflection 6s ease-in-out infinite alternate;
+ }
+ .auth-water::after{
+   mask-image:linear-gradient(transparent 40%,#000b);
+   animation:auth-reflection 8s -4s ease-in-out infinite alternate-reverse;
+ }
+}
+@keyframes auth-reflection{from{transform:translateX(-5px) scaleX(1.04)}to{transform:translateX(5px) scaleX(1.04)}}
 @keyframes auth-ripple{to{transform:scaleY(1.035) translateX(.45%);filter:brightness(.86)}}
 .auth-top{position:relative;display:flex;align-items:center;justify-content:space-between;z-index:2;
  padding:max(12px,env(safe-area-inset-top)) max(18px,3.5vw,env(safe-area-inset-right)) 8px max(18px,3.5vw,env(safe-area-inset-left))}
