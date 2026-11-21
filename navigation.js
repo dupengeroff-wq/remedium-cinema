@@ -189,7 +189,11 @@
     if(user?.avatar){
       const image=el('img');
       image.alt='';
-      image.src=user.avatar;
+      try {
+        const photo=new URL(user.avatar,location.origin);
+        photo.searchParams.set('v',String(Date.now()));
+        image.src=photo.href;
+      } catch { image.src=user.avatar; }
       image.onerror=()=>{if(avatar.contains(image))avatar.textContent=initial};
       avatar.replaceChildren(image);
     }

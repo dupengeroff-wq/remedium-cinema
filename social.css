@@ -612,3 +612,10 @@ button.profile-history-tile:focus-visible{outline:2px solid #fff;outline-offset:
 @media(max-width:420px) {
  .social-page .profile-view .profile-actions .btn {font-size:clamp(12px,3.5vw,15px);padding-inline:6px;gap:6px}
 }
+
+
+/* Calm connection state instead of exposing raw Fetch/Abort errors. */
+#entryStatus.is-loading{display:flex;align-items:center;justify-content:center;gap:9px;min-height:28px}
+#entryStatus.is-loading::before{content:"";width:15px;height:15px;flex:none;border:2px solid #ff8bb8;border-right-color:transparent;border-radius:50%;animation:entry-spin .8s linear infinite}
+@keyframes entry-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#entryStatus.is-loading::before{animation:none;border-right-color:#ff8bb8}}

@@ -67,7 +67,15 @@
       headers.set('Content-Type','application/json');
       body=JSON.stringify(body);
     }
-    const response=await fetch(url,{...options,body,headers,credentials:'same-origin',cache:'no-store',signal:options.signal||AbortSignal.timeout(16000)});
+    let response;
+    try {
+      response=await fetch(url,{...options,body,headers,credentials:'same-origin',cache:'no-store',signal:options.signal||AbortSignal.timeout(16000)});
+    } catch(error) {
+      if(error?.name==='AbortError'||error?.name==='TimeoutError'||/fetch.*abort|aborted|failed to fetch/i.test(error?.message||'')) {
+        throw new Error('Не удалось связаться с сервером. Проверь подключение и попробуй ещё раз.');
+      }
+      throw error;
+    }
     const data=await response.json().catch(()=>({}));
     if(!response.ok) {
       const error=new Error(data.error||'Сервер не ответил. Попробуй снова.');

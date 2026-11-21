@@ -268,6 +268,7 @@ function showAccountForm() {
   CinemaNav.clearUnread();
   CinemaNav.setRoom(null);
   $('entryStatus').textContent='';
+  $('entryStatus').classList.remove('is-loading');
   RC.mount($('accountEntry'),openAccount);
 }
 function openAccount(user) {
@@ -276,17 +277,22 @@ function openAccount(user) {
   $('accountEntry').replaceChildren();
   CinemaNav.show(true);
   $('entryStatus').textContent='Подключаемся…';
+  $('entryStatus').classList.remove('is-loading');
   if(socket.connected) enterRoom();
   else socket.connect();
 }
 async function initAccount() {
+  const status=$('entryStatus');
+  status.textContent='Подключаемся к серверу…';
+  status.classList.add('is-loading');
   try {
     const {user}=await RC.api('/api/auth/me');
     if(user) openAccount(user);
     else showAccountForm();
   } catch (error) {
-    $('entryStatus').textContent=error.message;
-    $('entryStatus').append(RC.button('Повторить',initAccount));
+    status.classList.remove('is-loading');
+    status.textContent=error.message;
+    status.append(RC.button('Повторить',initAccount));
   }
 }
 

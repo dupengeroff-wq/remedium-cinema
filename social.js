@@ -143,7 +143,11 @@
     if(person.avatar) {
       const image=el('img');
       image.alt='';
-      image.src=person.avatar;
+      try {
+        const photo=new URL(person.avatar,location.origin);
+        photo.searchParams.set('v',String(Date.now()));
+        image.src=photo.href;
+      } catch { image.src=person.avatar; }
       image.onerror=()=>{node.replaceChildren(document.createTextNode(person.nickname.slice(0,1).toUpperCase()||'✦'))};
       node.append(image);
     } else node.textContent=person.nickname.slice(0,1).toUpperCase()||'✦';
@@ -228,7 +232,13 @@
   }
 
   function fillProfileAvatar(frame,person,theme) {
+    frame.classList.remove('zero-two-custom-avatar');
     if(theme!=='zero-two'){frame.replaceChildren(avatar(person,true));return}
+    if(person.avatar) {
+      frame.classList.add('zero-two-custom-avatar');
+      frame.replaceChildren(avatar(person,true));
+      return;
+    }
     const image=el('img',null,'zero-portrait');
     image.src='/assets/profile-themes/zero-two-portrait.webp';
     image.alt='Zero Two в неоновой рамке 002';
