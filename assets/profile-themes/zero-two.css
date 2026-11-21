@@ -40,13 +40,14 @@ body.social-page.profile-page[data-profile-theme="zero-two"] {
 [data-profile-theme="zero-two"] .profile-view {max-width:none}
 body[data-profile-theme="zero-two"] .profile-view::after {
   content:"";position:fixed;z-index:-1;pointer-events:none;inset:0;
-  background:url('./zero-two-branch.webp') left top / clamp(150px,21vw,350px) auto no-repeat;
+  background:url('./zero-two-branch.webp') right top / clamp(150px,21vw,350px) auto no-repeat;
 }
 body.social-page[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
   position:relative;box-sizing:border-box;max-width:none;margin:0;
   padding:clamp(12px,2.2vw,24px);
   border:1px solid #ff619b!important;border-radius:clamp(22px,3vw,32px);
-  background:linear-gradient(145deg,#210b18ed,#0b050beF 68%,#1a0915ed)!important;
+  background:linear-gradient(145deg,rgba(33,11,24,.48),rgba(11,5,11,.30) 68%,rgba(26,9,21,.42))!important;
+  -webkit-backdrop-filter:blur(7px) saturate(1.08);backdrop-filter:blur(7px) saturate(1.08);
   box-shadow:0 0 18px #fa34764a,inset 0 0 16px #ef327b20!important;
   overflow:visible;
 }
@@ -194,8 +195,7 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
 }
 
 [data-profile-theme="zero-two"] .zero-portrait {
-  mask-image:linear-gradient(to right,transparent,#000 8% 92%,transparent),linear-gradient(to bottom,transparent,#000 7% 94%,transparent);
-  mask-composite:intersect;
+  -webkit-mask-image:none!important;mask-image:none!important;
 }
 [data-profile-theme="zero-two"] .profile-section h2 {display:flex;align-items:center;gap:9px}
 @media(min-width:720px){

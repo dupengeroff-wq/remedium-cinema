@@ -33,7 +33,18 @@ html[data-site-theme] body {
 }
 html[data-site-theme] body:is(.cinema-page,.social-page:not(.profile-page)),
 html[data-site-theme="zero-two"] body.social-page.profile-page {
-  background:linear-gradient(180deg,transparent,var(--bg) 100%) top / 100% clamp(240px,46vh,550px) no-repeat,var(--theme-art) right top / auto clamp(240px,46vh,550px) no-repeat,var(--bg)!important;color:var(--theme-ink);
+  background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--bg) 16%,transparent) 55%,var(--bg) 100%) top / 100% clamp(240px,46vh,550px) no-repeat,var(--theme-art) right top / auto clamp(240px,46vh,550px) no-repeat,var(--bg)!important;color:var(--theme-ink);
+}
+/* On a tall phone, fit the complete Zero Two artwork to the viewport width.
+   This keeps the moon/sakura on the left and Zero Two on the right even
+   during the initial "Загружаем…" state before the profile is rendered. */
+@media (max-aspect-ratio: 1/1) {
+  html[data-site-theme="zero-two"] body.social-page {
+    background-image:linear-gradient(180deg,transparent 0%,rgba(8,4,9,.10) 42%,#080409 100%),var(--theme-art),none!important;
+    background-position:center top,center top,left top!important;
+    background-size:100% auto,100% auto,100% 100%!important;
+    background-repeat:no-repeat!important;
+  }
 }
 html[data-site-theme] :is(.social-top,.cinema-header,.direct-head,.cinema-tool-head,.settings-section,.settings-form,.privacy-row,.chathead,.chatinput,.direct-compose,.dialog-row) {
   border-color:color-mix(in srgb,var(--theme-line) 32%,transparent);
