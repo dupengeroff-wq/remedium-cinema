@@ -1,6 +1,5 @@
-/* The profile follows its owner's palette. Only the drawer follows the signed-in
-   viewer on cinema and social routes. All illustration layers are non-interactive. */
-[data-profile-theme="zero-two"], .profile-theme-card[data-theme="zero-two"], .cinema-menu[data-theme="zero-two"] {
+/* Shared palette for the account, with local previews in the theme picker. */
+html[data-site-theme="zero-two"], [data-profile-theme="zero-two"], .profile-theme-card[data-theme="zero-two"], .cinema-menu[data-theme="zero-two"] {
   --profile-accent-rgb: 255 78 146;
   --profile-accent-light-rgb: 255 205 229;
   --profile-theme-base: #080409;
@@ -8,6 +7,13 @@
   --profile-theme-mark: "Ⅲ";
   --zero-line: #ff619b;
   --zero-ink: #fff0f6;
+  --zero-border: #a54c72;
+  --zero-field: #1c0b16;
+  --zero-panel: linear-gradient(145deg,#260d1d,#100810 68%,#210b19);
+  --zero-button: linear-gradient(155deg,#42162d,#1b0b16 72%);
+  --zero-active: linear-gradient(125deg,#742243,#47132f);
+  --zero-glow: inset 0 1px 0 #ffbdd521,0 0 12px #cf2a6e25;
+  --zero-avatar-size: clamp(132px,38vw,184px);
   --zero-muted: #ddbac9;
   --zero-cut: 14px;
   --zero-outline: polygon(0 var(--zero-cut),var(--zero-cut) 0,calc(100% - var(--zero-cut)) 0,100% var(--zero-cut),100% calc(100% - var(--zero-cut)),calc(100% - var(--zero-cut)) 100%,var(--zero-cut) 100%,0 calc(100% - var(--zero-cut)));
@@ -48,7 +54,7 @@ body[data-profile-theme="zero-two"] .profile-view > .profile-card:first-child {
   position:relative;max-width:none;padding:clamp(10px,1.55vw,24px) 0 16px;margin:0;border:0;box-shadow:none;background:none;
 }
 [data-profile-theme="zero-two"] .profile-hero {align-items:center;gap:clamp(12px,2vw,30px)}
-[data-profile-theme="zero-two"] .profile-avatar-frame {display:block;flex:none;width:clamp(106px,17vw,270px);aspect-ratio:1}
+[data-profile-theme="zero-two"] .profile-avatar-frame {display:block;flex:none;width:var(--zero-avatar-size);aspect-ratio:1}
 [data-profile-theme="zero-two"] .zero-portrait {display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen}
 [data-profile-theme="zero-two"] .profile-details {min-width:0;max-width:630px;text-shadow:0 2px 8px #000,0 1px 3px #000}
 [data-profile-theme="zero-two"] .profile-details h1 {font-size:clamp(23px,3vw,48px);line-height:1.1;overflow-wrap:anywhere}
@@ -91,8 +97,8 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
 .cinema-menu[data-theme="zero-two"] {
   --zero-cut:15px;
   color:var(--zero-ink);border:0;background:#fa6e9f;clip-path:var(--zero-outline);
-  width:min(296px,calc(100% - 20px));inset:8px auto 8px max(6px,env(safe-area-inset-left));
-  padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));
+  padding:max(12px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  overflow:hidden;
   isolation:isolate;scrollbar-width:thin;scrollbar-color:#883053 #120610;
 }
 .cinema-menu[data-theme="zero-two"]::before {
@@ -100,15 +106,15 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
   clip-path:var(--zero-outline);pointer-events:none;
   background:linear-gradient(160deg,#170914,#080408 62%,#29091a);box-shadow:inset 0 0 18px #f14e8f42;
 }
-.cinema-menu[data-theme="zero-two"] nav {min-height:0;flex:1 1 auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#913351 transparent}
+.cinema-menu[data-theme="zero-two"] nav {scrollbar-color:#913351 transparent}
 .cinema-menu[data-theme="zero-two"] .cinema-menu-head {order:-1;border:0;padding:1px 0 12px}
 .cinema-menu[data-theme="zero-two"] .cinema-menu-head::before {content:"✦  REMEDIUM CINEMA";font-weight:760;color:#ffe3ef;letter-spacing:.075em;font-size:14px}
 .cinema-menu[data-theme="zero-two"] .cinema-menu-head h2 {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .cinema-menu[data-theme="zero-two"] .cinema-menu-account {border-block:1px solid #ef72972b;padding:8px 0;margin:0 0 7px}
-.cinema-menu[data-theme="zero-two"] .cinema-menu-avatar {width:40px;border-radius:8px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-avatar {width:clamp(60px,16vw,78px);border-radius:10px}
 .cinema-menu[data-theme="zero-two"] .cinema-menu-identity {gap:1px}
-.cinema-menu[data-theme="zero-two"] .cinema-menu-identity strong {font-size:15px}
-.cinema-menu[data-theme="zero-two"] .cinema-menu-login,.cinema-menu[data-theme="zero-two"] .connection-state {font-size:11px}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-identity strong {font-size:clamp(17px,4.8vw,21px)}
+.cinema-menu[data-theme="zero-two"] .cinema-menu-login,.cinema-menu[data-theme="zero-two"] .connection-state {font-size:13px}
 .cinema-menu[data-theme="zero-two"] .cinema-nav-row {min-height:44px;border-radius:0;transition:background-color .18s,color .18s}
 .cinema-menu[data-theme="zero-two"] .cinema-nav-row:is(:hover,[aria-current="page"],[aria-expanded="true"]) {
   color:#fff;background:linear-gradient(90deg,#7b193fd9,transparent 69%,#88214f92);
@@ -117,12 +123,14 @@ body[data-profile-theme="zero-two"] .profile-section .stat {
 .cinema-menu[data-theme="zero-two"] .cinema-menu-logout::before {border-color:#ec5b9380}
 .cinema-menu[data-theme="zero-two"]::after {
   content:"002 ///";text-align:right;font:italic 750 24px/1 system-ui;color:#ff77a9;letter-spacing:.04em;
-  margin-top:10px;padding:4px 8px 12px;background:url('./zero-two-water.webp') bottom / 100% 7px no-repeat;pointer-events:none;
+  flex:none;margin-top:10px;padding:4px 8px 12px;background:url('./zero-two-water.webp') bottom / 100% 7px no-repeat;pointer-events:none;
 }
 @media(min-width:720px){
+  [data-profile-theme="zero-two"] {--zero-avatar-size:clamp(178px,21vw,320px)}
+  [data-profile-theme="zero-two"] .own-profile-card .profile-details {grid-row:1/span 2;align-self:center}
   [data-profile-theme="zero-two"] .profile-section .stat-grid {grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
   [data-profile-theme="zero-two"] .profile-card:first-child > section {
-    display:grid;grid-template-columns:clamp(106px,17vw,270px) minmax(0,1fr);column-gap:clamp(12px,2vw,30px);
+    display:grid;grid-template-columns:var(--zero-avatar-size) minmax(0,1fr);column-gap:clamp(12px,2vw,30px);
   }
   [data-profile-theme="zero-two"] .profile-hero {display:contents}
   [data-profile-theme="zero-two"] .profile-avatar-frame {grid-column:1;grid-row:1/span 2;align-self:center}
@@ -207,3 +215,121 @@ body.social-page.profile-page[data-profile-theme="zero-two"] {
 [data-profile-theme="zero-two"] .profile-section::before {
   clip-path:polygon(evenodd,0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px,1px 12.5px,1px calc(100% - 12.5px),12.5px calc(100% - 1px),calc(100% - 12.5px) calc(100% - 1px),calc(100% - 1px) calc(100% - 12.5px),calc(100% - 1px) 12.5px,calc(100% - 12.5px) 1px,12.5px 1px,1px 12.5px);
 }
+
+/* The root is set from the signed-in account. Dialogs in the browser top layer
+   and panels mounted directly in body inherit the same controls and surfaces. */
+html[data-site-theme="zero-two"] {
+  color-scheme:dark;--bg:#0c050b;--accent:#ff91bb;--pink:var(--zero-line);--cyan:#ffd5e8;
+  --surface:#200d19;--surface2:#2d1021;--border:var(--zero-border);
+  --text:var(--zero-ink);--muted:var(--zero-muted);accent-color:var(--zero-line);
+}
+html[data-site-theme="zero-two"] body {
+  --glass-line:var(--zero-border);--glass-muted:var(--zero-muted);--glass-surface:var(--zero-panel);
+}
+html[data-site-theme="zero-two"] body:is(.cinema-page,.social-page:not(.profile-page)) {
+  background:url('./zero-two-water.webp') center bottom / 100% clamp(16px,4vh,48px) no-repeat,
+    linear-gradient(180deg,#1106118c,#100610ed 35rem,#0b050be8),
+    url('./zero-two-sky.webp') top right / auto clamp(240px,40vh,480px) no-repeat,
+    var(--bg)!important;color:var(--zero-ink);
+}
+html[data-site-theme="zero-two"] :is(.social-top,.cinema-header,.direct-head,.cinema-tool-head,.settings-section,.settings-form,.privacy-row,.chathead,.chatinput,.direct-compose,.dialog-row) {
+  border-color:color-mix(in srgb,var(--zero-line) 32%,transparent);
+}
+html[data-site-theme="zero-two"] :is(.social-dialog,.cinema-tool,#finishMovieDialog,.picker,.room-reactions,.toast,.site-question,.auth-panel,.auth-about,.auth-menu),
+html[data-site-theme="zero-two"] #entry .modal,
+html[data-site-theme="zero-two"] #watchlist.cinema-tool {
+  color:var(--zero-ink);border-color:var(--zero-border)!important;background:var(--zero-panel)!important;
+  box-shadow:var(--zero-glow),0 16px 45px #0008!important;
+}
+html[data-site-theme="zero-two"] :is(.cinema-tool,.social-dialog,.site-question,.friends-panel,.dialogs-layout,.auth-panel) {
+  background-image:
+    linear-gradient(135deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
+    linear-gradient(225deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
+    linear-gradient(315deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
+    linear-gradient(45deg,transparent 6px,var(--zero-border) 6.5px 7.5px,transparent 8px),
+    var(--zero-panel)!important;
+  clip-path:polygon(0 9px,9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px));border-radius:0;
+}
+html[data-site-theme="zero-two"] :is(.social-dialog,.cinema-tool,.site-question,.auth-about)::backdrop {
+  background:#12050ed4;
+}
+html[data-site-theme="zero-two"] :is(.person-row,.history-row,.feature-entry,.roulette-stage,.direct-bubble,.auth-input,.auth-code-box pre,#watchlist.cinema-tool .watch-item) {
+  color:var(--zero-ink);background:var(--zero-field)!important;border-color:var(--zero-border)!important;
+}
+html[data-site-theme="zero-two"] .direct-bubble.mine,
+html[data-site-theme="zero-two"] .dialog-row[aria-current="page"] {
+  background:#43152e!important;border-color:#d06491;
+}
+html[data-site-theme="zero-two"] :is(.direct-meta,.feature-note,.watch-note,.form-status,.account-field,.auth-panel p,.auth-guide dd,.muted) {color:var(--zero-muted)}
+html[data-site-theme="zero-two"] :is(.form-status:not(:empty),[role="alert"],#finishMovieStatus:not(:empty)) {color:#ffd7b3}
+html[data-site-theme="zero-two"] :is(.unread,.cinema-nav-count:not(:empty)) {background:#8b2453;color:#fff2f9}
+html[data-site-theme="zero-two"] :is(.accent,.eyebrow,.social-back,.profile-crown,#roleCrown,.auth-icon,.auth-panel small,.star-point) {color:#ffa6c9}
+html[data-site-theme="zero-two"] :is(.field,select,.profile-settings .field,#watchlist .watch-actions select) {
+  color:var(--zero-ink)!important;border-color:var(--zero-border)!important;background:var(--zero-field)!important;
+}
+html[data-site-theme="zero-two"] select option {background:#210b19;color:var(--zero-ink)}
+html[data-site-theme="zero-two"] :is(.field,.auth-input input)::placeholder {color:var(--zero-muted)}
+html[data-site-theme="zero-two"] :is(.btn:not(.profile-edit),.iconbtn,.cinema-tool-close,.cinema-menu-toggle,.choice,.my-badge,.picker-close,.sound-prompt,#watchlist .watch-actions button) {
+  color:var(--zero-ink)!important;border-color:var(--zero-border)!important;background:var(--zero-button)!important;
+}
+html[data-site-theme="zero-two"] :is(.btn.primary,#load,#send,.auth-submit,.auth-tabs .btn[aria-pressed="true"],.room-reactions .btn[aria-pressed="true"],.choice.active),
+html[data-site-theme="zero-two"] #playerShell .controls #play[aria-pressed="true"] {
+  background:var(--zero-active)!important;border-color:var(--zero-line)!important;color:#fff!important;box-shadow:var(--zero-glow)!important;
+}
+html[data-site-theme="zero-two"] .auth-universe .auth-input .btn,
+html[data-site-theme="zero-two"] .auth-universe .auth-menu .btn {background:transparent!important}
+html[data-site-theme="zero-two"] :is(.btn:not(:disabled),.iconbtn:not(:disabled),.dialog-row):hover {
+  border-color:#ff94c1!important;
+}
+html[data-site-theme="zero-two"] :focus-visible {outline-color:#ffb1d0}
+html[data-site-theme="zero-two"] .auth-input:focus-within,
+html[data-site-theme="zero-two"] .field:focus-visible {border-color:var(--zero-line)!important}
+html[data-site-theme="zero-two"] .profile-settings .privacy-row input:checked {background:#8c3059;border-color:#ff9dc4}
+html[data-site-theme="zero-two"] :is(.direct-room,#cinemaChat)::before,
+html[data-site-theme="zero-two"] .auth-sky {filter:sepia(.75) saturate(2.6) hue-rotate(282deg)}
+html[data-site-theme="zero-two"] #cinemaChat:not([hidden]),
+html[data-site-theme="zero-two"] #playerShell:not(.is-fullscreen) {
+  border-color:var(--zero-border)!important;background:var(--zero-panel)!important;box-shadow:var(--zero-glow)!important;
+}
+html[data-site-theme="zero-two"] #cinemaChat :is(.chathead,.chatinput),
+html[data-site-theme="zero-two"] :is(#playerShell:not(.is-fullscreen) .controls,.movieform) {
+  background:#200b18e8!important;border-color:var(--zero-border);
+}
+html[data-site-theme="zero-two"] #cinemaChat :is(.bubble,.chatinput .field) {
+  background:var(--zero-field)!important;border-color:var(--zero-border)!important;
+}
+html[data-site-theme="zero-two"] #cinemaChat .msg.mine .bubble {background:#40172e!important}
+html[data-site-theme="zero-two"] #cinemaChat #send {background:var(--zero-active)!important;border-color:var(--zero-line)!important}
+html[data-site-theme="zero-two"] #playerShell .controls .iconbtn {background:var(--zero-button)!important;border-color:var(--zero-border)!important}
+html[data-site-theme="zero-two"] #playerShell .controls .seek {accent-color:var(--zero-line)!important}
+html[data-site-theme="zero-two"] .roulette-card-winner {border-color:var(--zero-line)!important;box-shadow:0 0 16px #ff4886!important}
+html[data-site-theme="zero-two"] .site-question {
+  box-sizing:border-box;width:min(26rem,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:auto;
+  padding:18px;border:1px solid var(--zero-border);font:16px/1.45 system-ui,sans-serif;
+}
+.site-question form{display:grid;gap:14px}
+.site-question p{margin:0;overflow-wrap:anywhere}
+.site-question .field{width:100%;min-width:0;box-sizing:border-box;padding:10px;font:inherit;border:1px solid}
+.site-question .question-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.site-question .btn{min-height:44px;border:1px solid;padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+@media(max-width:719px) {
+  html[data-site-theme="zero-two"] :is(input.field,textarea.field,select.field){font-size:16px}
+  [data-profile-theme="zero-two"] .own-profile-card .profile-details{padding-inline-end:44px}
+}
+@media(max-width:359px) {
+  [data-profile-theme="zero-two"] .own-profile-card .profile-hero {display:grid;grid-template-columns:auto 1fr;gap:8px}
+  [data-profile-theme="zero-two"] .own-profile-card .profile-details {grid-column:1/-1;padding:0}
+}
+
+html[data-site-theme="zero-two"] .auth-universe[open] {height:var(--cinema-visible-height,100dvh)}
+html[data-site-theme="zero-two"] :is(.cinema-tool,.social-dialog,.site-question,.auth-about,#finishMovieDialog) {
+  max-height:calc(var(--cinema-visible-height,100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+[data-profile-theme="zero-two"] .profile-avatar-frame > .social-avatar.large {
+  width:100%;height:100%;border-color:var(--zero-border);
+}
+[data-profile-theme="zero-two"] .profile-avatar-frame > .social-avatar.large img {object-fit:contain}
+
+html[data-site-theme="zero-two"] :is(.twin-stars,.roulette-card,.chip,.choice,.feature-entry,.history-poster,.wish-visual,.reaction) {border-color:var(--zero-border)}
+html[data-site-theme="zero-two"] :is(.twin-stars,.chip,.wish-visual) {background:var(--zero-field)!important}
+html[data-site-theme="zero-two"] .watch-actions :is(select,button):focus-visible {outline-color:var(--zero-line)}
