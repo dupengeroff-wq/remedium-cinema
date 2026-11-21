@@ -30,8 +30,7 @@
 
   const empty=text=>el('p',text,'social-note');
   const profileThemes={
-    none:'Минимал','hello-kitty-pink':'Hello Kitty',cosmos:'Космос',sakura:'Сакура · цветы',
-    clouds:'Облака',lavender:'Лавандовый сон',cyberpunk:'Киберпанк','icy-night':'Ледяная ночь',nefertiti:'Нефертити','sakura-night':'Сакура'
+    nefertiti:'Нефертити','hello-kitty-pink':'Hello Kitty','sakura-night':'Сакура'
   };
   const sharedVideoPrefix='Видео из кинозала\n';
   function sharedVideoUrl(body) {
