@@ -30,7 +30,7 @@
 
   const empty=text=>el('p',text,'social-note');
   const profileThemes={
-    nefertiti:'Нефертити','hello-kitty-pink':'Hello Kitty','sakura-night':'Сакура'
+    nefertiti:'Нефертити','hello-kitty-pink':'Hello Kitty','sakura-night':'Сакура','zero-two':'Zero Two (002)'
   };
   const sharedVideoPrefix='Видео из кинозала\n';
   function sharedVideoUrl(body) {
@@ -42,6 +42,8 @@
     return null;
   }
   const iconPaths={
+    king:'M3 7l5 4 4-7 4 7 5-4-2 11H5L3 7zm2.5 14h13 M12 2v3 M10.5 3.5h3',
+    queen:'M3 8l4 5 2-7 3 5 3-5 2 7 4-5-2.5 10h-13L3 8zm3 13h12 M11 3l1-1 1 1-1 1z',
     clock:'M12 7v5l3 2 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
     film:'M4 8h16v12H4zM4 8l-1-4 16-2 1 6M8 3l2 4m3-4 2 4',
     calendar:'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
@@ -202,8 +204,18 @@
   function applyProfileTheme(theme) {
     const selected=Object.hasOwn(profileThemes,theme)?theme:'none';
     document.body.dataset.profileTheme=selected;
-    document.body.classList.toggle('profile-themed',selected!=='none');
+    CinemaNav.setProfileTheme(selected==='none'?null:selected);
+    document.body.classList.toggle('profile-themed',selected!=='none' && selected!=='zero-two');
     document.body.classList.toggle('profile-kitty',selected==='hello-kitty-pink');
+  }
+
+  function fillProfileAvatar(frame,person,theme) {
+    if(theme!=='zero-two'){frame.replaceChildren(avatar(person,true));return}
+    const image=el('img',null,'zero-portrait');
+    image.src='/assets/profile-themes/zero-two-portrait.webp';
+    image.alt='Zero Two в неоновой рамке 002';
+    image.width=image.height=1254;
+    frame.replaceChildren(image);
   }
 
   function showThemePicker(data,trigger) {
@@ -238,7 +250,11 @@
       try {
         const saved=await api('/api/profile/theme',{method:'PATCH',body:{theme}});
         data.theme=saved.theme;
+        viewer.theme=saved.theme;
+        CinemaNav.setUser(viewer);
         applyProfileTheme(saved.theme);
+        const frame=main.querySelector('.profile-avatar-frame');
+        if(frame) fillProfileAvatar(frame,data.person,saved.theme);
         if(modal.open&&picker.isConnected) modal.close();
       } catch(error) {
         status.textContent=historyRequestError(error);
@@ -645,14 +661,18 @@
     document.title=person.nickname+' · REMEDIUM CINEMA';
     const profile=el('div',null,'profile-view');
     const card=panel(null,'profile-card');
-    profile.append(card);
+    const atmosphere=el('div',null,'zero-atmosphere');
+    atmosphere.setAttribute('aria-hidden','true');
+    profile.append(card,atmosphere);
     const header=el('section');
     const hero=el('div',null,'profile-hero');
     const info=el('div',null,'profile-details');
     const name=el('h1',person.nickname);
-    if(person.role==='creator'){
-      const crown=el('span','♛','profile-crown');
-      crown.setAttribute('aria-label','Создатель');
+    if(person.crown){
+      const crown=el('span',null,'profile-crown');
+      crown.setAttribute('role','img');
+      crown.setAttribute('aria-label',person.crown==='queen'?'Корона Евы':'Корона владельца');
+      crown.append(icon(person.crown));
       name.append(crown);
     }
     const heart=el('span',null,'profile-name-heart');
@@ -673,11 +693,11 @@
     }
     if(person.bio) info.append(el('p',person.bio));
     const avatarFrame=el('div',null,'profile-avatar-frame');
-    avatarFrame.append(avatar(person,true));
+    fillProfileAvatar(avatarFrame,person,data.theme);
     hero.append(avatarFrame,info);
     header.append(hero);
     if(data.self){
-      CinemaNav.setUser(person);
+      CinemaNav.setUser({...person,theme:data.theme});
       const tools=el('div',null,'profile-tools');
       const edit=button('',()=>settings(data));
       edit.className='profile-edit';
@@ -691,6 +711,13 @@
       theme.setAttribute('aria-haspopup','dialog');
       theme.title='Выбор темы профиля';
       theme.append(icon('brush'));
+      const actions=el('div',null,'profile-actions own-profile-actions');
+      const editProfile=button('Редактировать профиль',()=>settings(data));
+      editProfile.prepend(icon('edit'));
+      const friendsLink=link('Друзья','/friends','btn profile-friend-status');
+      friendsLink.prepend(icon('userPlus'));
+      actions.append(editProfile,friendsLink);
+      header.append(actions);
       tools.append(edit,theme);
       card.classList.add('own-profile-card');
       header.append(tools);
@@ -704,7 +731,7 @@
             const list=el('div',null,'person-list');
             list.append(...(data.mutualFriends?.length?data.mutualFriends.map(p=>personRow(p)):[empty('Общих друзей пока нет.')]));
             showModal('Общие друзья',list);
-          }):link('Друзья','/friends');
+          }):friends;
         }
         friends.classList.add('profile-friend-status');
         friends.prepend(icon('userPlus'));

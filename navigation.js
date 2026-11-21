@@ -7,10 +7,11 @@
   const scrim=document.getElementById('cinemaMenuScrim');
   const onCinema=document.body.classList.contains('cinema-page');
   const entries=[
+    {label:'Главная',href:'/',icon:'home',id:'cinemaLandingLink'},
     {label:'Мой профиль',href:'/profile',icon:'profile'},
     {label:'Друзья',href:'/friends',icon:'friends'},
     {label:'Сообщения',href:'/messages',icon:'send',id:'cinemaMessagesLink',badge:'directUnread'},
-    {label:'Кинозал',href:'/',icon:'home',id:'cinemaHomeLink'},
+    {label:'Кинозал',href:'/',icon:'films',id:'cinemaHomeLink'},
     {label:'Отправить послание',panel:'send-wish',icon:'mail-plus',id:'wishOpen'},
     {label:'Послания',panel:'wishInbox',icon:'book-heart',badge:'wishBadge'},
     {label:'Голосование за фильм',panel:'pollPanel',icon:'vote'},
@@ -113,7 +114,27 @@
   account.append(avatar,identity);
   menu.prepend(account);
 
+  const wide=window.matchMedia('(min-width:1100px)');
+  let ownTheme=null;
+  let pageTheme=null;
+  function updateMenuTheme() {
+    menu.dataset.theme=pageTheme||ownTheme||'';
+    const pinned=pageTheme==='zero-two' && wide.matches && !menu.hidden;
+    if(pinned===menu.classList.contains('is-pinned')) return;
+    menu.classList.toggle('is-pinned',pinned);
+    document.body.classList.toggle('cinema-menu-pinned',pinned);
+    setOpen(false);
+  }
+  wide.addEventListener('change',updateMenuTheme);
+
+  function setProfileTheme(theme) {
+    pageTheme=theme;
+    updateMenuTheme();
+  }
+
   function setUser(user) {
+    ownTheme=user?.theme||null;
+    updateMenuTheme();
     account.hidden=!user;
     const name=user?.nickname||'';
     nickname.textContent=name;
@@ -198,7 +219,7 @@
   function setOpen(open,restoreFocus=false) {
     menu.classList.toggle('is-open',open);
     document.body.classList.toggle('cinema-menu-open',open);
-    menu.inert=!open;
+    menu.inert=!open && !menu.classList.contains('is-pinned');
     toggle.setAttribute('aria-expanded',String(open));
     toggle.setAttribute('aria-label',open?'Закрыть меню':'Меню кинозала');
     scrim.hidden=!open;
@@ -217,7 +238,8 @@
   function show(visible) {
     setOpen(false);
     menu.hidden=toggle.hidden=!visible;
-    if(!visible)setUser(null);
+    if(!visible){pageTheme=null;setUser(null)}
+    updateMenuTheme();
   }
 
   toggle.onclick=()=>setOpen(!isOpen(),true);
@@ -237,7 +259,8 @@
   const route=location.pathname;
   for(const row of list.querySelectorAll('a[href]')) {
     if(row.dataset.openPanel || row.hash) continue;
-    if((row.id==='cinemaHomeLink' && onCinema) || row.pathname===route ||
+    if((row.pathname==='/' ? onCinema && row.id===(new URLSearchParams(location.search).has('room')?'cinemaHomeLink':'cinemaLandingLink') : row.pathname===route) ||
+      (row.pathname==='/profile' && /^\/profile(?:\/|$)/.test(route)) ||
       (row.pathname==='/messages' && /^\/messages(?:\/|$)/.test(route))) row.setAttribute('aria-current','page');
   }
 
@@ -291,7 +314,7 @@
   try { previousRoom=sessionStorage.getItem('remediumCinemaRoom'); } catch {}
   if(/^[\w-]{3,80}$/.test(previousRoom||'')) setRoom(previousRoom);
   window.CinemaNav={
-    show,setOpen,setUser,watchUnread,setUnreadBadge,messageIcon:()=>icon('send'),
+    show,setOpen,setUser,setProfileTheme,watchUnread,setUnreadBadge,messageIcon:()=>icon('send'),
     setRoom(id) {
       setRoom(id);
       try {

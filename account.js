@@ -176,7 +176,13 @@
     bar.append(el('strong','✦ REMEDIUM CINEMA'),dots,menu);
     wrapper.append(side,card); screen.append(sky,bar,wrapper);
     const about=el('dialog',null,'auth-about');
-    about.append(el('h2','О проекте'),el('p','REMEDIUM CINEMA — ваш кинозал для совместного просмотра фильмов и общения с друзьями.'),button('Закрыть',()=>about.close()));
+    const aboutTitle=el('h2','О проекте');
+    aboutTitle.id='auth-about-title';
+    about.setAttribute('aria-labelledby',aboutTitle.id);
+    about.append(aboutTitle,
+      el('p','У двоих, которые любят друг друга, есть своя маленькая вселенная. В ней даже поздней ночью кто-то шепчет «ты ещё здесь?» и улыбается, услышав в ответ «я с тобой».'),
+      el('p','Эта вселенная принадлежит им двоим. Здесь всегда найдутся ещё пять минут перед тем, как сказать друг другу «спокойной ночи».'),
+      button('Закрыть',()=>about.close()));
     screen.append(about);
     let mode='login', loginValue='', busy=false, issued=null;
     const motion=matchMedia('(prefers-reduced-motion: reduce)');

@@ -61,57 +61,14 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   --profile-accent-rgb:250 128 185;
   --profile-accent-light-rgb:255 198 223;
 }
-[data-profile-theme="cosmos"],.profile-theme-card[data-theme="cosmos"]{
-  --profile-accent-rgb:159 198 232;--profile-accent-light-rgb:221 240 255;
-  --profile-theme-base:#070e19;--profile-theme-panel:#091320e6;--profile-theme-mark:"✦";
-}
-[data-profile-theme="sakura"],.profile-theme-card[data-theme="sakura"]{
-  --profile-accent-rgb:248 134 169;--profile-accent-light-rgb:255 219 231;
-  --profile-theme-base:#150a13;--profile-theme-panel:#1a0d18e6;--profile-theme-mark:"✿";
-  --profile-theme-art:url('/assets/profile-themes/sakura.webp');
-}
-[data-profile-theme="clouds"],.profile-theme-card[data-theme="clouds"]{
-  --profile-accent-rgb:184 193 247;--profile-accent-light-rgb:251 225 245;
-  --profile-accent-secondary-rgb:237 173 220;
-  --profile-theme-base:#11101f;--profile-theme-panel:#171426db;--profile-theme-mark:"☁︎";
-  --profile-theme-art:url('/assets/profile-themes/clouds.webp');
-}
-[data-profile-theme="lavender"],.profile-theme-card[data-theme="lavender"]{
-  --profile-accent-rgb:193 158 247;--profile-accent-light-rgb:235 216 255;
-  --profile-theme-base:#110c22;--profile-theme-panel:#160f28e3;--profile-theme-mark:"❋";
-  --profile-theme-art:url('/assets/profile-themes/lavender.webp');
-}
-[data-profile-theme="cyberpunk"],.profile-theme-card[data-theme="cyberpunk"]{
-  --profile-accent-rgb:250 102 193;--profile-accent-light-rgb:179 244 255;
-  --profile-accent-secondary-rgb:80 222 251;
-  --profile-theme-base:#070d18;--profile-theme-panel:#0a1421ed;--profile-theme-mark:"◇";
-  --profile-theme-art:url('/assets/profile-themes/cyberpunk.webp');
-}
-[data-profile-theme="icy-night"],.profile-theme-card[data-theme="icy-night"]{
-  --profile-accent-rgb:126 205 252;--profile-accent-light-rgb:217 244 255;
-  --profile-theme-base:#06121e;--profile-theme-panel:#091827db;--profile-theme-mark:"❄︎";
-  --profile-theme-art:url('/assets/profile-themes/icy-night.webp');
-}
-
 .profile-theme-sample{
   display:grid;place-items:center;aspect-ratio:1;min-width:0;
   border:1px solid rgb(var(--profile-accent-rgb,175 172 188) / .55);border-radius:10px;
   background:var(--profile-theme-art,none) center 72%/cover no-repeat,var(--profile-theme-base,#0c0c11);
 }
-.profile-theme-card[data-theme="none"] .profile-theme-sample{
-  background:radial-gradient(ellipse at 55% 65%,#29222c66,transparent 65%),#0c0c11;
-}
 .profile-theme-card[data-theme="hello-kitty-pink"] .profile-theme-sample{
   background:url('/profile-theme-kitty.webp') center/84% auto no-repeat,
     radial-gradient(circle at 45% 38%,#8e3d6f,#271024 85%);
-}
-.profile-theme-card[data-theme="cosmos"] .profile-theme-sample{
-  background:linear-gradient(148deg,#090b18f5 3%,#171c2c35 55%,#7abbf120),
-    url('/cinema-moon.webp?v=2') center/cover #070c15;
-}
-.profile-theme-card:is([data-theme="none"],[data-theme="icy-night"]) .profile-theme-glyph{
-  display:block;color:rgb(var(--profile-accent-light-rgb,235 224 240));font-size:28px;
-  text-shadow:0 0 9px rgb(var(--profile-accent-rgb,215 205 239) / .8);
 }
 .profile-theme-glyph::before{content:var(--profile-theme-mark,"✦")}
 
@@ -214,18 +171,6 @@ body.social-page.profile-page.profile-themed:not(.profile-kitty){
   mask-image:linear-gradient(transparent 1%,#000 57%);
   opacity:.82;
 }
-.profile-theme-card[data-theme="icy-night"] .profile-theme-sample{
-  box-shadow:inset 0 0 16px #0d152bc7;
-}
-body.profile-page[data-profile-theme="icy-night"]::after{
-  --planet-size:clamp(64px,19vw,120px);
-  top:calc(55px + env(safe-area-inset-top));bottom:auto;right:max(26px,calc((100vw - 510px) / 2));
-  background:linear-gradient(145deg,#93d4ff18,#061b36aa),url('/cinema-moon.webp?v=2') center/cover;
-  box-shadow:0 0 22px #a2dbff4a,inset 0 1px 5px #dcf0ff99;opacity:.84;
-}
-body.profile-page:is([data-profile-theme="sakura"],[data-profile-theme="cyberpunk"],[data-profile-theme="clouds"])::after{
-  opacity:.24;
-}
 .profile-themed:not(.profile-kitty) .profile-view :is(.profile-card,.stat,.profile-shared .person-row){
   border-color:var(--profile-line);background:var(--profile-surface);box-shadow:var(--profile-shine);
 }
@@ -321,3 +266,6 @@ body.profile-page .profile-tools .profile-theme-toggle,
 body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-tools .profile-edit{
   color:#fff;background:transparent;border:0;box-shadow:none;filter:none
 }
+
+.profile-page .profile-crown{display:inline-flex;vertical-align:baseline;color:rgb(var(--profile-accent-rgb,238 189 67))}
+.profile-page .profile-crown .social-icon{width:.93em;height:.93em;stroke-width:1.6}
