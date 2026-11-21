@@ -54,7 +54,7 @@ html:has(.auth-universe[open]){overflow:hidden}
 .auth-top>.btn{line-height:1;min-height:40px;min-width:50px;font-size:1rem;letter-spacing:.13em}
 .auth-menu,.auth-about{color:#fafafa;background:#0b0b0be8;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid #888;border-radius:17px;box-shadow:0 8px 36px #0009}
 .auth-menu{position:absolute;right:max(16px,3.5vw);top:100%;padding:7px;width:min(248px,90vw);animation:auth-enter .2s ease-out}
-.auth-menu .btn{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;text-align:left}
+.auth-universe .auth-menu .btn{display:grid;grid-template-columns:1.4em minmax(0,1fr);justify-items:start;justify-content:start;align-items:center;gap:12px;width:100%;border:0;background:transparent;text-align:left}
 .auth-menu .btn:last-child{border-radius:0;border-top:1px solid #fff3}
 .auth-about{max-width:min(360px,90vw);padding:24px}.auth-about::backdrop{background:#000a}
 .auth-layout{width:min(86%,1260px);flex:1;align-content:center;align-items:center;align-self:center;
