@@ -15,7 +15,7 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   max-width:none;max-height:calc(100vh - 24px);
   max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   padding:clamp(14px,4vw,21px);overflow:auto;overscroll-behavior:contain;
-  border-color:#ffffff44;background:linear-gradient(155deg,#211c23f5,#121014fa 68%);
+  border-color:#ffffff44;background:#121212;
 }
 #socialDialog:has(.profile-theme-picker)::backdrop{
   background:#060408ba;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
@@ -27,7 +27,7 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   display:flex;align-items:center;min-height:41px;margin:0;padding-inline-end:49px;
   font-size:clamp(17px,4.3vw,20px);line-height:1.2;
 }
-.profile-theme-picker .profile-theme-description{margin:1px 0 14px;color:#ccc1cd;font-size:14px}
+.profile-theme-picker .profile-theme-description{margin:1px 0 14px;color:#bcbcbc;font-size:14px}
 .profile-theme-grid{
   display:flex;gap:8px;position:relative;min-width:0;overflow-x:auto;overflow-y:hidden;
   overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:4px 3px 9px;
@@ -37,13 +37,13 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
   appearance:none;display:grid;align-content:start;gap:6px;text-align:center;min-width:0;margin:0;
   flex:0 0 clamp(90px,24vw,110px);scroll-snap-align:start;
   padding:6px;border:1px solid #ffffff2e;border-radius:12px;
-  background:#ffffff06;color:#f4f0f5;font:inherit;cursor:pointer;touch-action:manipulation;
+  background:#ffffff06;color:#f4f4f4;font:inherit;cursor:pointer;touch-action:manipulation;
 }
 .profile-theme-card:hover:not(:disabled){border-color:#ffffff62}
 .profile-theme-card:focus-visible{outline:2px solid #fae4ee;outline-offset:2px}
 .profile-theme-card[aria-pressed="true"]{
   border-color:rgb(var(--profile-accent-rgb,233 226 234) / .85);
-  box-shadow:0 0 7px rgb(var(--profile-accent-rgb,233 226 234) / .32);
+  box-shadow:none;
   background:rgb(var(--profile-accent-rgb,255 255 255) / .09);
 }
 .profile-theme-card:disabled{opacity:.65;cursor:wait}
@@ -56,216 +56,8 @@ html:has(#socialDialog[open] .profile-theme-picker){overflow:hidden}
 .profile-theme-marker .social-icon{width:14px;height:14px}
 .profile-theme-picker .form-status:not(:empty){margin:10px 0 0}
 
-[data-profile-theme="hello-kitty-pink"],
-.profile-theme-card[data-theme="hello-kitty-pink"]{
-  --profile-accent-rgb:250 128 185;
-  --profile-accent-light-rgb:255 198 223;
-}
-.profile-theme-sample{
-  display:grid;place-items:center;aspect-ratio:1;min-width:0;
-  border:1px solid rgb(var(--profile-accent-rgb,175 172 188) / .55);border-radius:10px;
-  background:var(--profile-theme-art,none) center 72%/cover no-repeat,var(--profile-theme-base,#0c0c11);
-}
-.profile-theme-card[data-theme="hello-kitty-pink"] .profile-theme-sample{
-  background:url('/profile-theme-kitty.webp') center/84% auto no-repeat,
-    radial-gradient(circle at 45% 38%,#8e3d6f,#271024 85%);
-}
-.profile-theme-glyph::before{content:var(--profile-theme-mark,"✦")}
 
-/* The pink palette applies only while a profile is rendered with this theme. */
-body.social-page.profile-page.profile-kitty{
-  --kitty-line:rgb(var(--profile-accent-rgb) / 69.02%);--kitty-soft-line:#ed75aa83;
-  --kitty-ink:rgb(var(--profile-accent-light-rgb));
-  --kitty-surface:linear-gradient(142deg,#2a1421c9,#1b0d17d9 74%);
-  --kitty-glow:0 0 12px #e7589b29,inset 0 1px #ffb4d618;
-  background:radial-gradient(ellipse at 48% -5%,#3b162c 0%,transparent 58%),
-    radial-gradient(ellipse at 88% 74%,#2a1022,transparent 56%),#110910;
-}
-.profile-kitty.profile-page::after{opacity:.55}
-.profile-kitty .profile-view{--glass-muted:#e1bccf}
-.profile-kitty .profile-view::before{
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:url('/profile-theme-clouds.webp') center bottom/clamp(550px,100vw,1200px) auto no-repeat,
-    radial-gradient(circle at 14% 14%,#ffc8e8a0 0 .8px,#f8a6d044 1.3px,transparent 4px),
-    radial-gradient(circle at 82% 20%,#ffe1f1aa 0 .6px,#f78ab94a 1.7px,transparent 4px),
-    radial-gradient(circle at 89% 47%,#ffd6eba5 0 .7px,#fc79b543 1.7px,transparent 4px),
-    radial-gradient(circle at 11% 72%,#fbb8d87f 0 .8px,#f874b02e 1.7px,transparent 3px),
-    radial-gradient(circle at 61% 86%,#ffcedfa6 0 .8px,#f77ebf55 1.8px,transparent 4.4px);
-  opacity:.8;
-}
-.profile-kitty .profile-view .profile-card{
-  position:relative;border-color:var(--kitty-line);background:var(--kitty-surface);
-  box-shadow:0 0 21px #ed65a537,inset 0 0 18px #d4579233;
-}
-.profile-kitty .profile-card-bow{
-  position:absolute;display:grid;place-items:center;inset:-12px auto auto 12px;width:34px;height:24px;
-  border-radius:50%;background:#2a1025;color:var(--kitty-ink);pointer-events:none;transform:rotate(-13deg);
-}
-.profile-kitty .profile-card-bow .social-icon{
-  width:30px;height:23px;filter:drop-shadow(0 0 6px #ff70b9);
-}
-.profile-kitty .profile-avatar-frame{display:block;position:relative;flex:none}
-.profile-kitty .profile-avatar-frame::after{
-  content:"";position:absolute;right:-7px;bottom:-6px;width:clamp(36px,10vw,53px);aspect-ratio:260/199;
-  background:url('/profile-theme-kitty.webp') center/contain no-repeat;
-  filter:drop-shadow(0 0 7px #e967ab83);pointer-events:none;
-}
-.profile-kitty .profile-hero .social-avatar{border-color:var(--kitty-soft-line)}
-.profile-kitty .profile-name-heart{
-  display:inline-grid;margin-inline-start:.27em;vertical-align:.055em;color:var(--kitty-ink);
-}
-.profile-kitty .profile-name-heart .social-icon{width:.67em;height:.67em;filter:drop-shadow(0 0 4px #ef76b28c)}
-.profile-kitty .profile-tools .profile-edit{color:var(--kitty-ink);filter:drop-shadow(0 0 5px #fc76b682)}
-.profile-kitty .profile-actions .btn.primary{
-  background:linear-gradient(166deg,#ffe5f1,#f7bbd7 65%,#e9a9cd);
-  border-color:#ffe3f2db;color:#22111c;box-shadow:inset 0 1px 2px #fff8,0 0 12px #f272ac31;
-}
-.profile-kitty .profile-view :is(.stat,.profile-shared .person-row){
-  border-color:var(--kitty-soft-line);background:var(--kitty-surface);box-shadow:var(--kitty-glow);
-}
-.profile-kitty .profile-view :is(.stat,.profile-locked,.profile-shared-history,.profile-history-heading .btn) .social-icon{
-  color:var(--kitty-ink);filter:drop-shadow(0 0 4px #ec73a75c);
-}
-.profile-kitty .profile-view .profile-section + .profile-section{border-color:#e56a9f35}
-.profile-kitty .profile-view .profile-section h2{display:flex;align-items:center;gap:8px;min-width:0}
-.profile-kitty .profile-history-heading h2{flex:1}
-.profile-kitty .profile-heading-ribbon{display:flex;align-items:center;flex:1 1 36px;min-width:21px;gap:4px;color:var(--kitty-ink)}
-.profile-kitty .profile-heading-ribbon::before,.profile-kitty .profile-heading-ribbon::after{
-  content:"";display:block;height:1px;flex:1;background:linear-gradient(90deg,transparent,#f18dbac4);
-  box-shadow:0 0 6px #f367ac7b;
-}
-.profile-kitty .profile-heading-ribbon::after{transform:scaleX(-1)}
-.profile-kitty .profile-heading-ribbon .social-icon{width:23px;height:20px;filter:drop-shadow(0 0 6px #fa71afbd)}
-.profile-kitty .profile-more-stats summary{color:#f0b4d2}
-.profile-kitty .profile-history-heading .btn{
-  flex:none;border-color:var(--kitty-soft-line);background:#4c21384d;box-shadow:var(--kitty-glow);
-}
-.profile-kitty .profile-history-tile{
-  border-color:var(--kitty-soft-line);box-shadow:0 0 11px #ea6ea02c;
-}
-.profile-kitty .profile-history-tile .history-poster{
-  color:#fcc2df;background:radial-gradient(ellipse at 40% 17%,#472d3e,#1a0e17 75%);
-}
-.profile-kitty .profile-history-details .history-row{border-color:var(--kitty-soft-line)}
-
-/* Shared surfaces for the additional palettes. Kitty keeps its existing artwork and treatment. */
-body.social-page.profile-page.profile-themed:not(.profile-kitty){
-  --profile-secondary-rgb:var(--profile-accent-secondary-rgb,var(--profile-accent-rgb));
-  --profile-line:rgb(var(--profile-accent-rgb) / .55);
-  --profile-shine:0 0 14px rgb(var(--profile-secondary-rgb) / .24),inset 0 1px rgb(var(--profile-accent-rgb) / .14);
-  --profile-surface:linear-gradient(150deg,rgb(var(--profile-accent-rgb) / .07),transparent 66%),var(--profile-theme-panel);
-  background:radial-gradient(ellipse at 76% 0%,rgb(var(--profile-accent-rgb) / .15),transparent 56%),
-    radial-gradient(ellipse at 5% 72%,rgb(var(--profile-secondary-rgb) / .10),transparent 52%),var(--profile-theme-base);
-}
-.profile-themed:not(.profile-kitty) .profile-view{
-  --glass-muted:rgb(var(--profile-accent-light-rgb) / .83);
-}
-.profile-themed:not(.profile-kitty) .profile-view::before{
-  content:"";position:fixed;inset:auto 0 0;z-index:-1;pointer-events:none;
-  height:min(68dvh,clamp(235px,56vw,520px));
-  background:var(--profile-theme-art,none) center bottom/cover no-repeat,
-    radial-gradient(circle at 13% 22%,rgb(var(--profile-accent-light-rgb) / .72) 0 .7px,transparent 2.1px),
-    radial-gradient(circle at 85% 34%,rgb(var(--profile-accent-light-rgb) / .85) 0 .8px,transparent 3px),
-    radial-gradient(circle at 22% 68%,rgb(var(--profile-accent-light-rgb) / .55) 0 .6px,transparent 2px),
-    radial-gradient(circle at 93% 76%,rgb(var(--profile-accent-light-rgb) / .55) 0 .7px,transparent 3px);
-  mask-image:linear-gradient(transparent 1%,#000 57%);
-  opacity:.82;
-}
-.profile-themed:not(.profile-kitty) .profile-view :is(.profile-card,.stat,.profile-shared .person-row){
-  border-color:var(--profile-line);background:var(--profile-surface);box-shadow:var(--profile-shine);
-}
-.profile-themed:not(.profile-kitty) .profile-view .profile-card{position:relative}
-.profile-themed:not(.profile-kitty) .profile-hero .social-avatar{border-color:var(--profile-line)}
-.profile-themed:not(.profile-kitty) .profile-card-bow{
-  position:absolute;display:grid;place-items:center;inset:-11px auto auto 14px;min-width:25px;
-  background:var(--profile-theme-base);border-radius:50%;pointer-events:none;
-}
-.profile-themed:not(.profile-kitty) :is(.profile-card-bow,.profile-heading-ribbon) > .social-icon{display:none}
-.profile-themed:not(.profile-kitty) :is(.profile-card-bow,.profile-heading-ribbon) > .profile-theme-glyph{
-  display:block;color:rgb(var(--profile-accent-light-rgb));font-size:18px;line-height:1.2;
-  text-shadow:0 0 9px rgb(var(--profile-accent-rgb) / .85);
-}
-.profile-themed:not(.profile-kitty) .profile-tools .profile-edit,
-.profile-themed:not(.profile-kitty) .profile-view :is(.stat,.profile-shared-history,.profile-locked,.profile-history-heading .btn) .social-icon{
-  color:rgb(var(--profile-accent-light-rgb));filter:drop-shadow(0 0 4px rgb(var(--profile-accent-rgb) / .43));
-}
-.profile-themed:not(.profile-kitty) .profile-actions .btn.primary{
-  border-color:rgb(var(--profile-accent-light-rgb) / .8);
-  background:linear-gradient(156deg,rgb(var(--profile-accent-light-rgb)),rgb(var(--profile-accent-rgb)) 84%);
-  color:#10111a;box-shadow:inset 0 1px 2px #fff8,0 0 12px rgb(var(--profile-secondary-rgb) / .25);
-}
-.profile-themed:not(.profile-kitty) .profile-view > .profile-section + .profile-section{
-  border-color:rgb(var(--profile-accent-rgb) / .18);
-}
-.profile-themed:not(.profile-kitty) .profile-view .profile-section h2{
-  display:flex;align-items:center;gap:8px;min-width:0;
-}
-.profile-themed:not(.profile-kitty) .profile-history-heading h2{flex:1}
-.profile-themed:not(.profile-kitty) .profile-heading-ribbon{
-  display:flex;flex:1 1 26px;align-items:center;min-width:18px;gap:6px;
-}
-.profile-themed:not(.profile-kitty) .profile-heading-ribbon::after{
-  content:"";height:1px;flex:1;
-  background:linear-gradient(90deg,rgb(var(--profile-secondary-rgb) / .8),transparent);
-  box-shadow:0 0 7px rgb(var(--profile-secondary-rgb) / .53);
-}
-.profile-themed:not(.profile-kitty) :is(.profile-history-tile,.profile-history-heading .btn){
-  border-color:var(--profile-line);box-shadow:var(--profile-shine);
-}
-.profile-themed:not(.profile-kitty) .profile-history-tile .history-poster{
-  background:radial-gradient(ellipse at 45% 12%,rgb(var(--profile-accent-rgb) / .2),transparent 68%),var(--profile-theme-base);
-  color:rgb(var(--profile-accent-light-rgb));
-}
-.profile-themed:not(.profile-kitty) .profile-history-details .history-row{border-color:var(--profile-line)}
-
-[data-profile-theme="nefertiti"],.profile-theme-card[data-theme="nefertiti"]{
-  --profile-accent-rgb:233 176 86;--profile-accent-light-rgb:255 228 177;
-  --profile-theme-base:#100b06;--profile-theme-panel:#150e09bf;--profile-theme-mark:"☥";
-  --profile-theme-art:url('/assets/profile-themes/nefertiti-night.webp');
-  --avatar-trim:url('/assets/profile-themes/nefertiti-frame.webp');
-}
-[data-profile-theme="sakura-night"],.profile-theme-card[data-theme="sakura-night"]{
-  --profile-accent-rgb:245 146 194;--profile-accent-light-rgb:255 218 237;
-  --profile-theme-base:#130b13;--profile-theme-panel:#1a0d17bf;--profile-theme-mark:"✿";
-  --profile-theme-art:url('/assets/profile-themes/sakura-night.webp');
-  --avatar-trim:url('/assets/profile-themes/sakura-frame.webp');
-}
-/* Anchor the portrait artwork to the viewport, independently of profile width or history length. */
-.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before,
-.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{
-  inset:0 0 auto;width:auto;height:57%;aspect-ratio:auto;border-radius:0;box-shadow:none;
-  background:linear-gradient(#09070930,#09070930),var(--profile-theme-art) center top / cover no-repeat;
-  mask-image:linear-gradient(#000 78%,transparent);
-}
-.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{
-  inset:auto 0 0;background-position:center bottom;
-  mask-image:linear-gradient(transparent,#000 22%);
-}
-/* Keep portrait scenes continuous and at their original proportions. */
-@media (max-aspect-ratio:1/1){
-  .profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::before{
-    inset:0;height:auto;background-position:center;mask-image:none;
-  }
-  .profile-page[data-profile-theme="sakura-night"]::before{background-position:70% center}
-  .profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"])::after{content:none}
-}
-.profile-themed:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-view::before{
-  content:none;
-}
-body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-avatar-frame{
-  position:relative;display:block;align-self:start;flex:none
-}
-body:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-avatar-frame::after{
-  content:"";position:absolute;inset:-4%;pointer-events:none;background:var(--avatar-trim) center/contain no-repeat
-}
-body[data-profile-theme="sakura-night"] .profile-view .profile-card-bow{
-  width:42px;height:32px;inset:auto 0 0 auto;background:var(--avatar-trim) bottom right/110px 110px no-repeat
-}
-body[data-profile-theme="sakura-night"] .profile-card-bow>*{visibility:hidden}
-body.profile-page .profile-tools .profile-theme-toggle,
-body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakura-night"]) .profile-tools .profile-edit{
-  color:#fff;background:transparent;border:0;box-shadow:none;filter:none
-}
-
-.profile-page .profile-crown{display:inline-flex;vertical-align:baseline;color:rgb(var(--profile-accent-rgb,238 189 67))}
-.profile-page .profile-crown .social-icon{width:.93em;height:.93em;stroke-width:1.6}
+/* Neutral Default-only preview; no themed imagery or glow. */
+.profile-theme-sample{display:block;aspect-ratio:1;background:#090b10;border:1px solid #ffffff20;border-radius:8px}
+.profile-theme-card[aria-pressed="true"]{border-color:#ffffff85;background:#ffffff0a;box-shadow:none}
+.profile-theme-marker{color:#d6d6d6}

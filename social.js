@@ -46,9 +46,7 @@
   }
 
   const empty=text=>el('p',text,'social-note');
-  const profileThemes={
-    nefertiti:'Нефертити','hello-kitty-pink':'Hello Kitty','sakura-night':'Сакура','zero-two':'Zero Two (002)'
-  };
+  const profileThemes={none:'Default'};
   const sharedVideoPrefix='Видео из кинозала\n';
   function sharedVideoUrl(body) {
     if (!body.startsWith(sharedVideoPrefix)) return null;
@@ -219,21 +217,14 @@
     return heading;
   }
 
-  function applyProfileTheme(theme) {
-    const selected=viewer?.theme==='zero-two'?'zero-two':Object.hasOwn(profileThemes,theme)?theme:'none';
-    document.body.dataset.profileTheme=selected;
-    CinemaNav.setProfileTheme(selected==='none'?null:selected);
-    document.body.classList.toggle('profile-themed',selected!=='none' && selected!=='zero-two');
-    document.body.classList.toggle('profile-kitty',selected==='hello-kitty-pink');
+  function applyProfileTheme(_theme) {
+    document.body.dataset.profileTheme='none';
+    CinemaNav.setProfileTheme(null);
+    document.body.classList.remove('profile-themed','profile-kitty');
   }
 
-  function fillProfileAvatar(frame,person,theme) {
-    if(theme!=='zero-two'){frame.replaceChildren(avatar(person,true));return}
-    const image=el('img',null,'zero-portrait');
-    image.src='/assets/profile-themes/zero-two-portrait.webp';
-    image.alt='Zero Two в неоновой рамке 002';
-    image.width=image.height=1254;
-    frame.replaceChildren(image);
+  function fillProfileAvatar(frame,person,_theme) {
+    frame.replaceChildren(avatar(person,true));
   }
 
   function showThemePicker(data,trigger) {
@@ -717,7 +708,7 @@
     hero.append(avatarFrame,info);
     header.append(hero);
     if(data.self){
-      CinemaNav.setUser({...person,theme:data.theme});
+      CinemaNav.setUser(viewer);
       const tools=el('div',null,'profile-tools');
       const edit=button('',()=>settings(data));
       edit.className='profile-edit';

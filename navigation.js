@@ -134,7 +134,7 @@
   menu.append(scrollArea);
 
   const wide=window.matchMedia('(min-width:1100px)');
-  const {key:preferenceKey,cached:lastTheme,apply:paintTheme}=CinemaAppearance;
+  const {key:preferenceKey,apply:paintTheme,setAccount}=CinemaAppearance;
   let accountId=null;
   let ownTheme=null;
   let revision=0;
@@ -146,7 +146,7 @@
   }
 
   async function refreshAppearance() {
-    if(!accountId){paintTheme(lastTheme());return}
+    if(!accountId){paintTheme(null);return}
     const request=++revision;
     try {
       const {user}=await api('/api/auth/me');
@@ -156,13 +156,13 @@
     } catch { /* Keep the current palette while disconnected. */ }
   }
   window.addEventListener('storage',event=>{
-    if(event.key===preferenceKey)refreshAppearance();
+    if(accountId && event.key===preferenceKey+accountId)refreshAppearance();
   });
   window.addEventListener('pageshow',event=>{if(event.persisted)refreshAppearance()});
   let pageTheme=null;
   function updateMenuTheme() {
-    menu.dataset.theme=ownTheme||pageTheme||'';
-    const pinned=menu.dataset.theme==='zero-two' && pageTheme==='zero-two' && wide.matches && !menu.hidden;
+    menu.dataset.theme=ownTheme||'';
+    const pinned=false;
     if(pinned===menu.classList.contains('is-pinned')) return;
     menu.classList.toggle('is-pinned',pinned);
     document.body.classList.toggle('cinema-menu-pinned',pinned);
@@ -178,8 +178,9 @@
   function setUser(user) {
     revision++;
     accountId=user?.id||null;
+    setAccount(accountId);
     if(user)applyAccountTheme(user.theme);
-    else {ownTheme=null;paintTheme(lastTheme());updateMenuTheme()}
+    else {ownTheme=null;paintTheme(null);updateMenuTheme()}
     account.hidden=!user;
     const name=user?.nickname||'';
     nickname.textContent=name;
