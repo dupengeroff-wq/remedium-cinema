@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru" data-appearance-pending>
+<head>
+<meta charset="UTF-8">
+<style id="stage6-critical">/* First paint is neutral even while styles/scripts are still arriving. */
+html{color-scheme:dark;background:#060606}
+.appearance-gate{display:none}
+html[data-appearance-pending] #cinemaContent{visibility:hidden}
+html[data-appearance-pending] .appearance-gate{position:fixed;inset:0;z-index:101;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#f5f5f5;background:#060606;font:14px/1.4 system-ui,-apple-system,sans-serif;padding:18px 14px;text-align:center}
+.appearance-gate strong{font-size:13px;letter-spacing:.16em}
+.appearance-progress{width:min(260px,70vw);height:2px;background:#ffffff25;border-radius:4px;overflow:hidden}
+.appearance-progress::before{content:"";display:block;width:38%;height:100%;background:#fff;border-radius:4px}
+.appearance-slow,.appearance-retry{display:none}
+html[data-boot-slow][data-appearance-pending] .appearance-slow{display:block}
+html[data-boot-retry][data-appearance-pending] .appearance-retry{display:block}
+.appearance-retry{font:inherit;color:inherit;background:transparent;border:1px solid #777;border-radius:11px;min-height:44px;padding:8px 14px}
+</style>
+<script id="stage6-bootstrap">/* Stage6: one early, credentialed, no-store identity read; no theme cache. */
+(()=>{
+ const root=document.documentElement;
+ let slowTimer, retryTimer, armed=false;
+ const ctrl=typeof AbortController==='function'?new AbortController():null;
+ const deadline=setTimeout(()=>ctrl?.abort(),16000);
+ let first=fetch('/api/auth/me',{credentials:'same-origin',cache:'no-store',...(ctrl?{signal:ctrl.signal}:{})})
+   .then(async response=>({ok:response.ok,status:response.status,data:await response.json().catch(()=>({}))}))
+   .finally(()=>clearTimeout(deadline));
+ first.catch(()=>{}); // the ordered client consumes the same rejection
+ function arm(){
+   if(armed)return;armed=true;
+   slowTimer=setTimeout(()=>{if(root.hasAttribute('data-appearance-pending'))root.dataset.bootSlow='';},5000);
+   retryTimer=setTimeout(()=>{if(root.hasAttribute('data-appearance-pending'))root.dataset.bootRetry='';},20000);
+ }
+ function finish(){clearTimeout(slowTimer);clearTimeout(retryTimer);armed=false;delete root.dataset.bootSlow;delete root.dataset.bootRetry;}
+ window.CinemaBoot=Object.freeze({take(){const value=first;first=null;return value;},arm,finish});
+ const visibility=()=>{if(document.hidden)root.dataset.pageHidden='';else delete root.dataset.pageHidden;};
+ document.addEventListener('visibilitychange',visibility);visibility();
+ arm();
+})();</script>
+<script defer src="/theme-contract.js?v=stage3"></script>
+<script defer src="/assets/profile-themes/appearance.js?v=stage6"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#070707">
+<title>REMEDIUM CINEMA</title>
+<link rel="stylesheet" href="/social.css?v=stage3">
+<link rel="stylesheet" href="/profile-themes.css?v=stage3">
+<link rel="stylesheet" href="/assets/auth/auth.css?v=002">
+<link rel="stylesheet" href="/assets/profile-themes/site.css?v=stage5">
+<link rel="stylesheet" href="/assets/profile-themes/approved-tokens.css?v=041">
+<link rel="stylesheet" href="/assets/profile-themes/approved-layout.css?v=041">
+<link rel="stylesheet" href="/assets/profile-themes/default.css?v=041">
+<link rel="stylesheet" href="/assets/profile-themes/zero-two.css?v=041">
+<link rel="stylesheet" href="/assets/profile-themes/appearance-gate.css?v=041">
+<link rel="stylesheet" href="/assets/profile-themes/stage6-motion.css?v=stage6">
+<link rel="stylesheet" href="/assets/profile-themes/stage7-responsive.css?v=stage7">
+<link rel="stylesheet" href="/assets/profile-themes/stage8-ratings.css?v=stage8">
+</head>
+<body class="social-page">
+<div class="stage5-wallpaper" aria-hidden="true"><i class="zt-moon"></i><i class="zt-character"></i><i class="zt-water"></i><i class="zt-ambient"></i><i class="zt-veil"></i></div>
+<div class="appearance-gate" role="status"><strong>✦ REMEDIUM CINEMA</strong><span class="appearance-progress" aria-hidden="true"></span><span id="appearanceStatus">Открываем кинозал…</span><span class="appearance-slow">Сеть отвечает медленнее обычного…</span><button type="button" class="appearance-retry" onclick="location.reload()">Повторить загрузку</button><noscript>Для входа необходим JavaScript.</noscript></div>
+<div id="cinemaContent">
+<header class="social-top">
+  <div class="social-brand-group">
+    <button type="button" id="cinemaMenuToggle" class="cinema-menu-toggle" aria-label="Меню кинозала" aria-controls="cinemaMenu" aria-expanded="false" hidden>
+      <span class="menu-dots" aria-hidden="true"></span><span id="cinemaMenuUnread" class="unread" hidden></span>
+    </button>
+    <a class="social-brand" href="/">✦ REMEDIUM CINEMA</a>
+  </div>
+  <nav id="socialNav" aria-label="Навигация"></nav>
+</header>
+<main id="socialMain" class="social-main" aria-live="polite"></main>
+</div>
+<button type="button" id="cinemaMenuScrim" class="cinema-menu-scrim" aria-label="Закрыть меню" hidden></button>
+<aside id="cinemaMenu" class="cinema-menu" aria-labelledby="cinemaMenuTitle" hidden inert>
+  <div class="cinema-menu-head">
+    <h2 id="cinemaMenuTitle">Меню кинозала</h2>
+  </div>
+  <nav aria-label="Разделы кинозала"><ul class="cinema-menu-list"></ul></nav>
+</aside>
+<dialog id="socialDialog" class="social-dialog" aria-labelledby="socialDialogTitle">
+  <form method="dialog"><button type="submit" class="btn dialog-close" aria-label="Закрыть">×</button></form>
+  <div id="socialDialogContent"></div>
+</dialog>
+<script defer src="/socket.io/socket.io.js"></script>
+<script defer src="/account.js?v=stage6"></script>
+<script defer src="/assets/profile-themes/stage7-viewport.js?v=stage7"></script>
+<script defer src="/navigation.js?v=stage7"></script>
+<script defer src="/reconnect.js?v=stage3"></script>
+<script defer src="/social.js?v=stage9"></script>
+</body>
+</html>
