@@ -187,3 +187,15 @@ html[data-site-theme="zero-two"] .profile-history-tile .history-poster{border-co
 html[data-site-theme="zero-two"] .profile-avatar-frame{box-shadow:inset 0 0 7px #ff61965e,0 0 11px #ff3b746b}
 html[data-site-theme="zero-two"] .profile-avatar-frame::before{box-shadow:inset 0 0 0 1px #ff87aa90,inset 0 1px 5px #ff87aa35}
 html[data-site-theme="zero-two"] .profile-view .profile-shared .profile-shared-history.btn{background:none!important;border-color:transparent!important;box-shadow:none!important}
+
+/* Own profile: historical Sakura geometry, Zero Two artwork unchanged. */
+html[data-site-theme="zero-two"] .own-profile-card .profile-hero{align-items:flex-start;gap:clamp(12px,3vw,18px)}
+html[data-site-theme="zero-two"] .own-profile-card .profile-avatar-frame{width:clamp(100px,29vw,136px);height:clamp(100px,29vw,136px);flex:0 0 clamp(100px,29vw,136px);align-self:start}
+html[data-site-theme="zero-two"] .own-profile-card .profile-avatar-frame .social-avatar.large{font-size:32px}
+html[data-site-theme="zero-two"] .own-profile-card .profile-details{padding-block:3px;padding-inline-end:44px}
+html[data-site-theme="zero-two"] .own-profile-card .profile-hero h1{font-size:clamp(21px,5.6vw,28px);line-height:1.15;margin-bottom:5px}
+html[data-site-theme="zero-two"] .own-profile-card .profile-details p{font-size:13px;line-height:1.35;margin-bottom:5px}
+html[data-site-theme="zero-two"] .own-profile-card .profile-details p:last-child{font-size:14px;margin:0}
+html[data-site-theme="zero-two"] .own-profile-card .profile-tools{inset:6px 6px auto auto;gap:2px}
+html[data-site-theme="zero-two"] .own-profile-card .profile-tools .profile-edit-action{display:grid}
+html[data-site-theme="zero-two"] .profile-view .own-profile-card .approved-own-actions{display:none}
