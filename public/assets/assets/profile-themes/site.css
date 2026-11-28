@@ -1,0 +1,140 @@
+/* Legacy palettes only; approved Zero Two is isolated in zero-two.css. */
+
+html[data-site-theme="nefertiti"] {
+  --theme-line:#e7b765; --theme-base:#110d07; --theme-art:url("./nefertiti-night.webp");
+}
+html[data-site-theme="hello-kitty-pink"] {
+  --theme-line:#f8a9cd; --theme-base:#190f16; --theme-art:none;
+}
+html[data-site-theme="sakura-night"] {
+  --theme-line:#eca3bd; --theme-base:#150d16; --theme-art:url("./sakura-night.webp");
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) {
+  --theme-ink:color-mix(in srgb, white 92%,var(--theme-line));
+  --theme-muted:color-mix(in srgb,#ccc 70%,var(--theme-line));
+  --theme-field:color-mix(in srgb,var(--theme-base) 91%,var(--theme-line));
+  --theme-border:color-mix(in srgb,var(--theme-line) 64%,var(--theme-base));
+  --theme-panel:linear-gradient(145deg,var(--theme-field),var(--theme-base) 74%);
+  --theme-button:linear-gradient(155deg,color-mix(in srgb,var(--theme-line) 22%,var(--theme-base)),var(--theme-base));
+  --theme-active:linear-gradient(140deg,color-mix(in srgb,var(--theme-line) 39%,var(--theme-base)),var(--theme-field));
+  --theme-glow:inset 0 1px 0 #ffffff15,0 0 12px color-mix(in srgb,var(--theme-line) 18%,transparent);
+}
+
+/* The root is set from the active page (profile owner, otherwise signed-in account). Dialogs in the browser top layer
+   and panels mounted directly in body inherit the same controls and surfaces. */
+html[data-site-theme]:not([data-site-theme="zero-two"]) {
+  color-scheme:dark;--bg:var(--theme-base);--accent:var(--theme-line);--pink:var(--theme-line);--cyan:var(--theme-ink);
+  --surface:var(--theme-field);--surface2:var(--theme-field);--border:var(--theme-border);
+  --text:var(--theme-ink);--muted:var(--theme-muted);accent-color:var(--theme-line);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) body {
+  --glass-line:var(--theme-border);--glass-muted:var(--theme-muted);--glass-surface:var(--theme-panel);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) body:is(.cinema-page,.social-page:not(.profile-page)) {
+  background:linear-gradient(180deg,transparent,var(--bg) 100%) top / 100% clamp(240px,46vh,550px) no-repeat,var(--theme-art) right top / auto clamp(240px,46vh,550px) no-repeat,var(--bg)!important;color:var(--theme-ink);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.social-top,.cinema-header,.direct-head,.cinema-tool-head,.settings-section,.settings-form,.privacy-row,.chathead,.chatinput,.direct-compose,.dialog-row) {
+  border-color:color-mix(in srgb,var(--theme-line) 32%,transparent);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.social-dialog,.cinema-tool,#finishMovieDialog,.picker,.room-reactions,.toast,.site-question,.auth-panel,.auth-about,.auth-menu),
+html[data-site-theme]:not([data-site-theme="zero-two"]) #entry .modal,
+html[data-site-theme]:not([data-site-theme="zero-two"]) #watchlist.cinema-tool {
+  color:var(--theme-ink);border-color:var(--theme-border)!important;background:var(--theme-panel)!important;
+  box-shadow:var(--theme-glow),0 16px 45px #0008!important;
+}
+
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.social-dialog,.cinema-tool,.site-question,.auth-about)::backdrop {
+  background:#080609eb;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.person-row,.history-row,.feature-entry,.roulette-stage,.direct-bubble,.auth-input,.auth-code-box pre,#watchlist.cinema-tool .watch-item) {
+  color:var(--theme-ink);background:var(--theme-field)!important;border-color:var(--theme-border)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .direct-bubble.mine,
+html[data-site-theme]:not([data-site-theme="zero-two"]) .dialog-row[aria-current="page"] {
+  background:var(--theme-active)!important;border-color:var(--theme-border);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.direct-meta,.feature-note,.watch-note,.form-status,.account-field,.auth-panel p,.auth-guide dd,.muted) {color:var(--theme-muted)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.form-status:not(:empty),[role="alert"],#finishMovieStatus:not(:empty)) {color:#ffd7b3}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.unread,.cinema-nav-count:not(:empty)) {background:var(--theme-border);color:white}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.accent,.eyebrow,.social-back,.profile-crown,#roleCrown,.auth-icon,.auth-panel small,.star-point) {color:var(--theme-line)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.field,select,.profile-settings .field,#watchlist .watch-actions select) {
+  color:var(--theme-ink)!important;border-color:var(--theme-border)!important;background:var(--theme-field)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) select option {background:var(--theme-field);color:var(--theme-ink)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.field,.auth-input input)::placeholder {color:var(--theme-muted)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.btn:not(.profile-edit),.iconbtn,.cinema-tool-close,.cinema-menu-toggle,.choice,.my-badge,.picker-close,.sound-prompt,#watchlist .watch-actions button) {
+  color:var(--theme-ink)!important;border-color:var(--theme-border)!important;background:var(--theme-button)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.btn.primary,#load,#send,.auth-submit,.auth-tabs .btn[aria-pressed="true"],.room-reactions .btn[aria-pressed="true"],.choice.active),
+html[data-site-theme]:not([data-site-theme="zero-two"]) #playerShell .controls #play[aria-pressed="true"] {
+  background:var(--theme-active)!important;border-color:var(--theme-line)!important;color:var(--theme-active-text,#fff)!important;box-shadow:var(--theme-glow)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .auth-universe .auth-input .btn,
+html[data-site-theme]:not([data-site-theme="zero-two"]) .auth-universe .auth-menu .btn {background:transparent!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.btn:not(:disabled),.iconbtn:not(:disabled),.dialog-row):hover {
+  border-color:var(--theme-line)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :focus-visible {outline-color:var(--theme-line)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .auth-input:focus-within,
+html[data-site-theme]:not([data-site-theme="zero-two"]) .field:focus-visible {border-color:var(--theme-line)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .profile-settings .privacy-row input:checked {background:var(--theme-border);border-color:var(--theme-line)}
+
+html[data-site-theme]:not([data-site-theme="zero-two"]) #cinemaChat:not([hidden]),
+html[data-site-theme]:not([data-site-theme="zero-two"]) #playerShell:not(.is-fullscreen) {
+  border-color:var(--theme-border)!important;background:var(--theme-panel)!important;box-shadow:var(--theme-glow)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #cinemaChat :is(.chathead,.chatinput),
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(#playerShell:not(.is-fullscreen) .controls,.movieform) {
+  background:var(--theme-field)!important;border-color:var(--theme-border);
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #cinemaChat :is(.bubble,.chatinput .field) {
+  background:var(--theme-field)!important;border-color:var(--theme-border)!important;
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #cinemaChat .msg.mine .bubble {background:var(--theme-field)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #cinemaChat #send {background:var(--theme-active)!important;border-color:var(--theme-line)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #playerShell .controls .iconbtn {background:var(--theme-button)!important;border-color:var(--theme-border)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) #playerShell .controls .seek {accent-color:var(--theme-line)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .roulette-card-winner {border-color:var(--theme-line)!important;box-shadow:0 0 16px var(--theme-line)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .site-question {
+  box-sizing:border-box;width:min(26rem,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:auto;
+  padding:18px;border:1px solid var(--theme-border);font:16px/1.45 system-ui,sans-serif;
+}
+.site-question form {display:grid;gap:14px}
+.site-question p {margin:0;overflow-wrap:anywhere}
+.site-question .field {width:100%;min-width:0;box-sizing:border-box;padding:10px;font:inherit;border:1px solid}
+.site-question .question-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.site-question .btn {min-height:44px;border:1px solid;padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+@media(max-width:719px){
+  html[data-site-theme]:not([data-site-theme="zero-two"]) :is(input.field,textarea.field,select.field) {font-size:16px}
+  
+}
+@media(max-width:359px){
+  
+  
+}
+
+html[data-site-theme]:not([data-site-theme="zero-two"]) .auth-universe[open] {height:var(--cinema-visible-height,100dvh)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.cinema-tool,.social-dialog,.site-question,.auth-about,#finishMovieDialog) {
+  max-height:calc(var(--cinema-visible-height,100dvh) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.twin-stars,.roulette-card,.chip,.choice,.feature-entry,.history-poster,.wish-visual,.reaction) {border-color:var(--theme-border)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.twin-stars,.chip,.wish-visual) {background:var(--theme-field)!important}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .watch-actions :is(select,button):focus-visible {outline-color:var(--theme-line)}
+
+
+html[data-site-theme]:not([data-site-theme="zero-two"]) #socialMain .profile-actions .btn.primary {
+  background:var(--theme-active)!important;color:var(--theme-active-text)!important;
+  --theme-active-text:#1c1117;
+  --theme-active:linear-gradient(165deg,color-mix(in srgb,white 83%,var(--theme-line)),var(--theme-line));
+}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .profile-view .profile-actions .btn:disabled {opacity:.62;cursor:default}
+.settings-photo:empty {display:none}
+.profile-page .profile-view .profile-avatar-frame.fixed-portrait {
+  display:block;position:relative;flex:none;width:var(--zero-avatar-size,clamp(112px,29vw,200px));aspect-ratio:1;
+}
+.profile-page .profile-view .fixed-portrait::after {content:none}
+.fixed-portrait .zero-portrait {display:block;width:100%;height:100%;object-fit:contain}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.cinema-menu,.friends-panel,.dialogs-layout) {color:var(--theme-ink);border-color:var(--theme-border)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .cinema-menu {background:var(--theme-panel)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) .cinema-nav-row[aria-current="page"] {background:var(--theme-active)}
+html[data-site-theme]:not([data-site-theme="zero-two"]) :is(.friends-panel,.dialogs-layout) {background:var(--theme-panel)}
