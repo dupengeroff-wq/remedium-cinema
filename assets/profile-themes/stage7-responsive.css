@@ -1,0 +1,144 @@
+/* Stage 7 — shared adaptation only: preserve the approved theme layers.
+   Safe-area variables are browser env() values; fixture overrides only in tests. */
+:root{
+ --rc-safe-top:env(safe-area-inset-top,0px);--rc-safe-right:env(safe-area-inset-right,0px);
+ --rc-safe-bottom:env(safe-area-inset-bottom,0px);--rc-safe-left:env(safe-area-inset-left,0px);
+ --rc-vh:var(--rc-visible-height,100vh);
+ --rc-vtop:var(--rc-visible-top,0px);--rc-vbottom:var(--rc-visible-bottom,0px);
+ --rc-vleft:var(--rc-visible-left,0px);--rc-vright:var(--rc-visible-right,0px);
+}
+@supports(height:100dvh){:root{--rc-vh:var(--rc-visible-height,100dvh)}}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) :is(.wrap,.social-main,.social-top){
+ padding-left:max(var(--rc-gutter),var(--rc-safe-left));padding-right:max(var(--rc-gutter),var(--rc-safe-right));
+}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cinema-page .cinema-header{
+ height:calc(var(--rc-header-h) + var(--rc-safe-top));padding-top:var(--rc-safe-top)
+}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .social-top{
+ min-height:calc(var(--rc-header-h) + var(--rc-safe-top));padding-top:max(8px,var(--rc-safe-top))
+}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .social-main{padding-bottom:max(24px,var(--rc-safe-bottom))}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .wrap{padding-bottom:max(24px,var(--rc-safe-bottom))}
+html .cinema-menu:not(.is-pinned){
+ top:var(--rc-vtop);left:var(--rc-vleft);block-size:var(--rc-vh);
+ max-height:var(--rc-vh);padding-top:max(14px,var(--rc-safe-top));
+ padding-right:max(14px,var(--rc-safe-right));padding-bottom:max(14px,var(--rc-safe-bottom));padding-left:max(14px,var(--rc-safe-left))
+}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cinema-menu:not(.is-pinned){
+ padding:max(14px,var(--rc-safe-top)) max(14px,var(--rc-safe-right)) max(14px,var(--rc-safe-bottom)) max(14px,var(--rc-safe-left))
+}
+html[data-viewport-short] .cinema-menu .cinema-menu-scroll nav{flex:none;overflow:visible}
+html[data-viewport-short] .cinema-menu-scroll .cinema-menu-head{position:sticky;top:0;z-index:1;background:var(--zero-field,#0c0c0c)}
+/* Native top-layer dialogs remain native. Insets and height are measured from
+   the visible viewport, not the keyboard-obscured layout viewport. */
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) :is(.cinema-tool,.social-dialog,.site-question,#finishMovieDialog,.auth-about){
+ position:fixed;inset:calc(var(--rc-vtop) + var(--rc-safe-top)) calc(var(--rc-vright) + var(--rc-safe-right)) calc(var(--rc-vbottom) + var(--rc-safe-bottom)) calc(var(--rc-vleft) + var(--rc-safe-left));
+ margin:auto;max-width:max(0px,calc(100% - 24px - var(--rc-safe-left) - var(--rc-safe-right) - var(--rc-vleft) - var(--rc-vright)));
+ max-height:max(0px,calc(var(--rc-vh) - 24px - var(--rc-safe-top) - var(--rc-safe-bottom)));
+ min-height:0;box-sizing:border-box;overscroll-behavior:contain
+}
+html :is(.cinema-tool-body,.social-dialog,.auth-about){overflow-y:auto;overscroll-behavior:contain;scroll-padding-block:12px}
+html .cinema-tool-head h2{min-width:0;overflow-wrap:anywhere}
+html .cinema-tool-body{min-width:0}
+html .auth-universe[open]{
+ top:var(--rc-vtop);left:var(--rc-vleft);right:var(--rc-vright);bottom:var(--rc-vbottom);
+ height:var(--rc-vh);max-height:var(--rc-vh);width:var(--rc-visible-width,100%);max-width:100%;
+ overflow-y:auto;scroll-padding-block:12px;
+}
+html .auth-top{padding-top:max(12px,var(--rc-safe-top));padding-inline:max(18px,var(--rc-safe-left)) max(18px,var(--rc-safe-right))}
+html .auth-layout{min-width:0;padding-bottom:max(24px,var(--rc-safe-bottom))}
+@media(max-width:780px){html .auth-layout{padding-inline:max(14px,var(--rc-safe-left)) max(14px,var(--rc-safe-right))}}
+html[data-viewport-short] .auth-layout{margin-block:0 auto;flex:none;padding-top:10px}
+html[data-viewport-short] .auth-universe .auth-guide{min-height:0}
+html :is(#entry,.picker-overlay,.appearance-gate){
+ max-height:var(--rc-vh);box-sizing:border-box
+}
+html:is([data-appearance-pending],[data-appearance-revealed]) .appearance-gate{
+ top:var(--rc-vtop);bottom:var(--rc-vbottom);
+ padding:max(18px,var(--rc-safe-top)) max(14px,var(--rc-safe-right)) max(18px,var(--rc-safe-bottom)) max(14px,var(--rc-safe-left));
+}
+html #entry:not(.hidden),html .picker-overlay:not(.hidden){
+ top:var(--rc-vtop);bottom:var(--rc-vbottom);overflow-y:auto;overscroll-behavior:contain;
+ padding-left:max(14px,var(--rc-safe-left));padding-right:max(14px,var(--rc-safe-right))
+}
+html #entry .modal,html .picker{max-width:100%;min-width:0;overflow-wrap:anywhere}
+html[data-viewport-short] #entry:not(.hidden){align-items:safe center;padding-block:max(12px,var(--rc-safe-top)) max(12px,var(--rc-safe-bottom))}
+html[data-viewport-short] #entry .modal{max-height:max(0px,calc(var(--rc-vh) - var(--rc-safe-top) - var(--rc-safe-bottom) - 24px));overflow-y:auto}
+/* Reflow long text and keep composer outside the scrollable history. */
+html :is(.profile-details,.direct-head,.direct-head .grow,.person-row .grow,.dialog-row .grow,.history-row .grow,.watch-info,.profile-settings,.auth-panel){min-width:0;overflow-wrap:anywhere}
+html :is(.direct-head,.direct-compose,.chatinput,.chathead){flex-shrink:0;min-width:0}
+html :is(.direct-room,.direct-stream,.messages,.dialog-list){min-width:0;min-height:0}
+html .direct-stream{overflow-y:auto;overscroll-behavior:contain}
+html .direct-meta{flex-wrap:wrap;overflow-wrap:anywhere}
+html .direct-compose textarea{flex:1 1 auto;min-width:0;max-width:100%}
+html .direct-compose .direct-send,html #cinemaChat #send{flex:0 0 44px;min-width:44px;min-height:44px}
+html .chatinput input{flex:1 1 0;min-width:0}
+html .chat-status{min-width:0;flex-wrap:wrap;justify-content:flex-end}
+html :is(.direct-stream,.messages){scroll-padding-bottom:12px}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .dialogs-layout.open .direct-room{
+ height:clamp(160px,calc(var(--rc-vh) - 110px - var(--rc-safe-top) - var(--rc-safe-bottom)),610px);
+}
+html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .direct-compose{padding-bottom:var(--rc-safe-bottom)}
+/* 700px single consistent breakpoint; very short viewports do not retain
+   a tall minimum. The page remains scrollable if even 160px cannot fit. */
+@media(min-width:700px){html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .dialogs-layout{display:grid}}
+html[data-viewport-short] .dialogs-layout{min-height:0}
+html[data-viewport-short] .direct-room{overflow-y:auto}
+html[data-viewport-short] .direct-stream{min-height:32px}
+html[data-viewport-short] .direct-compose textarea.field{max-height:72px}
+html[data-viewport-short]:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cinema-page #cinemaChat:not([hidden]){
+ height:clamp(200px,calc(var(--rc-vh) - 52px - var(--rc-safe-top) - var(--rc-safe-bottom)),290px)
+}
+@media(min-width:900px) and (max-width:1199px) and (min-height:501px){
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cinema-page .stage{grid-template-columns:minmax(0,1fr) minmax(265px,.57fr)}
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) #playerShell{grid-column:1;grid-row:1}
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cinema-page #cinemaChat:not([hidden]){grid-column:2;grid-row:1/span 4;height:clamp(290px,46dvh,480px)}
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) #movieSetup{grid-column:1;grid-row:2}
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .cosmos-features{grid-column:1;grid-row:3}
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .meta{grid-column:1;grid-row:4}
+}
+/* Focus rings and touch geometry do not replace theme colors. */
+html :is(button,a[href],input,textarea,select,summary):focus-visible{outline:2px solid var(--rc-focus,#f5f5f5);outline-offset:2px}
+html :is(.profile-edit,.profile-theme-toggle,.direct-head .btn,.dialog-close,.cinema-tool-close){touch-action:manipulation}
+html .direct-head .btn{min-height:44px}
+html .profile-settings .privacy-row{min-height:44px}
+html :is(input.field,textarea.field,select.field,.auth-input input){font-size:16px}
+@media(max-width:430px),(pointer:coarse){
+ html #playerShell .controls .iconbtn{flex-basis:44px;width:44px;min-width:44px;height:44px;min-height:44px}
+ html #playerShell .controls .seek{height:32px;min-height:32px}
+ html #watchlist .watch-actions{grid-column:1/-1!important;grid-row:3!important;grid-template-columns:minmax(0,1fr) 44px 44px!important;gap:6px!important}
+ html #watchlist .watch-actions button{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;min-height:44px!important}
+ html #watchlist .watch-actions select{font-size:16px!important;min-height:44px!important}
+ html .profile-history-details .history-cover-edit.btn{min-width:44px;min-height:44px}
+ html .profile-more-stats summary{min-height:44px}
+ html .direct-meta .btn{min-height:44px;min-width:44px}
+}
+@media(max-width:350px){
+ html:is(:not([data-site-theme]),[data-site-theme="zero-two"]) .profile-view .profile-shared .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ html .direct-head{flex-wrap:wrap;gap:6px}
+ html .direct-head .grow{flex:1 1 120px}
+ html .profile-actions .btn,html .movie-invite-friend .btn{white-space:normal}
+ html .auth-tabs{flex-wrap:wrap}
+}
+@media(hover:none){html .btn:hover:not(:disabled),html #playerShell .controls .iconbtn:hover:not(:disabled){transform:none}}
+/* Fullscreen keeps the original video/iframe attached. Safe controls, letterbox,
+   and scroll-independent CSS fallback (native fullscreen is unchanged). */
+html body.cinema-open{overflow:hidden!important;overscroll-behavior:none}
+html #playerShell.is-fullscreen.is-fallback{
+ top:var(--rc-vtop)!important;left:var(--rc-vleft)!important;right:auto!important;bottom:auto!important;
+ width:var(--rc-visible-width,100%)!important;height:var(--rc-vh)!important
+}
+html #playerShell.is-fullscreen .controls{
+ padding-left:max(12px,var(--rc-safe-left));padding-right:max(12px,var(--rc-safe-right));
+ padding-bottom:max(14px,var(--rc-safe-bottom));
+}
+html #playerShell.is-fullscreen .screen-top{
+ top:max(16px,var(--rc-safe-top));left:max(12px,var(--rc-safe-left));right:max(12px,var(--rc-safe-right))
+}
+html #playerShell.is-fullscreen :is(video,.embed iframe){object-fit:contain}
+@media(max-height:480px) and (orientation:landscape){
+ html #playerShell.is-fullscreen .controls{padding-top:12px;padding-bottom:max(8px,var(--rc-safe-bottom));gap:6px}
+ html #playerShell.is-fullscreen .screen-bottom{display:none}
+}
+/* Never force landscape, disable zoom or stretch artwork. The approved
+   backdrop rules keep their crop and original image. */
