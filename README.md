@@ -1,40 +1,31 @@
-# REMEDIUM CINEMA
+# REMEDIUM CINEMA — Stage 3 critical fixes
 
-Node.js, Express и Socket.IO обслуживают кинозал. PostgreSQL хранит аккаунты, сеансы, комнаты, дружбу, личную переписку, приватность и подтверждённые просмотры. Фото профиля хранятся в закрытом бакете Supabase Storage. Личный каталог фильмов остаётся в браузере.
+Existing Node.js / Express / Socket.IO / PostgreSQL application based on the approved Stage 2 structure. **READY FOR REVIEW**, not a production-ready release or deployment instruction. Stage 1 and 2 were approved; Stage 4 has not started.
 
-[Инструкция по обновлению GitHub, подключению Neon, Render и резервным копиям](SETUP_RU.md).
+## Structure
+- `server.js`: stable entry; `src/server/`: HTTP, realtime, DB, domain modules.
+- `public/`: two original HTML shells, classic browser scripts, styles and original image assets.
+- `lib/` and `media.js`: compatibility ESM facades.
+- `migrations/`: historical 001–010 preserved byte-for-byte; 011 changes only future profile theme default to `none`.
+- `test/`: integration suite (requires lockfile dependencies) and dependency-free Stage2/3 regression tests.
+- `docs/`: reports, approved baseline, blocked checks and decisions.
 
-## Запуск
-
-Нужен Node.js 22 или новее. Укажи `DATABASE_URL` и `APP_ORIGIN` в окружении. Для входа открывай приложение по HTTPS, чтобы браузер передавал защищённую cookie. При первом обращении к PostgreSQL сервер применит миграцию.
-
+## Local checks (no database or network)
+Node >=22; use the exact lockfile. Current verified environment: see `docs/TEST_ENVIRONMENT.md`.
 ```sh
-npm ci
-npm start
+npm run check
+npm run test:structure
+npm run test:stage3
 ```
 
-Порт берётся из `PORT` (по умолчанию 3000). `/health` проверяет процесс, `/ready` проверяет соединение с базой и выполнение миграций. `npm test` поднимает свой тестовый PostgreSQL-движок и сервер.
+## Isolated integration environment only
+Do **not** start this version against existing real data. `npm start` and `/ready` no longer apply migrations; incomplete schema results in failed readiness/DB-dependent requests. Production schema upgrade is **not authorized**, and the migration CLI in this package only accepts an explicitly opted-in loopback test DB. No tunnels/proxies to external databases.
 
-## Как пользоваться
+After an approved, separate local disposable environment has the locked dependencies:
+```sh
+npm ci
+npm test
+```
+The integration test initializes its own PGlite loopback, creates synthetic fixtures and explicitly runs the migration CLI. For additional manual tests, follow `docs/STAGE3_BLOCKED_EXECUTION_PLAN.md`. Never pass production secrets or real user data.
 
-- После входа открывается свой кинозал. Приглашение даёт второму аккаунту доступ к комнате. Регистрация происходит по логину и паролю, дружба подтверждается отдельной заявкой.
-- Кнопка «⋯» открывает боковое меню на всех страницах. На компьютере свёрнутое меню оставляет полоску иконок. Чат кинозала расположен под плеером. Красный счётчик у «Сообщений» показывает число непрочитанных.
-- На своей странице доступны «Редактировать профиль» и «Друзья». На чужой странице «Сообщение» открывает диалог с владельцем, а «Друзья» отображается при открытом списке.
-- Для смены аватара открой «Редактировать профиль», выбери фото и нажми «Загрузить фото». Для работы загрузки у сервиса Render должны быть заданы `SUPABASE_URL` и `SUPABASE_SECRET_KEY`. По умолчанию используется закрытый бакет `avatars`. Если сервер отклонит загрузку, причина появится рядом с кнопкой.
-- До принятия заявки переписка недоступна. После удаления друга старый диалог доступен для чтения. Своё сообщение можно удалить у обоих участников. «Скрыть» убирает диалог только из своего списка, а при новом сообщении он появляется снова.
-- При регистрации выдаются восемь резервных кодов. Каждый можно использовать один раз. Владелец может завершать сеансы и выпускать новые коды в настройках профиля.
-- Просмотр начисляется полными интервалами по пять секунд, когда плеер передаёт состояние и подтверждает движение видео. Совместное время считается по совпавшим интервалам в одном сеансе. Дни считаются по UTC.
-- История просмотров доступна в профиле. Владелец комнаты может нажать на обложку или заглушку и подтвердить постер из каталога либо сохранить его по HTTPS-ссылке. Выбранная обложка действует на записи этого видео из той же комнаты. Для поиска по названию за пределами каталога сайта добавь на Render переменную `TMDB_READ_TOKEN` со значением API Read Access Token из настроек TMDB.
-- Для старых просмотров сервер ищет сохранённые названия и ссылки, относящиеся именно к исходному видео. По сохранившейся ссылке YouTube можно получить превью, а для доступных видео VK можно подключить `VK_VIDEO_READ_TOKEN` с правом вызова `video.get`. Токены используются только сервером.
-- Владелец кинозала может завершить текущий сеанс через «⋯» рядом со стрелкой «Поделиться» в свёрнутом плеере. Продолжительность в истории отражает подтверждённое время просмотра.
-- YouTube и VK могут ограничивать встраивание, регион или доступ. Для приватного VK-видео используй код встраивания с `hash`. Если встраиваемый плеер не отдаёт состояние и время, просмотр работает в пределах его возможностей, а статистика не начисляется.
-
-Фон переписки использует [Moon Mosaic](https://svs.gsfc.nasa.gov/5001/) от NASA’s Scientific Visualization Studio.
-
-## Обновление Zero Two (002)
-
-Распакуйте содержимое полного архива в корень существующего проекта. В этом каталоге должны лежать `package.json`, `server.js`, `index.html` и папки `assets`, `lib`, `migrations`, `posters`. Папка для оформления входа называется `assets/auth/`, без пробелов. При обновлении через GitHub Desktop проверьте изменения и отправьте их в ветку, подключённую к Render. После развёртывания проверьте `/ready`. В рабочем сервисе используйте прежние подключения к PostgreSQL и хранилищу изображений.
-
-Миграция `010_zero_two.sql` выполняется существующим механизмом при первом подключении. Новым профилям назначается Zero Two. Сохранённая Hello Kitty, Нефертити или Сакура открывается с прежним выбором. Старый ключ `sakura` соответствует Сакуре. Остальные снятые темы отображаются как Zero Two до нового выбора пользователя.
-
-Корона владельца следует за единственным аккаунтом с серверной ролью `creator`. Если у владельца другая роль, укажите его постоянный UUID в `REMEDIUM_OWNER_USER_ID`. Для женской короны задайте `REMEDIUM_EVA_USER_ID` в настройках Environment сервиса Render. UUID можно скопировать из ссылки на профиль, открытый из списка друзей, после `/profile/`. Пустое значение для Евы оставляет корону неназначенной. Эти параметры определяют только значок и не предоставляют прав.
+Legacy instructions in `docs/legacy` are historical and not authorization for deployment. **Do not overlay archive files on the deployed app.** The future release process and schema readiness gates will require separate approval.

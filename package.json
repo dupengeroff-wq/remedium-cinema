@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/check.mjs",
-    "test": "npm run check && node --test test/*.test.js"
+    "test": "npm run check && node --test test/*.test.js",
+    "test:structure": "node --test test/architecture.test.js",
+    "migrate": "node scripts/migrate.mjs",
+    "test:stage3": "node --test test/stage3.test.js"
   },
   "engines": {
     "node": ">=22.0.0"
