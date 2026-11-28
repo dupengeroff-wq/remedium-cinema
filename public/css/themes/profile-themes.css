@@ -267,3 +267,6 @@ body.profile-page:is([data-profile-theme="nefertiti"],[data-profile-theme="sakur
 
 .profile-page .profile-crown{display:inline-flex;vertical-align:baseline;color:rgb(var(--profile-accent-rgb,238 189 67))}
 .profile-page .profile-crown .social-icon{width:.93em;height:.93em;stroke-width:1.6}
+
+/* Remove the side friends icon in every profile theme. */
+.profile-tools .profile-friends-action{display:none!important}
